@@ -1,0 +1,424 @@
+﻿<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8" />
+  <meta name=ProgId content=Word.Document>
+  <title>Service Quotation — QT-CIB-2026-001</title>
+  <style>
+    body {
+      font-family: Calibri, Arial, sans-serif;
+      font-size: 11pt;
+      color: #1A1A2E;
+      margin: 2cm 2.5cm;
+      line-height: 1.4;
+    }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16pt; }
+    td, th { padding: 7pt 10pt; vertical-align: top; }
+
+    /* ── Header band ── */
+    .header-band td {
+      background: #3B82F6;
+      color: white;
+      font-size: 10pt;
+      padding: 10pt 14pt;
+    }
+
+    /* ── From / To block ── */
+    .party-table td { border: 1pt solid #E5E7EB; font-size: 10.5pt; }
+    .party-label {
+      font-size: 8pt; font-weight: bold; color: #9CA3AF;
+      text-transform: uppercase; letter-spacing: 0.8pt;
+      display: block; margin-bottom: 4pt;
+    }
+    .party-name  { font-size: 13pt; font-weight: bold; color: #1A1A2E; }
+    .party-sub   { font-size: 10pt; color: #6B7280; }
+
+    /* ── Subject box ── */
+    .subject-box td {
+      background: #EFF6FF;
+      border: 1pt solid #BFDBFE;
+      font-size: 11pt; font-weight: bold;
+      color: #1A1A2E;
+    }
+
+    /* ── Section heading ── */
+    .sec-head {
+      font-size: 9pt; font-weight: bold; color: #3B82F6;
+      text-transform: uppercase; letter-spacing: 1pt;
+      border-bottom: 1.5pt solid #3B82F6;
+      padding-bottom: 4pt; margin: 18pt 0 10pt;
+    }
+
+    /* ── Plan summary table ── */
+    .plan-head th {
+      background: #1A1A2E; color: #6366f1;
+      font-size: 9.5pt; font-weight: bold;
+      text-align: center; padding: 8pt 10pt;
+    }
+    .plan-head th:first-child { color: white; text-align: left; }
+
+    .plan-row td { border-bottom: 0.5pt solid #E5E7EB; font-size: 10pt; }
+    .plan-row td:not(:first-child) { text-align: center; }
+    .plan-row-alt td { background: #EFF6FF; }
+
+    .plan-price td {
+      background: #1A1A2E; color: white;
+      font-size: 13pt; font-weight: bold;
+      text-align: center; padding: 10pt;
+    }
+    .plan-price td:first-child { text-align: left; font-size: 11pt; color: #6366f1; }
+
+    .check { color: #10B981; font-weight: bold; }
+    .cross { color: #ef4444; }
+
+    /* ── Infra table ── */
+    .infra-head th {
+      background: #1A1A2E; color: #6366f1;
+      font-size: 9pt; font-weight: bold; padding: 8pt 10pt;
+    }
+    .infra-head th:first-child { color: white; }
+    .infra-row td { border-bottom: 0.5pt solid #E5E7EB; font-size: 9.5pt; }
+    .infra-row-alt td { background: #EFF6FF; }
+    .infra-total td {
+      background: #3B82F6; color: white;
+      font-size: 11pt; font-weight: bold;
+      text-align: center; padding: 9pt 10pt;
+    }
+    .infra-total td:first-child { text-align: left; }
+
+    /* ── Feature ticks ── */
+    .feat-table td { border-bottom: 0.5pt solid #F3F4F6; font-size: 10pt; padding: 6pt 10pt; }
+    .feat-head th { background: #374151; color: white; font-size: 9pt; padding: 7pt 10pt; text-align: center; }
+    .feat-head th:first-child { text-align: left; }
+
+    /* ── Terms ── */
+    .terms-box td {
+      background: #F9F9FB; border: 1pt solid #E5E7EB;
+      font-size: 9.5pt; color: #374151; line-height: 1.6;
+    }
+
+    /* ── Signature ── */
+    .sig-table td { border-top: 1pt solid #E5E7EB; padding: 8pt 14pt 4pt; font-size: 10pt; }
+
+    /* ── Print ── */
+    @media print {
+      body { margin: 1.5cm 2cm; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     OPEN IN MICROSOFT WORD → EDIT PRICES/TEXT → FILE > SAVE AS PDF
+     ═══════════════════════════════════════════════════════ -->
+
+<!-- Header -->
+<table class="header-band">
+  <tr>
+    <td style="width:60%">
+      <span style="font-size:18pt;font-weight:900;letter-spacing:-0.5pt;">INSURESAAS</span><br>
+      <span style="font-size:9pt;opacity:0.85;">Insurance Brokerage Management Portal — Service Quotation</span>
+    </td>
+    <td style="text-align:right;vertical-align:middle;">
+      <span style="font-size:9pt;font-weight:bold;">QT-CIB-2026-001</span><br>
+      <span style="font-size:9pt;" id="doc-date"><!-- Date auto-set below --></span>
+    </td>
+  </tr>
+</table>
+
+<!-- From / To -->
+<table class="party-table">
+  <tr>
+    <td style="width:50%">
+      <span class="party-label">Quotation Prepared By</span>
+      <div class="party-name">Shenal Gunasekara</div>
+      <div class="party-sub">Software Developer &amp; Systems Architect</div>
+      <div class="party-sub">shenalgunsekera@gmail.com</div>
+    </td>
+    <td style="width:50%">
+      <span class="party-label">Prepared For</span>
+      <div class="party-name">InsureSAAS Ltd</div>
+      <div class="party-sub">InsureSAAS &amp; Risk Management</div>
+      <div class="party-sub">Sri Lanka</div>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <span class="party-label">Quotation Reference</span>
+      <div style="font-size:11pt;font-weight:bold;color:#3B82F6;font-family:Courier New;">QT-CIB-2026-001</div>
+    </td>
+    <td>
+      <span class="party-label">Validity</span>
+      <div style="font-size:10.5pt;font-weight:bold;">30 days from date of issue</div>
+    </td>
+  </tr>
+</table>
+
+<!-- Subject -->
+<table class="subject-box">
+  <tr>
+    <td>
+      <span style="font-size:8pt;font-weight:bold;color:#3B82F6;text-transform:uppercase;letter-spacing:0.8pt;display:block;margin-bottom:4pt;">Subject</span>
+      Quotation for Custom Insurance Brokerage Management Portal — SaaS Monthly Subscription Pricing 2026
+    </td>
+  </tr>
+</table>
+
+<!-- ══════════════════ PLAN OVERVIEW ══════════════════ -->
+<div class="sec-head">Monthly Subscription Plans</div>
+<table>
+  <thead class="plan-head">
+    <tr>
+      <th style="width:35%">Feature</th>
+      <th style="width:21.6%">Basic — Starter</th>
+      <th style="width:21.6%">Professional ⭐</th>
+      <th style="width:21.6%">Advanced — Enterprise</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="plan-row">
+      <td style="font-size:9pt;color:#6B7280;">Staff Accounts</td>
+      <td>Up to 3</td><td>Up to 10</td><td>Unlimited</td>
+    </tr>
+    <tr class="plan-row plan-row-alt">
+      <td style="font-size:9pt;color:#6B7280;">Client Records</td>
+      <td>Up to 500</td><td>Up to 2,000</td><td>Unlimited</td>
+    </tr>
+    <tr class="plan-row">
+      <td style="font-size:9pt;color:#6B7280;">Insurance Products</td>
+      <td>3 products</td><td>All 6 products</td><td>All 6 products</td>
+    </tr>
+    <tr class="plan-row plan-row-alt">
+      <td style="font-size:9pt;color:#6B7280;">Modules</td>
+      <td>Quotations, Underwriting, Renewals, Reports</td>
+      <td>All modules incl. Claims &amp; Admin</td>
+      <td>All modules + Multi-branch</td>
+    </tr>
+    <tr class="plan-row">
+      <td style="font-size:9pt;color:#6B7280;">Document &amp; Image Storage</td>
+      <td>25GB (Cloudinary Free)</td>
+      <td>100GB (Firebase Storage)</td>
+      <td>500GB (Azure Blob)</td>
+    </tr>
+    <tr class="plan-row plan-row-alt">
+      <td style="font-size:9pt;color:#6B7280;">Automated Emails / Month</td>
+      <td>200 (EmailJS)</td>
+      <td>40,000 (SendGrid)</td>
+      <td>100,000 (SendGrid Pro)</td>
+    </tr>
+    <tr class="plan-row">
+      <td style="font-size:9pt;color:#6B7280;">Hosting &amp; Uptime SLA</td>
+      <td>Vercel Free — 99%</td>
+      <td>Vercel Pro — 99.9%</td>
+      <td>Azure — 99.99%</td>
+    </tr>
+    <tr class="plan-row plan-row-alt">
+      <td style="font-size:9pt;color:#6B7280;">Admin Panel &amp; RBAC</td>
+      <td><span class="cross">✗  No</span></td>
+      <td><span class="check">✓  Yes</span></td>
+      <td><span class="check">✓  Yes</span></td>
+    </tr>
+    <tr class="plan-row">
+      <td style="font-size:9pt;color:#6B7280;">Custom Domain</td>
+      <td><span class="cross">✗  Not included</span></td>
+      <td><span class="check">✓  Sub-domain</span></td>
+      <td><span class="check">✓  Custom branded</span></td>
+    </tr>
+    <tr class="plan-row plan-row-alt">
+      <td style="font-size:9pt;color:#6B7280;">Data Backup Tool</td>
+      <td><span class="cross">✗  No</span></td>
+      <td><span class="check">✓  Yes</span></td>
+      <td><span class="check">✓  Daily automated</span></td>
+    </tr>
+    <tr class="plan-row">
+      <td style="font-size:9pt;color:#6B7280;">Security</td>
+      <td>SSL + Session timeout</td>
+      <td>+ Firestore rules + RBAC</td>
+      <td>+ Azure WAF + DDoS + AD B2C MFA</td>
+    </tr>
+    <tr class="plan-row plan-row-alt">
+      <td style="font-size:9pt;color:#6B7280;">Support Response Time</td>
+      <td>48 hrs — Email</td>
+      <td>24 hrs — Priority Email</td>
+      <td>4 hrs — Phone + Dedicated Manager</td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr class="plan-price">
+      <td>MONTHLY TOTAL</td>
+      <td>LKR 49,900</td>
+      <td>LKR 89,900</td>
+      <td>LKR 169,900</td>
+    </tr>
+  </tfoot>
+</table>
+
+<!-- ══════════════════ INFRASTRUCTURE BREAKDOWN ══════════════════ -->
+<div class="sec-head">Monthly Infrastructure Cost Breakdown (per plan)</div>
+<table>
+  <thead class="infra-head">
+    <tr>
+      <th style="width:36%;text-align:left;">Service / Component</th>
+      <th style="width:21.3%">Basic</th>
+      <th style="width:21.3%">Professional</th>
+      <th style="width:21.3%">Advanced</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="infra-row">
+      <td><b>Web Hosting</b><br><span style="font-size:8.5pt;color:#9CA3AF;">Vercel / Microsoft Azure Static Web Apps</span></td>
+      <td>Vercel Free<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Vercel Pro<br><span style="font-size:8.5pt;">~LKR 6,600</span></td>
+      <td>Azure SWA + CDN<br><span style="font-size:8.5pt;">~LKR 9,900</span></td>
+    </tr>
+    <tr class="infra-row infra-row-alt">
+      <td><b>Database</b><br><span style="font-size:8.5pt;color:#9CA3AF;">Google Firebase Firestore / Microsoft Azure Cosmos DB</span></td>
+      <td>Firebase Spark (Free)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Firebase Blaze<br><span style="font-size:8.5pt;">~LKR 7,500</span></td>
+      <td>Azure Cosmos DB Serverless<br><span style="font-size:8.5pt;">~LKR 16,500</span></td>
+    </tr>
+    <tr class="infra-row">
+      <td><b>Authentication</b><br><span style="font-size:8.5pt;color:#9CA3AF;">Google Firebase Auth / Azure AD B2C + MFA</span></td>
+      <td>Firebase Auth (Free)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Firebase Auth (Free)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Azure AD B2C + MFA<br><span style="font-size:8.5pt;">~LKR 4,950</span></td>
+    </tr>
+    <tr class="infra-row infra-row-alt">
+      <td><b>Document &amp; Image Storage</b><br><span style="font-size:8.5pt;color:#9CA3AF;">Cloudinary (Basic) / Firebase Storage GCP (Pro) / Azure Blob (Advanced)</span></td>
+      <td>Cloudinary Free 25GB<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Firebase Storage 100GB<br><span style="font-size:8.5pt;">~LKR 1,500</span></td>
+      <td>Azure Blob 500GB<br><span style="font-size:8.5pt;">~LKR 3,300</span></td>
+    </tr>
+    <tr class="infra-row">
+      <td><b>Email Delivery</b><br><span style="font-size:8.5pt;color:#9CA3AF;">EmailJS (Basic) / SendGrid — Twilio (Pro &amp; Advanced)</span></td>
+      <td>EmailJS Free (200/mo)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>SendGrid Essentials (40K/mo)<br><span style="font-size:8.5pt;">~LKR 6,600</span></td>
+      <td>SendGrid Pro + Dedicated IP (100K/mo)<br><span style="font-size:8.5pt;">~LKR 16,500</span></td>
+    </tr>
+    <tr class="infra-row infra-row-alt">
+      <td><b>Security &amp; Firewall</b><br><span style="font-size:8.5pt;color:#9CA3AF;">SSL Certificate / Azure WAF + DDoS Protection</span></td>
+      <td>Vercel SSL (Free)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Vercel SSL (Free)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Azure WAF + DDoS Standard<br><span style="font-size:8.5pt;">~LKR 8,250</span></td>
+    </tr>
+    <tr class="infra-row">
+      <td><b>Monitoring &amp; Logging</b><br><span style="font-size:8.5pt;color:#9CA3AF;">Vercel Analytics / Azure Application Insights</span></td>
+      <td>—<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Vercel Analytics (Included)<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Azure App Insights<br><span style="font-size:8.5pt;">~LKR 3,300</span></td>
+    </tr>
+    <tr class="infra-row infra-row-alt">
+      <td><b>Domain &amp; SSL Certificate</b><br><span style="font-size:8.5pt;color:#9CA3AF;">Custom branded URL</span></td>
+      <td>Not included</td>
+      <td>Sub-domain included<br><span style="font-size:8.5pt;">LKR 0</span></td>
+      <td>Custom domain + SSL<br><span style="font-size:8.5pt;">~LKR 550</span></td>
+    </tr>
+    <tr class="infra-row" style="background:#FFF0EE;">
+      <td style="color:#3B82F6;font-weight:bold;">Maintenance &amp; Support<br><span style="font-size:8.5pt;color:#9CA3AF;font-weight:normal;">Monthly development, updates, bug fixes, feature enhancements</span></td>
+      <td style="font-weight:bold;color:#3B82F6;">LKR 35,000</td>
+      <td style="font-weight:bold;color:#3B82F6;">LKR 35,000</td>
+      <td style="font-weight:bold;color:#3B82F6;">LKR 35,000</td>
+    </tr>
+  </tbody>
+  <tfoot>
+    <tr style="background:#F3F4F6;">
+      <td style="font-weight:bold;font-size:10pt;padding:8pt 10pt;">Infrastructure Subtotal (excl. maintenance)</td>
+      <td style="text-align:center;font-weight:bold;color:#6366f1;">LKR 0</td>
+      <td style="text-align:center;font-weight:bold;color:#3B82F6;">~LKR 22,200</td>
+      <td style="text-align:center;font-weight:bold;color:#1A1A2E;">~LKR 63,350</td>
+    </tr>
+    <tr class="infra-total">
+      <td>MONTHLY TOTAL (infrastructure + maintenance)</td>
+      <td>LKR 49,900</td>
+      <td>LKR 89,900</td>
+      <td>LKR 169,900</td>
+    </tr>
+  </tfoot>
+</table>
+
+<!-- ══════════════════ SUPPORT SLA ══════════════════ -->
+<div class="sec-head">Support &amp; Service Level Agreement</div>
+<table>
+  <thead class="infra-head">
+    <tr>
+      <th style="text-align:left;">SLA Item</th>
+      <th>Basic</th>
+      <th>Professional</th>
+      <th>Advanced</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="infra-row"><td>Support channel</td><td>Email only</td><td>Priority email</td><td>Phone + Email</td></tr>
+    <tr class="infra-row infra-row-alt"><td>Response time</td><td>48 hours</td><td>24 hours</td><td>4 hours</td></tr>
+    <tr class="infra-row"><td>Bug fix turnaround</td><td>5 business days</td><td>2 business days</td><td>Same day (critical)</td></tr>
+    <tr class="infra-row infra-row-alt"><td>Uptime guarantee</td><td>99%</td><td>99.9%</td><td>99.99%</td></tr>
+    <tr class="infra-row"><td>Monthly maintenance window</td><td>—</td><td>Included</td><td>Dedicated manager</td></tr>
+  </tbody>
+</table>
+
+<!-- ══════════════════ TERMS ══════════════════ -->
+<div class="sec-head">Terms &amp; Conditions</div>
+<table class="terms-box">
+  <tr>
+    <td>
+      <p><b>1. Pricing &amp; Payment</b><br>
+      All prices are in Sri Lankan Rupees (LKR) and quoted on a monthly subscription basis, billed in advance.
+      Infrastructure costs (Firebase, Azure, Vercel, SendGrid, Cloudinary) are estimates based on projected usage and are billed at actual cost with no markup.
+      Prices are valid for 30 days from the date of issue.</p>
+
+      <p style="margin-top:8pt;"><b>2. Setup</b><br>
+      A one-time setup and deployment fee may apply depending on scope. This will be confirmed separately before commencement.</p>
+
+      <p style="margin-top:8pt;"><b>3. Contract Term</b><br>
+      Minimum commitment of 3 months from the date of first invoice. A 30-day written notice is required for cancellation after the minimum term.</p>
+
+      <p style="margin-top:8pt;"><b>4. Intellectual Property</b><br>
+      The source code and system architecture remain the intellectual property of Shenal Gunasekara.
+      The client receives a perpetual, non-transferable licence to use the deployed system for internal business operations.
+      The licence is valid for as long as the monthly subscription is active.</p>
+
+      <p style="margin-top:8pt;"><b>5. Scope of Maintenance</b><br>
+      The monthly maintenance fee covers bug fixes, security patches, performance improvements, and minor feature enhancements.
+      Major new feature development is scoped and quoted separately.</p>
+
+      <p style="margin-top:8pt;"><b>6. Data Ownership</b><br>
+      All client data entered into the system remains the sole property of InsureSAAS Ltd.
+      Data is stored on Google Firebase / Microsoft Azure infrastructure with industry-standard encryption.</p>
+    </td>
+  </tr>
+</table>
+
+<!-- ══════════════════ SIGNATURE ══════════════════ -->
+<div class="sec-head">Acceptance</div>
+<table class="sig-table">
+  <tr>
+    <td style="width:50%;border-right:1pt solid #E5E7EB;">
+      <span style="font-size:8.5pt;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8pt;display:block;margin-bottom:28pt;">Quoted by</span>
+      <div style="border-top:1pt solid #1A1A2E;padding-top:4pt;font-weight:bold;">Shenal Gunasekara</div>
+      <div style="font-size:9.5pt;color:#6B7280;">Software Developer &amp; Systems Architect</div>
+      <div style="font-size:9.5pt;color:#6B7280;margin-top:4pt;">Date: ___________________________</div>
+    </td>
+    <td style="width:50%">
+      <span style="font-size:8.5pt;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.8pt;display:block;margin-bottom:28pt;">Accepted by</span>
+      <div style="border-top:1pt solid #1A1A2E;padding-top:4pt;font-weight:bold;">Authorised Signatory</div>
+      <div style="font-size:9.5pt;color:#6B7280;">InsureSAAS Ltd</div>
+      <div style="font-size:9.5pt;color:#6B7280;margin-top:4pt;">Date: ___________________________</div>
+    </td>
+  </tr>
+</table>
+
+<p style="font-size:8pt;color:#9CA3AF;text-align:center;margin-top:16pt;border-top:0.5pt solid #E5E7EB;padding-top:8pt;">
+  Quotation Ref: QT-CIB-2026-001 &nbsp;·&nbsp; Confidential — Prepared exclusively for InsureSAAS Ltd &nbsp;·&nbsp; Valid 30 days from issue
+</p>
+
+<script>
+  // Auto-fill today's date
+  var d = document.getElementById('doc-date');
+  if (d) d.textContent = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+</script>
+
+</body>
+</html>

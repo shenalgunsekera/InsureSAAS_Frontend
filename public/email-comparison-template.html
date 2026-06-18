@@ -1,0 +1,187 @@
+﻿<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <title>Quote Comparison — {{reference}}</title>
+  <!--[if mso]>
+  <noscript><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+  <![endif]-->
+  <style>
+    body, table, td { margin:0; padding:0; }
+    body { background:#F4F4F7; }
+    img  { border:0; display:block; }
+    @media only screen and (max-width:620px) {
+      .wrapper  { width:100% !important; }
+      .body-pad { padding:20px 16px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#F4F4F7;">
+
+<!-- Outer wrapper -->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F4F4F7;">
+<tr><td align="center" style="padding:32px 16px 48px;">
+
+  <!-- Card -->
+  <table class="wrapper" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;">
+
+    <!-- ── HEADER (gradient — Outlook falls back to #3B82F6) ── -->
+    <tr>
+      <td align="center" bgcolor="#3B82F6" style="background:linear-gradient(135deg,#3B82F6 0%,#6366f1 100%);border-radius:20px 20px 0 0;padding:32px 40px 24px;">
+        <!-- Logo -->
+        <table cellpadding="0" cellspacing="0" style="margin:0 auto 14px;">
+          <tr>
+            <td align="center" bgcolor="#FFFFFF" style="background:rgba(255,255,255,0.20);border-radius:16px;padding:9px;">
+              <img src="https://res.cloudinary.com/dhkrqyiyr/image/upload/v1777628131/InsureSAAS_Logo_sgyhsg.png"
+                   alt="InsureSAAS" width="62" height="62"
+                   style="display:block;width:62px;height:62px;object-fit:contain;" />
+            </td>
+          </tr>
+        </table>
+        <h1 style="margin:0 0 4px;color:#ffffff;font-size:24px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;">InsureSAAS</h1>
+        <p  style="margin:0;color:rgba(255,255,255,0.85);font-size:13px;font-family:'Segoe UI',Arial,sans-serif;">Insurance Quote Comparison Report</p>
+      </td>
+    </tr>
+
+    <!-- Reference bar -->
+    <tr>
+      <td align="center" bgcolor="#1A1A2E" style="background:#1A1A2E;padding:12px 40px;">
+        <span style="display:block;font-size:12px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#6366f1;margin-bottom:5px;font-family:'Segoe UI',Arial,sans-serif;">REF: {{reference}}</span>
+        <span style="display:inline-block;background:rgba(99,102,241,0.22);color:#6366f1;padding:4px 16px;border-radius:20px;font-size:11.5px;font-weight:700;font-family:'Segoe UI',Arial,sans-serif;">{{product}}</span>
+      </td>
+    </tr>
+
+    <!-- ── BODY ── -->
+    <tr>
+      <td class="body-pad" style="padding:32px 40px 28px;">
+
+        <!-- Greeting -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
+          <tr>
+            <td width="3" bgcolor="#3B82F6" style="background:#3B82F6;border-radius:2px;">&nbsp;</td>
+            <td style="padding:2px 0 2px 14px;font-size:15px;color:#374151;line-height:1.75;font-family:'Segoe UI',Arial,sans-serif;">
+              Dear <strong style="color:#1A1A2E;">{{to_name}}</strong>,<br /><br />
+              Please find below a <strong style="color:#1A1A2E;">side-by-side comparison</strong> of the quotations
+              received from <strong style="color:#1A1A2E;">{{company_count}} insurance companies</strong>
+              for your reference number <strong style="color:#1A1A2E;">{{reference}}</strong>.
+              Review the premiums and coverage terms and let us know your preferred insurer.
+            </td>
+          </tr>
+        </table>
+
+        <!-- Intro box -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+          <tr>
+            <td style="background:#f0f0ff;border:1px solid #c7c9f7;border-radius:10px;padding:16px 20px;font-size:13.5px;color:#4B5563;line-height:1.7;font-family:'Segoe UI',Arial,sans-serif;">
+              This comparison has been prepared by <strong style="color:#6366f1;">InsureSAAS</strong>
+              on your behalf. All figures are as quoted by the respective insurance companies
+              and are subject to their standard terms and conditions.
+            </td>
+          </tr>
+        </table>
+
+        <!-- Table label -->
+        <p style="margin:0 0 12px;font-size:10.5px;font-weight:800;color:#9CA3AF;text-transform:uppercase;letter-spacing:1.2px;font-family:'Segoe UI',Arial,sans-serif;">Quote Comparison</p>
+
+        <!-- Injected comparison table -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;border:1px solid #E5E7EB;border-radius:10px;">
+          <tr><td style="padding:0;overflow:auto;">
+            {{{table_html}}}
+          </td></tr>
+        </table>
+
+        <!-- Next steps heading -->
+        <p style="margin:0 0 14px;font-size:10.5px;font-weight:800;color:#9CA3AF;text-transform:uppercase;letter-spacing:1.2px;font-family:'Segoe UI',Arial,sans-serif;">What Happens Next</p>
+
+        <!-- Step 1 -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+          <tr>
+            <td width="26" valign="top" style="padding-right:12px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td align="center" bgcolor="#6366f1" style="width:26px;height:26px;border-radius:13px;color:#fff;font-size:12px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;line-height:26px;">1</td>
+              </tr></table>
+            </td>
+            <td style="font-size:13.5px;color:#4B5563;line-height:1.6;padding-top:4px;font-family:'Segoe UI',Arial,sans-serif;">
+              Review the comparison above and identify your preferred insurer based on premium and coverage.
+            </td>
+          </tr>
+        </table>
+
+        <!-- Step 2 -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+          <tr>
+            <td width="26" valign="top" style="padding-right:12px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td align="center" bgcolor="#6366f1" style="width:26px;height:26px;border-radius:13px;color:#fff;font-size:12px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;line-height:26px;">2</td>
+              </tr></table>
+            </td>
+            <td style="font-size:13.5px;color:#4B5563;line-height:1.6;padding-top:4px;font-family:'Segoe UI',Arial,sans-serif;">
+              Contact <strong>InsureSAAS</strong> with your selection or any questions.
+            </td>
+          </tr>
+        </table>
+
+        <!-- Step 3 -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+          <tr>
+            <td width="26" valign="top" style="padding-right:12px;">
+              <table cellpadding="0" cellspacing="0"><tr>
+                <td align="center" bgcolor="#6366f1" style="width:26px;height:26px;border-radius:13px;color:#fff;font-size:12px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;line-height:26px;">3</td>
+              </tr></table>
+            </td>
+            <td style="font-size:13.5px;color:#4B5563;line-height:1.6;padding-top:4px;font-family:'Segoe UI',Arial,sans-serif;">
+              We will proceed with policy issuance with your chosen insurer and send you the documents.
+            </td>
+          </tr>
+        </table>
+
+        <!-- CTA box -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+          <tr>
+            <td align="center" bgcolor="#1A1A2E" style="background:#1A1A2E;border-radius:14px;padding:24px 32px;">
+              <h3 style="margin:0 0 8px;color:#ffffff;font-size:16px;font-weight:800;font-family:'Segoe UI',Arial,sans-serif;">Need Help Deciding?</h3>
+              <p style="margin:0;color:#9CA3AF;font-size:13px;font-family:'Segoe UI',Arial,sans-serif;line-height:1.6;">Our team is happy to walk you through the comparison and recommend the best option for your needs. Simply reply to this email or call us.</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Notice -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
+          <tr>
+            <td width="4" bgcolor="#F59E0B" style="background:#F59E0B;border-radius:2px;">&nbsp;</td>
+            <td style="background:#fffbeb;padding:12px 16px;border:1px solid #fde68a;border-left:none;border-radius:0 10px 10px 0;font-size:13px;color:#92400E;line-height:1.6;font-family:'Segoe UI',Arial,sans-serif;">
+              <strong>Important:</strong> Quotations are subject to the insurer's terms and may have a validity period.
+              Please confirm your selection promptly to avoid delays in policy issuance.
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0;font-size:12px;color:#9CA3AF;line-height:1.7;text-align:center;font-family:'Segoe UI',Arial,sans-serif;">
+          This comparison was prepared exclusively for you. Please do not forward without consent from InsureSAAS.
+        </p>
+
+      </td>
+    </tr>
+
+    <!-- ── FOOTER ── -->
+    <tr>
+      <td align="center" bgcolor="#F9F9FB" style="background:#F9F9FB;border-top:1px solid #E5E7EB;border-radius:0 0 20px 20px;padding:22px 40px 26px;">
+        <p style="margin:0 0 4px;font-size:13px;color:#6B7280;line-height:1.8;font-family:'Segoe UI',Arial,sans-serif;">
+          <strong style="color:#374151;">InsureSAAS Ltd</strong><br />
+          InsureSAAS &amp; Risk Management &middot; Sri Lanka
+        </p>
+        <span style="display:inline-block;margin-top:10px;background:#EAECEF;border-radius:6px;padding:6px 14px;font-size:10.5px;color:#9CA3AF;letter-spacing:0.3px;font-family:'Segoe UI',Arial,sans-serif;">
+          CONFIDENTIAL &mdash; Prepared for {{to_name}}
+        </span>
+      </td>
+    </tr>
+
+  </table><!-- /card -->
+
+</td></tr>
+</table><!-- /outer -->
+</body>
+</html>

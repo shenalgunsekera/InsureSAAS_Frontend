@@ -1,0 +1,693 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InsureSAAS Portal — Employee Guide</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #F9F9FB;
+      color: #1A1A2E;
+      line-height: 1.6;
+    }
+
+    /* ── cover page ── */
+    .cover {
+      background: linear-gradient(135deg, #3B82F6 0%, #6366f1 60%, #FFD45A 100%);
+      color: #fff;
+      padding: 60px 48px;
+      min-height: 280px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .cover-badge {
+      background: rgba(255,255,255,0.2);
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .cover h1 {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .cover p {
+      font-size: 15px;
+      opacity: 0.85;
+      max-width: 520px;
+    }
+    .cover-meta {
+      margin-top: 28px;
+      font-size: 12px;
+      opacity: 0.65;
+    }
+
+    /* ── layout ── */
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 40px 32px 80px;
+    }
+
+    /* ── toc ── */
+    .toc {
+      background: #fff;
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 14px;
+      padding: 28px 32px;
+      margin-bottom: 40px;
+    }
+    .toc h2 {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #9CA3AF;
+      margin-bottom: 16px;
+    }
+    .toc ol {
+      padding-left: 20px;
+    }
+    .toc li {
+      margin-bottom: 8px;
+    }
+    .toc a {
+      color: #3B82F6;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .toc a:hover { text-decoration: underline; }
+
+    /* ── section ── */
+    .section {
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid rgba(99,102,241,0.12);
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+    .section-header {
+      background: linear-gradient(135deg, #1A1A2E, #2d2d42);
+      padding: 20px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .section-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3B82F6, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .section-header p {
+      color: rgba(255,255,255,0.55);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+    .section-body {
+      padding: 28px;
+    }
+
+    /* ── steps ── */
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+      padding-bottom: 22px;
+      border-bottom: 1px solid rgba(99,102,241,0.08);
+    }
+    .step:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .step-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(59,130,246,0.10);
+      color: #3B82F6;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-content h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1A1A2E;
+      margin-bottom: 5px;
+    }
+    .step-content p {
+      font-size: 13.5px;
+      color: #4B5563;
+      line-height: 1.65;
+    }
+
+    /* ── callouts ── */
+    .note {
+      background: rgba(99,102,241,0.07);
+      border-left: 3px solid #6366f1;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+      color: #3730a3;
+    }
+    .tip {
+      background: rgba(16,185,129,0.07);
+      border-left: 3px solid #10B981;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+      color: #065f46;
+    }
+    .warning {
+      background: rgba(245,158,11,0.08);
+      border-left: 3px solid #F59E0B;
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+      color: #92400e;
+    }
+
+    /* ── status badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 0 3px;
+    }
+    .badge-pending  { background: rgba(245,158,11,0.12); color: #d97706; }
+    .badge-approved { background: rgba(16,185,129,0.12); color: #059669; }
+    .badge-rejected { background: rgba(239,68,68,0.12);  color: #dc2626; }
+
+    /* ── field table ── */
+    .field-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+    .field-table th {
+      background: #1A1A2E;
+      color: rgba(255,255,255,0.75);
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .field-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(99,102,241,0.08);
+      color: #374151;
+    }
+    .field-table tr:nth-child(even) td {
+      background: rgba(255,248,245,0.6);
+    }
+    .required-badge {
+      background: rgba(59,130,246,0.12);
+      color: #3B82F6;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+
+    /* ── print button ── */
+    .print-bar {
+      background: #1A1A2E;
+      padding: 14px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .print-bar span { color: rgba(255,255,255,0.6); font-size: 13px; }
+    .print-btn {
+      background: linear-gradient(135deg, #3B82F6, #6366f1);
+      color: #fff;
+      border: none;
+      padding: 9px 24px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .print-btn:hover { opacity: 0.9; }
+
+    /* ── footer ── */
+    .footer {
+      text-align: center;
+      padding: 32px;
+      color: #9CA3AF;
+      font-size: 12px;
+    }
+
+    @media print {
+      .print-bar { display: none; }
+      body { background: #fff; }
+      .section { border: 1px solid #e5e7eb; }
+      .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Print bar -->
+<div class="print-bar">
+  <span>InsureSAAS Portal — Employee Guide</span>
+  <button class="print-btn" onclick="window.print()">🖨 Save as PDF / Print</button>
+</div>
+
+<!-- Cover -->
+<div class="cover">
+  <div class="cover-badge">Employee Guide</div>
+  <h1>InsureSAAS<br>Portal</h1>
+  <p>Step-by-step guide for employees — adding clients, uploading documents, raising support tickets, and understanding the approval workflow.</p>
+  <div class="cover-meta">InsureSAAS Ltd &nbsp;·&nbsp; Confidential — Internal Use Only</div>
+</div>
+
+<div class="container">
+
+  <!-- TOC -->
+  <div class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#login">Logging In</a></li>
+      <li><a href="#dashboard">Understanding the Dashboard</a></li>
+      <li><a href="#add-client">Adding a New Client</a></li>
+      <li><a href="#documents">Uploading Documents</a></li>
+      <li><a href="#approval">Approval Workflow</a></li>
+      <li><a href="#viewing">Viewing & Searching Clients</a></li>
+      <li><a href="#tickets">Raising a Support Ticket</a></li>
+      <li><a href="#faq">FAQ & Tips</a></li>
+    </ol>
+  </div>
+
+  <!-- Section 1 -->
+  <div class="section" id="login">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <div>
+        <h2>Logging In</h2>
+        <p>First-time and daily sign-in steps</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>Get your credentials</h3>
+          <p>Your manager will give you an <strong>email address</strong> and <strong>password</strong>. These are your login credentials for the portal. Keep them secure and do not share them.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>Open the portal</h3>
+          <p>Navigate to <strong>insuresaas-frontend.vercel.app</strong> in your browser (Chrome or Edge recommended). Bookmark it for quick access.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>Enter your credentials</h3>
+          <p>Type your email and password on the login screen, then click <strong>Sign In</strong>. You'll be taken directly to the client dashboard.</p>
+        </div>
+      </div>
+      <div class="warning">
+        <strong>⚠ Security:</strong> Never share your password with anyone, including your manager. If you think your account is compromised, raise a Support Ticket immediately.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2 -->
+  <div class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <div>
+        <h2>Understanding the Dashboard</h2>
+        <p>What you see after logging in</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>The Sidebar</h3>
+          <p>On the left is the navigation sidebar. You'll see: <strong>Clients</strong> (main list), <strong>Reports</strong> (financial summaries), and <strong>Raise a Ticket</strong> at the bottom for support requests.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>Summary Cards</h3>
+          <p>At the top of the Clients page are four summary cards: Total Clients, Expiring Soon (within 30 days), Expired, and Total Net Premium. These update in real-time as you add or modify clients.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>The Client Table</h3>
+          <p>Below the cards is the main client table. Each row shows a client's name, phone, product, policy status, expiry date, and net premium. You can search and filter this list.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <strong>💡 Tip:</strong> Use the <strong>search bar</strong> at the top of the page to instantly find a client by name, mobile number, policy number, or email.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 3 -->
+  <div class="section" id="add-client">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <div>
+        <h2>Adding a New Client</h2>
+        <p>Submitting a new client record for manager approval</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>Click "Add Client"</h3>
+          <p>Click the orange <strong>+ Add Client</strong> button at the top-right of the client list. A form panel will open on the right side of the screen.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>Fill in the required fields</h3>
+          <p>Fields marked with a red asterisk (*) are required. The form is divided into sections — General Info, Address, Contact, Proofs, Policy Details, Financials, and Commission.</p>
+        </div>
+      </div>
+
+      <table class="field-table">
+        <thead>
+          <tr><th>Field</th><th>Description</th><th>Required?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Client Name</td><td>Full legal name of the policyholder</td><td><span class="required-badge">Required</span></td></tr>
+          <tr><td>Customer Type</td><td>Individual or Company</td><td><span class="required-badge">Required</span></td></tr>
+          <tr><td>Product</td><td>Type of insurance product (e.g. Comprehensive)</td><td><span class="required-badge">Required</span></td></tr>
+          <tr><td>Insurance Provider</td><td>The insurer (e.g. Ceylinco, Union)</td><td><span class="required-badge">Required</span></td></tr>
+          <tr><td>Mobile No</td><td>Primary contact number</td><td><span class="required-badge">Required</span></td></tr>
+          <tr><td>InsureSAAS File No.</td><td>Internal file reference number</td><td>Optional</td></tr>
+          <tr><td>Policy No</td><td>The policy number issued by the insurer</td><td>Optional</td></tr>
+          <tr><td>Policy Period From/To</td><td>Start and end dates of the policy</td><td>Optional</td></tr>
+          <tr><td>Net Premium</td><td>Net premium amount in LKR</td><td>Optional</td></tr>
+          <tr><td>Total Invoice</td><td>Total amount billed to the client</td><td>Optional</td></tr>
+        </tbody>
+      </table>
+
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>Upload documents (optional at this stage)</h3>
+          <p>You can upload documents now or come back to edit and add them later. See Section 4 for upload details.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">4</div>
+        <div class="step-content">
+          <h3>Click "Save Client"</h3>
+          <p>After filling the form, click the <strong>Save Client</strong> button. Your submission is sent to your manager for approval. It will appear in your list with a <span class="badge badge-pending">Pending approval</span> label.</p>
+        </div>
+      </div>
+      <div class="note">
+        <strong>📋 Note:</strong> Your submission goes to a manager for review before it becomes a live record. You'll see the status change to <span class="badge badge-approved">Approved</span> once it's confirmed.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 4 -->
+  <div class="section" id="documents">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <div>
+        <h2>Uploading Documents</h2>
+        <p>Attaching PDFs and images to a client record</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>Supported document types</h3>
+          <p>You can upload PDFs, JPGs, and PNGs. The portal supports these document categories for each client:</p>
+          <ul style="margin: 8px 0 0 18px; color: #4B5563; font-size: 13.5px; line-height: 1.9;">
+            <li>Policyholder Document</li>
+            <li>Proposal Form</li>
+            <li>Quotation</li>
+            <li>CR Copy</li>
+            <li>Schedule</li>
+            <li>Invoice / Debit Note</li>
+            <li>Payment Receipt</li>
+            <li>NIC / BR Document</li>
+          </ul>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>How to upload</h3>
+          <p>In the client form (Add or Edit), scroll to the <strong>Documents</strong> section at the top. Click any document box or <strong>drag and drop</strong> a file onto it. You'll see an upload progress bar — wait until it shows a green tick before saving.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>Viewing uploaded documents</h3>
+          <p>Click the eye icon on any client row to open the details panel, then click the <strong>Documents</strong> tab. Each uploaded document has a <strong>View</strong> link that opens it in your browser.</p>
+        </div>
+      </div>
+      <div class="warning">
+        <strong>⚠ File size:</strong> Maximum file size is 20 MB per document. If your file is larger, please compress it before uploading.
+      </div>
+      <div class="tip">
+        <strong>💡 Tip:</strong> You can update documents at any time by clicking the <strong>Edit</strong> (pencil) icon on a client row and uploading a new file over the existing one.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 5 -->
+  <div class="section" id="approval">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <div>
+        <h2>Approval Workflow</h2>
+        <p>What happens after you submit a client</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>Submitted → Pending</h3>
+          <p>When you save a new client, it appears in your list with a <span class="badge badge-pending">Pending approval</span> badge. It is not yet visible to other employees — only you and managers can see it at this stage.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>Manager reviews it</h3>
+          <p>Your manager sees all pending submissions in the Admin Panel. They will review the details and either approve or reject the record.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>Approved</h3>
+          <p>If approved, the <span class="badge badge-pending">Pending</span> badge disappears and the client becomes a live record visible to everyone. No further action needed from you.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">4</div>
+        <div class="step-content">
+          <h3>Rejected</h3>
+          <p>If rejected, the client shows a <span class="badge badge-rejected">Rejected</span> badge in your list. Hover over the badge to see the rejection reason. Edit the client to fix the issue and re-submit — your manager will then see it again for approval.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 6 -->
+  <div class="section" id="viewing">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <div>
+        <h2>Viewing &amp; Searching Clients</h2>
+        <p>Finding and reviewing client records</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>Search</h3>
+          <p>Use the <strong>Search</strong> bar at the top of the page. It searches across client name, mobile number, policy number, product, and email — instantly as you type.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>Filter by type</h3>
+          <p>Use the <strong>Customer Type</strong> dropdown to filter clients by Individual or Company.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>View full details</h3>
+          <p>Click the <strong>eye icon</strong> (👁) on any row to open the full client details panel. It has tabs for General, Address, Contact, Policy, Financials, and Documents.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">4</div>
+        <div class="step-content">
+          <h3>Policy expiry colours</h3>
+          <p>Each client row shows a coloured status chip: <span class="badge badge-approved">Active</span> (policy is current), <span class="badge badge-pending">Expiring</span> (within 30 days), and <span class="badge badge-rejected">Expired</span> (policy has lapsed).</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 7 -->
+  <div class="section" id="tickets">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <div>
+        <h2>Raising a Support Ticket</h2>
+        <p>Reporting issues or requesting changes</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">1</div>
+        <div class="step-content">
+          <h3>Click "Raise a Ticket" in the sidebar</h3>
+          <p>At the bottom of the left sidebar, click <strong>Raise a Ticket</strong>. A form dialog will appear.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">2</div>
+        <div class="step-content">
+          <h3>Fill in the ticket details</h3>
+          <p>Provide a clear <strong>Subject</strong> (e.g. "Cannot upload PDF for client X"), select the <strong>Category</strong> (Bug Report, Feature Request, etc.) and <strong>Priority</strong> (Low, Medium, High, Critical).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">3</div>
+        <div class="step-content">
+          <h3>Write a detailed description</h3>
+          <p>In the <strong>Description</strong> field, explain the issue clearly: what you were trying to do, what happened, and any error messages you saw. The more detail, the faster it gets resolved.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">4</div>
+        <div class="step-content">
+          <h3>Submit</h3>
+          <p>Click <strong>Submit Ticket</strong>. Your manager will see it in the Admin Panel and respond with a status update and notes.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <strong>💡 Use tickets for:</strong> Bugs / errors, feature requests, access issues, data corrections, anything that needs admin attention.
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 8 -->
+  <div class="section" id="faq">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <div>
+        <h2>FAQ &amp; Tips</h2>
+        <p>Common questions and best practices</p>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="step">
+        <div class="step-dot">Q</div>
+        <div class="step-content">
+          <h3>My client submission was rejected — what do I do?</h3>
+          <p>Hover over the <span class="badge badge-rejected">Rejected</span> badge to see the reason. Click the edit (pencil) icon, fix the flagged information, and save again. It will go back into the approval queue automatically.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">Q</div>
+        <div class="step-content">
+          <h3>Why can't I see a client I added?</h3>
+          <p>Newly submitted clients show in your personal list with a <span class="badge badge-pending">Pending</span> badge while awaiting manager approval. They won't appear in the main list for other employees until approved.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">Q</div>
+        <div class="step-content">
+          <h3>The document upload is slow — is that normal?</h3>
+          <p>Upload speed depends on your internet connection and file size. For large PDFs, it can take 30–60 seconds. The progress bar shows exactly how far along the upload is. Do not close the browser tab until the upload completes.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">Q</div>
+        <div class="step-content">
+          <h3>I can't log in — what do I do?</h3>
+          <p>Check your email and password. Passwords are case-sensitive. If you've forgotten your password, raise a support ticket or contact your manager to have your account reset.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-dot">Q</div>
+        <div class="step-content">
+          <h3>Can I edit a client after submitting?</h3>
+          <p>Yes — click the pencil icon on any client row (including pending ones) to open the edit form. Saving edits to a pending client will keep it in the pending queue for manager review.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <strong>🔒 Best practices:</strong> Always log out when using a shared computer (click your name → sign out at the bottom of the sidebar). Keep your password secret. Report suspicious activity immediately via a support ticket.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <strong>InsureSAAS Ltd</strong> &nbsp;·&nbsp; Confidential — Internal Use Only<br>
+  For technical support, use the <strong>Raise a Ticket</strong> button inside the portal.
+</div>
+
+</body>
+</html>
