@@ -1,0 +1,12 @@
+# Treat images and fonts as binary so autocrlf never rewrites their bytes
+*.png  binary
+*.ico  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.svg  -text
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
