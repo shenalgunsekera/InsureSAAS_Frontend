@@ -1,4 +1,4 @@
-﻿// ── Device ID — IndexedDB-first, permanent storage ────────────────────────────
+// ── Device ID — IndexedDB-first, permanent storage ────────────────────────────
 //
 // Why IndexedDB?
 //   • Survives browser cache clears and cookie deletion

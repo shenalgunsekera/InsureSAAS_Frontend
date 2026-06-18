@@ -1,4 +1,4 @@
-﻿// Shared quote-comparison PDF generator.
+// Shared quote-comparison PDF generator.
 //
 // Used by both:
 //   • the broker download button (QuotationsPage → ComparisonView)   audience: 'broker'

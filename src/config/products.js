@@ -1,4 +1,4 @@
-﻿// Insurance product definitions — one source of truth for forms, labels, comparison rows
+// Insurance product definitions — one source of truth for forms, labels, comparison rows
 
 export const PRODUCTS = {
   motor: {

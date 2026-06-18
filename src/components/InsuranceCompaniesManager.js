@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, addDoc, writeBatch, getDocs, deleteDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { DEFAULT_INSURANCE_COMPANIES, CATEGORY_COLORS } from '../config/insuranceCompanies';

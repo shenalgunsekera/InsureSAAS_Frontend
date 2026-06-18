@@ -1,4 +1,4 @@
-﻿// Shared auto-calculation formula logic, used by the product wizard
+// Shared auto-calculation formula logic, used by the product wizard
 // (ProductsManager), the quotation form (QuotationsPage) and the underwriting
 // form (AddClientForm) so all three interpret a field's `autoCalc` identically.
 //

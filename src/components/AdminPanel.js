@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   collection, getDocs, doc, updateDoc, deleteDoc,
   query, orderBy, serverTimestamp

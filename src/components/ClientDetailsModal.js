@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { viewUrl } from '../storage';
 import { PRODUCTS } from '../config/products';
 import { db } from '../firebase';

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
