@@ -589,19 +589,22 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
                 )
                 .map(f => {
                   const v = quote.form_data?.[f.name];
-                  if (!v || typeof v === 'object') return null;
-                  if (typeof v === 'string' && v.startsWith('http')) return null;
+                  if (v === undefined || v === null || v === '') return null;
+                  const display = Array.isArray(v)
+                    ? v.join(', ')
+                    : (typeof v === 'object' ? '' : String(v));
+                  if (!display) return null;
+                  if (display.startsWith('http')) return null;
                   return (
                     <Box key={f.name}>
                       <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         {f.label}
                       </Typography>
-                      <Typography sx={{ fontSize: 12.5, color: '#0F172A', fontWeight: 500 }}>{String(v)}</Typography>
+                      <Typography sx={{ fontSize: 12.5, color: '#0F172A', fontWeight: 500 }}>{display}</Typography>
                     </Box>
                   );
                 })
                 .filter(Boolean)
-                .slice(0, 8)
               }
             </Box>
 
