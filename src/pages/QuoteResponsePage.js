@@ -85,7 +85,7 @@ const CoverTable = ({ fields, responses, setResponses, quoteFormData, headerLabe
   <Box sx={{ overflowX: 'auto' }}>
     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
       <thead>
-        <tr style={{ background: 'rgba(59,130,246,0.05)', borderBottom: '2px solid rgba(59,130,246,0.15)' }}>
+        <tr style={{ background: 'rgba(255,90,90,0.05)', borderBottom: '2px solid rgba(255,90,90,0.15)' }}>
           {[headerLabel, 'Client Requested', 'We Provide', 'Special Terms'].map(h => (
             <th key={h} style={{ padding: '10px 14px', textAlign: h === headerLabel ? 'left' : 'center', fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
           ))}
@@ -96,7 +96,7 @@ const CoverTable = ({ fields, responses, setResponses, quoteFormData, headerLabe
           const clientVal = f.clientValue || quoteFormData?.[f.name] || 'No';
           const cr = responses[f.name] || { provided: '', terms: '' };
           return (
-            <tr key={f.name} style={{ background: i % 2 === 0 ? '#fff' : '#EFF6FF', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+            <tr key={f.name} style={{ background: i % 2 === 0 ? '#fff' : '#FFF8F5', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
               <td style={{ padding: '10px 14px', fontSize: 13.5, fontWeight: 600, color: '#374151', minWidth: 190 }}>{f.label}</td>
               <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                 <span style={clientBadge(clientVal)}>{clientVal}</span>
@@ -449,19 +449,19 @@ const QuoteResponsePage = () => {
     const { default: autoTable } = await import('jspdf-autotable');
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-    pdf.setFillColor(59,130,246);
+    pdf.setFillColor(255, 90, 90);
     pdf.rect(0, 0, 210, 38, 'F');
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(18); pdf.setFont('helvetica', 'bold');
-    pdf.text('InsureSAAS', 14, 15);
+    pdf.text('InsureSAAS Insurance Brokers', 14, 15);
     pdf.setFontSize(11); pdf.setFont('helvetica', 'normal');
     pdf.text('Quotation Submission Receipt', 14, 23);
     pdf.setFontSize(9);
     pdf.text(`Ref: ${quote?.reference || qid}   |   ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, 14, 31);
 
-    pdf.setFillColor(15,23,42);
+    pdf.setFillColor(26, 26, 46);
     pdf.rect(0, 38, 210, 12, 'F');
-    pdf.setTextColor(99,102,241);
+    pdf.setTextColor(255, 139, 90);
     pdf.setFontSize(10); pdf.setFont('helvetica', 'bold');
     pdf.text(`SUBMITTED BY: ${companyName}`, 14, 46);
     pdf.setTextColor(255, 255, 255);
@@ -495,8 +495,8 @@ const QuoteResponsePage = () => {
       startY: 56,
       head: [['Field', 'Value']],
       body: premRows,
-      headStyles: { fillColor: [59,130,246], textColor: 255, fontStyle: 'bold', fontSize: 10 },
-      alternateRowStyles: { fillColor: [239,246,255] },
+      headStyles: { fillColor: [255, 90, 90], textColor: 255, fontStyle: 'bold', fontSize: 10 },
+      alternateRowStyles: { fillColor: [255, 248, 245] },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 65 } },
       styles: { fontSize: 9.5, cellPadding: 4 },
       margin: { left: 14, right: 14 },
@@ -523,8 +523,8 @@ const QuoteResponsePage = () => {
         startY: pdf.lastAutoTable.finalY + 8,
         head: [['Cover / Clause', 'Provided', 'Special Terms']],
         body: coverEntries.map(([k, v]) => [labelFor(k), v.provided || '—', v.terms || '—']),
-        headStyles: { fillColor: [15,23,42], textColor: [99,102,241], fontSize: 10 },
-        alternateRowStyles: { fillColor: [239,246,255] },
+        headStyles: { fillColor: [26, 26, 46], textColor: [255, 139, 90], fontSize: 10 },
+        alternateRowStyles: { fillColor: [255, 248, 245] },
         styles: { fontSize: 9.5, cellPadding: 4 },
         margin: { left: 14, right: 14 },
       });
@@ -536,8 +536,8 @@ const QuoteResponsePage = () => {
         startY: pdf.lastAutoTable.finalY + 8,
         head: [['Additional Clause', 'Included', 'Special Terms']],
         body: clauseEntries.map(([k, v]) => [labelFor(k), v.provided || '—', v.terms || '—']),
-        headStyles: { fillColor: [15,23,42], textColor: [99,102,241], fontSize: 10 },
-        alternateRowStyles: { fillColor: [239,246,255] },
+        headStyles: { fillColor: [26, 26, 46], textColor: [255, 139, 90], fontSize: 10 },
+        alternateRowStyles: { fillColor: [255, 248, 245] },
         styles: { fontSize: 9.5, cellPadding: 4 },
         margin: { left: 14, right: 14 },
       });
@@ -545,7 +545,7 @@ const QuoteResponsePage = () => {
 
     const finalY = pdf.lastAutoTable.finalY + 10;
     pdf.setTextColor(150, 150, 150); pdf.setFontSize(8); pdf.setFont('helvetica', 'italic');
-    pdf.text('InsureSAAS Ltd — Confidential Quotation Receipt', 14, finalY);
+    pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd — Confidential Quotation Receipt', 14, finalY);
 
     pdf.save(`receipt_${quote?.reference || qid}_${companyName.replace(/\s+/g, '_')}.pdf`);
   };
@@ -608,7 +608,7 @@ const QuoteResponsePage = () => {
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <CircularProgress sx={{ color: '#3B82F6' }} />
+      <CircularProgress sx={{ color: '#FF5A5A' }} />
     </Box>
   );
 
@@ -626,20 +626,20 @@ const QuoteResponsePage = () => {
           </Box>
           <CardContent sx={{ p: 3 }}>
             <Typography sx={{ fontSize: 13.5, color: '#374151', mb: 2 }}>
-              You have declined to quote on this request. InsureSAAS has been notified.
+              You have declined to quote on this request. InsureSAAS Insurance Brokers has been notified.
             </Typography>
             <Box sx={{ p: 2, borderRadius: '10px', bgcolor: 'rgba(107,114,128,0.06)', border: '1px solid rgba(0,0,0,0.08)', mb: 2.5 }}>
               <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.6, mb: 0.5 }}>Reason</Typography>
-              <Typography sx={{ fontSize: 13.5, color: '#0F172A' }}>{submittedData.decline_reason}</Typography>
+              <Typography sx={{ fontSize: 13.5, color: '#1A1A2E' }}>{submittedData.decline_reason}</Typography>
             </Box>
-            <Button fullWidth variant="outlined" onClick={() => { setSubmitted(false); setSubmittedData(null); }}
-              sx={{ py: 1.1, fontSize: 13, borderColor: 'rgba(59,130,246,0.3)', color: '#3B82F6' }}>
+            <Button fullWidth variant="outlined" onClick={() => { setSubmitted(false); setSubmittedData(null); setEditing(true); }}
+              sx={{ py: 1.1, fontSize: 13, borderColor: 'rgba(255,90,90,0.3)', color: '#FF5A5A' }}>
               Changed your mind? Submit a quotation instead
             </Button>
           </CardContent>
         </Card>
         <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', textAlign: 'center', mt: 3 }}>
-          InsureSAAS Ltd — Confidential Quotation Portal
+          InsureSAAS Insurance Brokers (Pvt) Ltd — Confidential Quotation Portal
         </Typography>
       </Box>
     </Box>
@@ -686,21 +686,21 @@ const QuoteResponsePage = () => {
                 ['Validity',    submittedData?.validity_days ? `${submittedData.validity_days} days` : '—'],
                 ['Submitted',   new Date(submittedData?.submitted_at || Date.now()).toLocaleString('en-GB')],
               ]).map(([l, v]) => (
-                <Box key={l} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.8, borderBottom: '1px solid rgba(99,102,241,0.08)' }}>
+                <Box key={l} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.8, borderBottom: '1px solid rgba(255,139,90,0.08)' }}>
                   <Typography sx={{ fontSize: 13, color: '#6B7280' }}>{l}</Typography>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{v}</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{v}</Typography>
                 </Box>
               ))}
             </Stack>
             <Stack spacing={1.5}>
               <Button fullWidth variant="contained" onClick={downloadReceipt}
                 startIcon={<UploadFileIcon />}
-                sx={{ py: 1.2, fontSize: 13, background: 'linear-gradient(135deg,#0F172A,#2d2d42)' }}>
+                sx={{ py: 1.2, fontSize: 13, background: 'linear-gradient(135deg,#1A1A2E,#2d2d42)' }}>
                 Download PDF Receipt
               </Button>
               {canEdit ? (
                 <Button fullWidth variant="outlined" onClick={handleEdit}
-                  sx={{ py: 1.2, fontSize: 13, borderColor: 'rgba(59,130,246,0.3)', color: '#3B82F6' }}>
+                  sx={{ py: 1.2, fontSize: 13, borderColor: 'rgba(255,90,90,0.3)', color: '#FF5A5A' }}>
                   {reditApproved ? '✏️ Re-edit Approved — Edit & Resubmit' : 'Made a Mistake? Edit & Resubmit'}
                 </Button>
               ) : reditPending ? (
@@ -711,7 +711,7 @@ const QuoteResponsePage = () => {
                   </Typography>
                 </Box>
               ) : showReditForm ? (
-                <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid rgba(59,130,246,0.2)' }}>
+                <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid rgba(255,90,90,0.2)' }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1.5, color: '#374151' }}>Request Re-edit Access</Typography>
                   <TextField fullWidth size="small" multiline rows={3}
                     label="Reason for re-edit *"
@@ -724,7 +724,7 @@ const QuoteResponsePage = () => {
                       sx={{ borderColor: '#e0e0e0', color: '#6B7280' }}>Cancel</Button>
                     <Button variant="contained" size="small" onClick={submitReditRequest}
                       disabled={!reditReason.trim() || reditSending}
-                      sx={{ background: 'linear-gradient(135deg,#3B82F6,#6366f1)' }}>
+                      sx={{ background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
                       {reditSending ? 'Sending…' : 'Submit Request'}
                     </Button>
                   </Stack>
@@ -735,7 +735,7 @@ const QuoteResponsePage = () => {
                     The 15-minute edit window has closed. Need to make a change?
                   </Typography>
                   <Button variant="outlined" size="small" onClick={() => setShowReditForm(true)}
-                    sx={{ borderColor: 'rgba(59,130,246,0.3)', color: '#3B82F6', fontSize: 12 }}>
+                    sx={{ borderColor: 'rgba(255,90,90,0.3)', color: '#FF5A5A', fontSize: 12 }}>
                     Request Re-edit Access
                   </Button>
                 </Box>
@@ -744,7 +744,7 @@ const QuoteResponsePage = () => {
           </CardContent>
         </Card>
         <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', textAlign: 'center' }}>
-          InsureSAAS Ltd — your response has been tracked in real-time.
+          InsureSAAS Insurance Brokers (Pvt) Ltd — your response has been tracked in real-time.
         </Typography>
       </Box>
     </Box>
@@ -771,7 +771,7 @@ const QuoteResponsePage = () => {
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Box sx={{
             width: 64, height: 64, borderRadius: '16px', mx: 'auto', mb: 2,
-            background: 'linear-gradient(135deg,#3B82F6,#6366f1)',
+            background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
           }}>
             {product?.icon || '📋'}
@@ -781,14 +781,14 @@ const QuoteResponsePage = () => {
             From <strong>{companyName}</strong> · Reference: <strong>{quote?.reference}</strong>
           </Typography>
           <Typography sx={{ fontSize: 12.5, color: '#9CA3AF', mt: 0.5 }}>
-            {product?.label} — Requested by InsureSAAS
+            {product?.label} — Requested by InsureSAAS Insurance Brokers
           </Typography>
         </Box>
 
         {/* ── SECTION 1: QUOTATION (read-only summary) ── */}
         <Card sx={{ mb: 3, overflow: 'hidden' }}>
-          <Box sx={{ background: '#0F172A', px: 3, py: 2 }}>
-            <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#6366f1', letterSpacing: 0.5 }}>Quotation</Typography>
+          <Box sx={{ background: '#1A1A2E', px: 3, py: 2 }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#FF8B5A', letterSpacing: 0.5 }}>Quotation</Typography>
             <Typography sx={{ fontSize: 12, color: '#94A3B8', mt: 0.3 }}>
               Reference: {quote?.reference} · {product?.label}
             </Typography>
@@ -800,9 +800,9 @@ const QuoteResponsePage = () => {
               infoSections.map((sec, si) => (
                 <Box key={sec.name} sx={{ mb: si < infoSections.length - 1 ? 3 : 0 }}>
                   <Typography sx={{
-                    fontSize: 11, fontWeight: 800, color: '#3B82F6',
+                    fontSize: 11, fontWeight: 800, color: '#FF5A5A',
                     textTransform: 'uppercase', letterSpacing: 1,
-                    mb: 1.5, pb: 0.5, borderBottom: '1px solid rgba(59,130,246,0.12)',
+                    mb: 1.5, pb: 0.5, borderBottom: '1px solid rgba(255,90,90,0.12)',
                   }}>
                     {sec.name}
                   </Typography>
@@ -836,7 +836,7 @@ const QuoteResponsePage = () => {
                                     <tr key={ri} style={{ borderTop: '1px solid rgba(0,0,0,0.06)', background: ri % 2 === 0 ? '#fff' : '#f9fafb' }}>
                                       <td style={{ padding: '5px 10px', fontWeight: 700, color: '#0891b2' }}>Plan {ri + 1}</td>
                                       {(field.planFields || []).map(pf => (
-                                        <td key={pf.name} style={{ padding: '5px 10px', textAlign: 'right', color: '#0F172A' }}>
+                                        <td key={pf.name} style={{ padding: '5px 10px', textAlign: 'right', color: '#1A1A2E' }}>
                                           {row[pf.name] ? `LKR ${Number(row[pf.name]).toLocaleString()}` : '—'}
                                         </td>
                                       ))}
@@ -847,7 +847,7 @@ const QuoteResponsePage = () => {
                             </Box>
                           );
                         })() : (
-                          <Typography sx={{ fontSize: 13.5, color: '#0F172A', fontWeight: 500, lineHeight: 1.5 }}>
+                          <Typography sx={{ fontSize: 13.5, color: '#1A1A2E', fontWeight: 500, lineHeight: 1.5 }}>
                             {(field.type === 'currency' || field.type === 'number') && !isNaN(Number(value)) && value !== ''
                               ? Number(value).toLocaleString()
                               : value}
@@ -865,8 +865,8 @@ const QuoteResponsePage = () => {
         {/* ── SECTION 2: COVERS REQUIRED ── */}
         {coverFields.length > 0 && (
           <Card sx={{ mb: 3, overflow: 'hidden' }}>
-            <Box sx={{ background: '#0F172A', px: 3, py: 2 }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#6366f1' }}>Covers Required</Typography>
+            <Box sx={{ background: '#1A1A2E', px: 3, py: 2 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#FF8B5A' }}>Covers Required</Typography>
               <Typography sx={{ fontSize: 12, color: '#94A3B8', mt: 0.3 }}>Indicate which covers your policy provides and any special terms</Typography>
             </Box>
             {quote?.form_data?.type_of_cover && (
@@ -890,8 +890,8 @@ const QuoteResponsePage = () => {
         {/* ── SECTION 3: ADDITIONAL CLAUSES ── */}
         {clauseFields.length > 0 && (
           <Card sx={{ mb: 3, overflow: 'hidden' }}>
-            <Box sx={{ background: '#0F172A', px: 3, py: 2 }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#6366f1' }}>Additional Clauses</Typography>
+            <Box sx={{ background: '#1A1A2E', px: 3, py: 2 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 15, color: '#FF8B5A' }}>Additional Clauses</Typography>
               <Typography sx={{ fontSize: 12, color: '#94A3B8', mt: 0.3 }}>Indicate which additional clauses are included in your quotation</Typography>
             </Box>
             <CoverTable
@@ -907,7 +907,7 @@ const QuoteResponsePage = () => {
         {/* ── SECTION 4: YOUR QUOTATION DETAILS ── */}
         <Card>
           <CardContent>
-            <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 2.5, color: '#0F172A' }}>
+            <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 2.5, color: '#1A1A2E' }}>
               {editing ? '✏️ Editing Submission — Update your details below' : 'Your Quotation Details'}
             </Typography>
 
@@ -972,10 +972,10 @@ const QuoteResponsePage = () => {
                 /* ── Standard premium breakdown ── */
                 <Box sx={{
                   p: 2, borderRadius: '12px',
-                  border: `1px solid ${['basic_premium','srcc_premium','tc_premium','admin_fee','vat_amount'].some(k => fieldErrors[k]) ? 'rgba(239,68,68,0.4)' : 'rgba(59,130,246,0.15)'}`,
-                  bgcolor: 'rgba(59,130,246,0.02)',
+                  border: `1px solid ${['basic_premium','srcc_premium','tc_premium','admin_fee','vat_amount'].some(k => fieldErrors[k]) ? 'rgba(239,68,68,0.4)' : 'rgba(255,90,90,0.15)'}`,
+                  bgcolor: 'rgba(255,90,90,0.02)',
                 }}>
-                  <Typography sx={{ fontSize: 12, fontWeight: 800, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.5 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 800, color: '#FF5A5A', textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.5 }}>
                     Premium Breakdown
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
@@ -1009,9 +1009,9 @@ const QuoteResponsePage = () => {
                     <TextField label="Other (LKR)" type="number" size="small" fullWidth
                       value={form.other_premium} onChange={e => setFE('other_premium', e.target.value)} />
                   </Box>
-                  <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', bgcolor: 'rgba(59,130,246,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', bgcolor: 'rgba(255,90,90,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>Total Premium (LKR)</Typography>
-                    <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#3B82F6' }}>
+                    <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#FF5A5A' }}>
                       {totalPremium > 0 ? totalPremium.toLocaleString() : '—'}
                     </Typography>
                   </Box>
@@ -1075,11 +1075,11 @@ const QuoteResponsePage = () => {
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
                   sx={{
-                    border: `2px dashed ${fileUrl ? '#10B981' : 'rgba(99,102,241,0.35)'}`,
+                    border: `2px dashed ${fileUrl ? '#10B981' : 'rgba(255,139,90,0.35)'}`,
                     borderRadius: '12px', p: 2.5, cursor: 'pointer', textAlign: 'center',
                     bgcolor: fileUrl ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
                     transition: 'all 0.2s ease',
-                    '&:hover': { borderColor: '#6366f1', bgcolor: 'rgba(99,102,241,0.04)' },
+                    '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.04)' },
                   }}>
                   <input id="quote-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"
                     style={{ display: 'none' }}
@@ -1088,7 +1088,7 @@ const QuoteResponsePage = () => {
                     <Box>
                       <Typography sx={{ fontSize: 13, color: '#6B7280', mb: 1 }}>Uploading…</Typography>
                       <LinearProgress variant="determinate" value={uploadPct}
-                        sx={{ borderRadius: 4, '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#3B82F6,#6366f1)' } }} />
+                        sx={{ borderRadius: 4, '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' } }} />
                     </Box>
                   ) : fileUrl ? (
                     <Typography sx={{ fontSize: 13, color: '#10B981', fontWeight: 600 }}>
@@ -1096,7 +1096,7 @@ const QuoteResponsePage = () => {
                     </Typography>
                   ) : (
                     <Box>
-                      <UploadFileIcon sx={{ color: '#6366f1', fontSize: 32, mb: 0.5 }} />
+                      <UploadFileIcon sx={{ color: '#FF8B5A', fontSize: 32, mb: 0.5 }} />
                       <Typography sx={{ fontSize: 13, color: '#6B7280' }}>
                         Click or drag & drop your standard quotation document
                       </Typography>
@@ -1109,7 +1109,7 @@ const QuoteResponsePage = () => {
             </Stack>
 
             <Button fullWidth variant="contained" onClick={handleSubmit} disabled={saving || uploading || declining}
-              sx={{ mt: 3, py: 1.3, fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg,#3B82F6,#6366f1)' }}>
+              sx={{ mt: 3, py: 1.3, fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
               {saving ? 'Submitting…' : editing ? 'Update Quotation' : 'Submit Quotation'}
             </Button>
 
@@ -1121,13 +1121,13 @@ const QuoteResponsePage = () => {
             )}
 
             <Typography sx={{ fontSize: 11, color: '#9CA3AF', textAlign: 'center', mt: 2 }}>
-              Your submission is securely transmitted to InsureSAAS and tracked in real-time.
+              Your submission is securely transmitted to InsureSAAS Insurance Brokers and tracked in real-time.
             </Typography>
           </CardContent>
         </Card>
 
         <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', textAlign: 'center', mt: 3 }}>
-          InsureSAAS Ltd — Confidential Quotation Portal
+          InsureSAAS Insurance Brokers (Pvt) Ltd — Confidential Quotation Portal
         </Typography>
       </Box>
 
@@ -1139,7 +1139,7 @@ const QuoteResponsePage = () => {
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: 13, color: '#6B7280', mb: 2 }}>
-            Let InsureSAAS know you cannot offer terms for this risk. This is recorded against your company for this request.
+            Let InsureSAAS Insurance Brokers know you cannot offer terms for this risk. This is recorded against your company for this request.
           </Typography>
           <TextField fullWidth size="small" multiline rows={3}
             label="Reason for declining"
@@ -1195,7 +1195,7 @@ const QuoteResponsePage = () => {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button variant="contained" onClick={() => setValOpen(false)}
-            sx={{ background: 'linear-gradient(135deg,#3B82F6,#6366f1)', minWidth: 100 }}>
+            sx={{ background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', minWidth: 100 }}>
             OK, fix them
           </Button>
         </DialogActions>

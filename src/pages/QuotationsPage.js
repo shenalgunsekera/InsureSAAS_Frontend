@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Papa from 'papaparse';
 import {
-  collection, addDoc, getDocs, query, orderBy, onSnapshot,
+  collection, addDoc, getDoc, getDocs, query, orderBy, onSnapshot,
   doc, updateDoc, deleteDoc, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -49,6 +49,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Checkbox from '@mui/material/Checkbox';
 
 import Pagination from '@mui/material/Pagination';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import InputAdornment from '@mui/material/InputAdornment';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
@@ -61,6 +64,8 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import PendingOutlinedIcon from '@mui/icons-material/PendingOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
 
 const EMAILJS_SERVICE           = process.env.REACT_APP_EMAILJS_SERVICE_ID           || '';
 const EMAILJS_TEMPLATE          = process.env.REACT_APP_EMAILJS_TEMPLATE_ID          || '';
@@ -176,9 +181,9 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
                   onChange(f.name, next.join(', '));
                 }}
                 sx={{
-                  bgcolor: selected.includes(opt) ? 'rgba(59,130,246,0.12)' : 'rgba(0,0,0,0.05)',
-                  color: selected.includes(opt) ? '#3B82F6' : '#6B7280',
-                  border: selected.includes(opt) ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent',
+                  bgcolor: selected.includes(opt) ? 'rgba(255,90,90,0.12)' : 'rgba(0,0,0,0.05)',
+                  color: selected.includes(opt) ? '#FF5A5A' : '#6B7280',
+                  border: selected.includes(opt) ? '1px solid rgba(255,90,90,0.3)' : '1px solid transparent',
                   fontWeight: selected.includes(opt) ? 700 : 400,
                 }} />
             ))}
@@ -275,7 +280,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
           value={total ? total.toLocaleString() : ''}
           InputProps={{ readOnly: true }}
           helperText={describeAutoCalc(f.autoCalc, labelFor)}
-          sx={{ ...gridStyle, '& .MuiInputBase-input': { color: '#3B82F6', fontWeight: 700 } }} />
+          sx={{ ...gridStyle, '& .MuiInputBase-input': { color: '#FF5A5A', fontWeight: 700 } }} />
       );
     }
 
@@ -322,9 +327,9 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
       const busy  = fileUploading[f.name];
       const accept = (f.accept || 'pdf,jpg,jpeg,png').split(',').map(e => `.${e}`).join(',');
       return (
-        <Box key={f.name} sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: '8px', border: '1px dashed rgba(59,130,246,0.25)', bgcolor: 'rgba(59,130,246,0.02)' }}>
+        <Box key={f.name} sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: '8px', border: '1px dashed rgba(255,90,90,0.25)', bgcolor: 'rgba(255,90,90,0.02)' }}>
           <Button component="label" variant="outlined" size="small" disabled={busy}
-            sx={{ flexShrink: 0, borderColor: url ? '#22c55e' : 'rgba(59,130,246,0.5)', color: url ? '#22c55e' : '#3B82F6', textTransform: 'none', fontSize: 12, minWidth: 110 }}>
+            sx={{ flexShrink: 0, borderColor: url ? '#22c55e' : 'rgba(255,90,90,0.5)', color: url ? '#22c55e' : '#FF5A5A', textTransform: 'none', fontSize: 12, minWidth: 110 }}>
             {busy ? 'Uploading…' : url ? 'Replace' : 'Upload'}
             <input type="file" hidden accept={accept}
               onChange={async (e) => {
@@ -382,10 +387,10 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
       };
       return (
         <Box key={f.name} sx={{ gridColumn: '1 / -1' }}>
-          <Box sx={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid rgba(59,130,246,0.15)' }}>
+          <Box sx={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid rgba(255,90,90,0.15)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
               <thead>
-                <tr style={{ background: 'rgba(59,130,246,0.07)' }}>
+                <tr style={{ background: 'rgba(255,90,90,0.07)' }}>
                   <th style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 70 }}>Plan</th>
                   {f.planFields.map(pf => (
                     <th key={pf.name} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4, minWidth: 160 }}>{pf.label}</th>
@@ -395,7 +400,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
               <tbody>
                 {planData.map((row, pi) => (
                   <tr key={pi} style={{ background: pi % 2 === 0 ? '#fff' : '#fafafa', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-                    <td style={{ padding: '8px 14px', fontSize: 13, fontWeight: 700, color: '#3B82F6' }}>Plan {pi + 1}</td>
+                    <td style={{ padding: '8px 14px', fontSize: 13, fontWeight: 700, color: '#FF5A5A' }}>Plan {pi + 1}</td>
                     {f.planFields.map(pf => (
                       <td key={pf.name} style={{ padding: '6px 10px' }}>
                         <TextField
@@ -440,9 +445,9 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
           {sec.name && (
             <Typography sx={{
               fontSize: 11, fontWeight: 800,
-              color: sectionHasError ? '#ef4444' : '#3B82F6',
+              color: sectionHasError ? '#ef4444' : '#FF5A5A',
               textTransform: 'uppercase', letterSpacing: 1, mb: 1.5, pb: 0.5,
-              borderBottom: `1px solid ${sectionHasError ? 'rgba(239,68,68,0.3)' : 'rgba(59,130,246,0.12)'}`,
+              borderBottom: `1px solid ${sectionHasError ? 'rgba(239,68,68,0.3)' : 'rgba(255,90,90,0.12)'}`,
               display: 'flex', alignItems: 'center', gap: 0.8,
             }}>
               {sectionHasError && <WarningAmberRoundedIcon sx={{ fontSize: 13 }} />}
@@ -458,7 +463,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
             let extras = [];
             try { extras = JSON.parse(values[storeKey] || '[]'); } catch {}
             return (
-              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(99,102,241,0.2)' }}>
+              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(255,139,90,0.2)' }}>
                 {extras.map((item, idx) => (
                   <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
                     <TextField size="small" placeholder={sec.name === 'Additional Clauses' ? 'Clause name…' : 'Cover name…'}
@@ -474,9 +479,9 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
                         onChange(storeKey, JSON.stringify(updated));
                       }} sx={{
                         px: 1.5, py: 0.7, borderRadius: '8px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, flexShrink: 0,
-                        border: `1.5px solid ${item.value === opt ? '#3B82F6' : 'rgba(0,0,0,0.12)'}`,
-                        bgcolor: item.value === opt ? 'rgba(59,130,246,0.08)' : 'transparent',
-                        color: item.value === opt ? '#3B82F6' : '#9CA3AF', transition: 'all 0.15s',
+                        border: `1.5px solid ${item.value === opt ? '#FF5A5A' : 'rgba(0,0,0,0.12)'}`,
+                        bgcolor: item.value === opt ? 'rgba(255,90,90,0.08)' : 'transparent',
+                        color: item.value === opt ? '#FF5A5A' : '#9CA3AF', transition: 'all 0.15s',
                       }}>{opt}</Box>
                     ))}
                     <Box onClick={() => {
@@ -487,7 +492,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
                 ))}
                 <Box onClick={() => onChange(storeKey, JSON.stringify([...extras, { name: '', value: 'Yes' }]))}
                   sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5, cursor: 'pointer',
-                        fontSize: 12, fontWeight: 700, color: '#6366f1', '&:hover': { color: '#3B82F6' } }}>
+                        fontSize: 12, fontWeight: 700, color: '#FF8B5A', '&:hover': { color: '#FF5A5A' } }}>
                   + Add {sec.name === 'Additional Clauses' ? 'Other Clause' : 'Other Cover'}
                 </Box>
               </Box>
@@ -511,41 +516,66 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
     ? quote.created_at.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—';
 
-  const hasSelection = !!quote.customer_selection;
+  const hasCustomerSel = !!quote.customer_selection;            // customer picked (green)
+  const hasBrokerSel   = quote.status === 'confirmed' || !!quote.selected_company; // broker confirmed (blue)
+  const hasSelection   = hasCustomerSel || hasBrokerSel;
+  const brokerCompany  = quote.selected_company || quote.customer_selection?.company_name || '';
 
   return (
-    <Card sx={{ mb: 1.5, border: `1px solid ${hasSelection ? 'rgba(16,185,129,0.35)' : 'rgba(99,102,241,0.12)'}`, boxShadow: hasSelection ? '0 0 0 2px rgba(16,185,129,0.08)' : 'none' }}>
+    <Card sx={{ mb: 1.5, border: `1px solid ${hasSelection ? 'rgba(16,185,129,0.35)' : 'rgba(255,139,90,0.12)'}`, boxShadow: hasSelection ? '0 0 0 2px rgba(16,185,129,0.08)' : 'none' }}>
       {hasSelection && (
-        <Box sx={{ background: 'linear-gradient(90deg,#059669,#10B981)', px: 2.5, py: 0.9, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ fontSize: 16 }}>🏆</Box>
-          <Typography sx={{ fontWeight: 700, fontSize: 12.5, color: '#fff' }}>
-            Customer selected <strong>{quote.customer_selection.company_name}</strong>
-          </Typography>
-          <Typography sx={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', ml: 'auto' }}>
-            {new Date(quote.customer_selection.selected_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
-          </Typography>
+        // When both the broker has confirmed AND the customer has selected, the two
+        // banners sit side-by-side (half each); otherwise the single banner is full width.
+        <Box sx={{ display: 'flex', width: '100%' }}>
+          {hasBrokerSel && (
+            <Box sx={{ flex: 1, minWidth: 0, background: 'linear-gradient(90deg,#2563eb,#3b82f6)', px: 2.5, py: 0.9, display: 'flex', alignItems: 'center', gap: 1.2 }}>
+              <Box sx={{ fontSize: 15 }}>✅</Box>
+              <Typography sx={{ fontWeight: 700, fontSize: 12.5, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Insurance company selected by broker{brokerCompany && <> — <strong>{brokerCompany}</strong></>}
+              </Typography>
+            </Box>
+          )}
+          {hasCustomerSel && (
+            <Box sx={{ flex: 1, minWidth: 0, background: 'linear-gradient(90deg,#059669,#10B981)', px: 2.5, py: 0.9, display: 'flex', alignItems: 'center', gap: 1.2 }}>
+              <Box sx={{ fontSize: 15 }}>🏆</Box>
+              <Typography sx={{ fontWeight: 700, fontSize: 12.5, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Customer selected <strong>{quote.customer_selection.company_name}</strong>
+              </Typography>
+              <Typography sx={{ fontSize: 10.5, color: 'rgba(255,255,255,0.8)', ml: 'auto', flexShrink: 0, whiteSpace: 'nowrap', pl: 1 }}>
+                {new Date(quote.customer_selection.selected_at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}
+              </Typography>
+            </Box>
+          )}
         </Box>
       )}
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         <Box sx={{ px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5,
-                    cursor: 'pointer', '&:hover': { bgcolor: 'rgba(59,130,246,0.02)' } }}
+                    cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,90,90,0.02)' } }}
              onClick={() => setOpen(o => !o)}>
           <Box sx={{ width: 38, height: 38, borderRadius: '10px', flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: product?.color ? `${product.color}18` : 'rgba(59,130,246,0.08)',
+                      background: product?.color ? `${product.color}18` : 'rgba(255,90,90,0.08)',
                       fontSize: 18 }}>
             {product?.icon || '📋'}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.3 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0F172A' }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E' }}>
                 {quote.reference}
               </Typography>
               <Chip label={product?.label || quote.product_key} size="small"
-                sx={{ bgcolor: 'rgba(59,130,246,0.08)', color: '#3B82F6', fontWeight: 600, fontSize: 10 }} />
-              {hasSelection && (
+                sx={{ bgcolor: 'rgba(255,90,90,0.08)', color: '#FF5A5A', fontWeight: 600, fontSize: 10 }} />
+              {quote.source === 'website' && (
+                <Chip label="🌐 From Website" size="small"
+                  sx={{ bgcolor: 'rgba(255,106,26,0.12)', color: '#E8431E', fontWeight: 700, fontSize: 10 }} />
+              )}
+              {hasCustomerSel && (
                 <Chip label={`🏆 ${quote.customer_selection.company_name}`} size="small"
                   sx={{ bgcolor: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 700, fontSize: 10 }} />
+              )}
+              {hasBrokerSel && !hasCustomerSel && brokerCompany && (
+                <Chip label={`✅ ${brokerCompany}`} size="small"
+                  sx={{ bgcolor: 'rgba(37,99,235,0.12)', color: '#2563eb', fontWeight: 700, fontSize: 10 }} />
               )}
             </Stack>
             <Typography sx={{ fontSize: 11.5, color: '#9CA3AF' }}>
@@ -565,10 +595,10 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
                 }}
               />
             )}
-            {tab === 'compare' && (
+            {(tab === 'compare' || (tab === 'sent' && respondedCount > 0)) && (
               <Button size="small" variant="outlined" startIcon={<CompareArrowsIcon />}
                 onClick={e => { e.stopPropagation(); onSelect(quote); }}
-                sx={{ fontSize: 11, py: 0.4, borderColor: 'rgba(99,102,241,0.3)', color: '#6366f1', flexShrink: 0 }}>
+                sx={{ fontSize: 11, py: 0.4, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A', flexShrink: 0 }}>
                 Compare
               </Button>
             )}
@@ -577,7 +607,7 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
         </Box>
 
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px: 2.5, pb: 2, pt: 0.5, borderTop: '1px solid rgba(99,102,241,0.08)' }}>
+          <Box sx={{ px: 2.5, pb: 2, pt: 0.5, borderTop: '1px solid rgba(255,139,90,0.08)' }}>
             {/* Form data summary — only show labelled, non-file, non-URL fields */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1.5, mb: 2 }}>
               {(product?.fields || [])
@@ -589,22 +619,19 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
                 )
                 .map(f => {
                   const v = quote.form_data?.[f.name];
-                  if (v === undefined || v === null || v === '') return null;
-                  const display = Array.isArray(v)
-                    ? v.join(', ')
-                    : (typeof v === 'object' ? '' : String(v));
-                  if (!display) return null;
-                  if (display.startsWith('http')) return null;
+                  if (!v || typeof v === 'object') return null;
+                  if (typeof v === 'string' && v.startsWith('http')) return null;
                   return (
                     <Box key={f.name}>
                       <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         {f.label}
                       </Typography>
-                      <Typography sx={{ fontSize: 12.5, color: '#0F172A', fontWeight: 500 }}>{display}</Typography>
+                      <Typography sx={{ fontSize: 12.5, color: '#1A1A2E', fontWeight: 500 }}>{String(v)}</Typography>
                     </Box>
                   );
                 })
                 .filter(Boolean)
+                .slice(0, 8)
               }
             </Box>
 
@@ -643,7 +670,7 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
                     <Box key={r.id} sx={{ p: 1.5, borderRadius: '10px', bgcolor: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.12)' }}>
                       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
                         <Typography sx={{ fontWeight: 700, fontSize: 13 }}>{r.company_name}</Typography>
-                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: '#3B82F6' }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: 14, color: '#FF5A5A' }}>
                           LKR {Number(r.premium || 0).toLocaleString()}
                         </Typography>
                       </Stack>
@@ -697,7 +724,16 @@ function parseDynamicExtras(formData, storeKey) {
 /* ── comparison view ──────────────────────────────────────────────────────── */
 function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCTS }) {
   const product   = allProducts[quote?.product_key];
-  const allResponses = quote?.responses || [];
+  // Locally removed responses (deleted by the broker) — filtered out immediately
+  // while the Firestore write propagates.
+  const [removedIds,   setRemovedIds]   = useState(() => new Set());
+  const [deleteResp,   setDeleteResp]   = useState(null);
+  const [deletingResp, setDeletingResp] = useState(false);
+  // "Not finalised" = broker manually marks that the customer went with another
+  // company NOT through us (so we never auto-select / convert this quote).
+  const [notFinalised, setNotFinalised] = useState(!!quote?.not_finalised);
+  const [markingNF,    setMarkingNF]    = useState(false);
+  const allResponses = (quote?.responses || []).filter(r => !removedIds.has(r.id));
   // Insurers who declined the request are kept out of the comparison/premium math
   // and selection — they're listed separately so the broker sees why.
   const responses        = allResponses.filter(r => !r.declined);
@@ -788,6 +824,42 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     } catch (err) { console.error('Edit save failed:', err); }
     setEditSaving(false);
   };
+
+  // Remove a single insurer's response from this comparison (persisted).
+  const deleteResponse = async () => {
+    if (!deleteResp) return;
+    setDeletingResp(true);
+    try {
+      const snap = await getDoc(doc(db, 'quotes', quote.id));
+      if (snap.exists()) {
+        const next = (snap.data().responses || []).filter(r => r.id !== deleteResp.id);
+        await updateDoc(doc(db, 'quotes', quote.id), { responses: next, updated_at: serverTimestamp() });
+      }
+      setRemovedIds(prev => new Set(prev).add(deleteResp.id));
+      setDeleteResp(null);
+    } catch (err) {
+      console.error('Delete response failed:', err);
+    }
+    setDeletingResp(false);
+  };
+
+  // Toggle the manual "not finalised" mark (customer went with another company not through us).
+  const toggleNotFinalised = async () => {
+    setMarkingNF(true);
+    const next = !notFinalised;
+    try {
+      await updateDoc(doc(db, 'quotes', quote.id), {
+        not_finalised:    next,
+        not_finalised_at: next ? new Date().toISOString() : null,
+        updated_at:       serverTimestamp(),
+      });
+      setNotFinalised(next);
+    } catch (err) {
+      console.error('Mark not finalised failed:', err);
+    }
+    setMarkingNF(false);
+  };
+
   const [custEmail,  setCustEmail]  = useState('');
   const [sending,    setSending]    = useState(false);
   const [sendDone,   setSendDone]   = useState(false);
@@ -798,7 +870,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     setSending(true);
     try {
       // Build an HTML comparison table for the customer
-      const headerCells = responses.map(r => `<th style="background:#3B82F6;color:#fff;padding:10px 14px;font-size:13px;">${r.company_name}</th>`).join('');
+      const headerCells = responses.map(r => `<th style="background:#FF5A5A;color:#fff;padding:10px 14px;font-size:13px;">${r.company_name}</th>`).join('');
       const fmt = n => n ? Number(n).toLocaleString() : '—';
       // Premium breakdown rows — shown to customer, commission excluded
       const breakdownRows = isPlansProduct
@@ -820,13 +892,13 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
             ['Admin Fee (LKR)',     r => fmt(r.admin_fee)],
             ['VAT (LKR)',           r => fmt(r.vat_amount)],
             ['Other (LKR)',         r => fmt(r.other_premium)],
-            ['Total Premium (LKR)', r => `<strong style="color:#3B82F6">${fmt(r.premium)}</strong>`],
+            ['Total Premium (LKR)', r => `<strong style="color:#FF5A5A">${fmt(r.premium)}</strong>`],
           ].map(([label, getter], i) =>
-            `<tr style="background:${i%2===0?'#EFF6FF':'#fff'}"><td style="padding:8px 14px;font-weight:600;color:#374151;">${label}</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;">${getter(r)}</td>`).join('')}</tr>`
+            `<tr style="background:${i%2===0?'#FFF8F5':'#fff'}"><td style="padding:8px 14px;font-weight:600;color:#374151;">${label}</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;">${getter(r)}</td>`).join('')}</tr>`
           ).join('');
-      const deductiblesRow = `<tr style="background:#EFF6FF"><td style="padding:8px 14px;font-weight:600;color:#374151;">Deductibles</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.deductible||'—'}</td>`).join('')}</tr>`;
+      const deductiblesRow = `<tr style="background:#FFF8F5"><td style="padding:8px 14px;font-weight:600;color:#374151;">Deductibles</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.deductible||'—'}</td>`).join('')}</tr>`;
       const excessRow      = `<tr><td style="padding:8px 14px;font-weight:600;color:#374151;">Excesses</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.excesses||'—'}</td>`).join('')}</tr>`;
-      const validityRow    = `<tr style="background:#EFF6FF"><td style="padding:8px 14px;font-weight:600;color:#374151;">Validity (days)</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;text-align:center;">${r.validity_days||'—'}</td>`).join('')}</tr>`;
+      const validityRow    = `<tr style="background:#FFF8F5"><td style="padding:8px 14px;font-weight:600;color:#374151;">Validity (days)</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;text-align:center;">${r.validity_days||'—'}</td>`).join('')}</tr>`;
       // Covers section (static + dynamic custom covers)
       const cvFields = [
         ...(product?.fields || []).filter(f => ['Covers Required','Cover Required'].includes(f.section) && f.type === 'yesno' && quote.form_data?.[f.name] === 'Yes'),
@@ -836,7 +908,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
         ...(product?.fields || []).filter(f => f.section === 'Additional Clauses' && f.type === 'yesno' && quote.form_data?.[f.name] === 'Yes'),
         ...parseDynamicExtras(quote.form_data, 'extra_clauses'),
       ];
-      const sectionHeader = (label) => `<tr><td colspan="${responses.length+1}" style="background:#0F172A;padding:10px 14px;font-size:11px;font-weight:800;color:#6366f1;text-transform:uppercase;letter-spacing:1px;">${label}</td></tr>`;
+      const sectionHeader = (label) => `<tr><td colspan="${responses.length+1}" style="background:#1A1A2E;padding:10px 14px;font-size:11px;font-weight:800;color:#FF8B5A;text-transform:uppercase;letter-spacing:1px;">${label}</td></tr>`;
       const coverRows = cvFields.length > 0 ? sectionHeader('Covers Required') + cvFields.map((f,i) => {
         const cells = responses.map(r => {
           const cr = r.cover_responses?.[f.name];
@@ -845,7 +917,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           const t = cr?.terms ? `<br/><span style="font-size:10px;color:#9CA3AF;">${cr.terms}</span>` : '';
           return `<td style="padding:8px 14px;text-align:center;"><span style="font-weight:700;color:${c};">${p}</span>${t}</td>`;
         }).join('');
-        return `<tr style="background:${i%2===0?'#fff':'#EFF6FF'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
+        return `<tr style="background:${i%2===0?'#fff':'#FFF8F5'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
       }).join('') : '';
       const clauseRows = clFields.length > 0 ? sectionHeader('Additional Clauses') + clFields.map((f,i) => {
         const cells = responses.map(r => {
@@ -855,7 +927,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           const t = cr?.terms ? `<br/><span style="font-size:10px;color:#9CA3AF;">${cr.terms}</span>` : '';
           return `<td style="padding:8px 14px;text-align:center;"><span style="font-weight:700;color:${c};">${p}</span>${t}</td>`;
         }).join('');
-        return `<tr style="background:${i%2===0?'#fff':'#EFF6FF'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
+        return `<tr style="background:${i%2===0?'#fff':'#FFF8F5'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
       }).join('') : '';
       const isImg = (url) => url && /\.(jpe?g|png|gif|webp|avif)(\?|$)/i.test(url);
       const docRow = `<tr style="background:#F9F9FB"><td style="padding:10px 14px;font-weight:600;color:#374151;">Uploaded Quote</td>${
@@ -867,23 +939,23 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
         ).join('')
       }</tr>`;
 
-      const tableHtml = `<table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;border-radius:10px;overflow:hidden;"><thead><tr><th style="background:#0F172A;color:#6366f1;padding:10px 14px;font-size:13px;text-align:left;">Field</th>${headerCells}</tr></thead><tbody>${breakdownRows}${deductiblesRow}${excessRow}${validityRow}${coverRows}${clauseRows}${docRow}</tbody></table>`;
+      const tableHtml = `<table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;border-radius:10px;overflow:hidden;"><thead><tr><th style="background:#1A1A2E;color:#FF8B5A;padding:10px 14px;font-size:13px;text-align:left;">Field</th>${headerCells}</tr></thead><tbody>${breakdownRows}${deductiblesRow}${excessRow}${validityRow}${coverRows}${clauseRows}${docRow}</tbody></table>`;
 
       // Selection buttons + PDF download link for email (table-based for Outlook/Gmail compatibility)
       const baseUrl = window.location.origin;
       const selectionSection = `
         <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:2px solid #ffe0d4;">
           <tr><td style="padding:20px 0;text-align:center;">
-            <p style="margin:0 0 10px;color:#0F172A;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">Select Your Preferred Insurer</p>
+            <p style="margin:0 0 10px;color:#1A1A2E;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">Select Your Preferred Insurer</p>
             <p style="margin:0 0 18px;color:#6B7280;font-size:13px;font-family:Arial,sans-serif;">Click the company you would like to proceed with:</p>
             <table cellpadding="0" cellspacing="0" style="margin:0 auto 18px;">
               <tr>
                 ${responses.map(r => `
                 <td style="padding:3px;">
                   <table cellpadding="0" cellspacing="0"><tr>
-                    <td align="center" bgcolor="#3B82F6" style="border-radius:8px;">
+                    <td align="center" bgcolor="#FF5A5A" style="border-radius:8px;">
                       <a href="${baseUrl}/quote-select?qid=${quote.id}&cid=${encodeURIComponent(r.company_id)}&cn=${encodeURIComponent(r.company_name)}" target="_blank"
-                         style="display:inline-block;background:#3B82F6;color:#ffffff;padding:11px 20px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">
+                         style="display:inline-block;background:#FF5A5A;color:#ffffff;padding:11px 20px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;font-family:Arial,sans-serif;">
                         Go with ${r.company_name} &#8594;
                       </a>
                     </td>
@@ -892,9 +964,9 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
               </tr>
             </table>
             <table cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr>
-              <td align="center" bgcolor="#0F172A" style="border-radius:8px;">
+              <td align="center" bgcolor="#1A1A2E" style="border-radius:8px;">
                 <a href="${baseUrl}/comparison-pdf?qid=${quote.id}" target="_blank"
-                   style="display:inline-block;background:#0F172A;color:#ffffff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;">
+                   style="display:inline-block;background:#1A1A2E;color:#ffffff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;font-family:Arial,sans-serif;">
                   Download PDF Comparison
                 </a>
               </td>
@@ -940,16 +1012,16 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     try {
     const { default: ExcelJS } = await import('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator   = 'InsureSAAS';
+    wb.creator   = 'InsureSAAS Insurance Brokers';
     wb.created   = new Date();
     const ws = wb.addWorksheet('Quote Comparison', { pageSetup: { orientation: 'landscape', fitToPage: true } });
     ws.columns = [{ width: 34 }, ...responses.map(() => ({ width: 24 }))];
 
-    const DARK  = 'FF0F172A';
-    const RED   = 'FF3B82F6';
-    const AMBER = 'FF6366f1';
+    const DARK  = 'FF1A1A2E';
+    const RED   = 'FFFF5A5A';
+    const AMBER = 'FFFF8B5A';
     const WHITE = 'FFFFFFFF';
-    const LIGHT = 'FFEFF6FF';
+    const LIGHT = 'FFFFF8F5';
     const GREY  = 'FFF9FAFB';
 
     const mergedRow = (text, bg, fg, sz, h = 20, align = 'center') => {
@@ -990,8 +1062,8 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     };
 
     // ── Title block ──
-    mergedRow('INSURESAAS LTD', RED, WHITE, 15, 30, 'center');
-    mergedRow('INSURANCE SAAS PLATFORM  ·  Sri Lanka', DARK, AMBER, 9, 18, 'center');
+    mergedRow('CEILAO INSURANCE BROKERS (PVT) LTD', RED, WHITE, 15, 30, 'center');
+    mergedRow('INSURANCE BROKING & RISK MANAGEMENT  ·  Sri Lanka', DARK, AMBER, 9, 18, 'center');
 
     // ── Reference info block ──
     mergedRow('QUOTE COMPARISON REPORT', GREY, DARK, 11, 22, 'center');
@@ -1089,7 +1161,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     ws.addRow([]);
 
     // ── Footer ──
-    const foot1 = ws.addRow([`InsureSAAS Ltd  ·  Insurance SaaS Platform  ·  Sri Lanka`, ...responses.map(() => '')]);
+    const foot1 = ws.addRow([`InsureSAAS Insurance Brokers (Pvt) Ltd  ·  Insurance Broking & Risk Management  ·  Sri Lanka`, ...responses.map(() => '')]);
     ws.mergeCells(foot1.number, 1, foot1.number, colCount);
     foot1.height = 16;
     foot1.getCell(1).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
@@ -1139,18 +1211,18 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     <Box>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
         <Button startIcon={<ArrowBackIcon />} onClick={onBack} variant="outlined"
-          sx={{ fontSize: 12, borderColor: 'rgba(99,102,241,0.3)', color: '#6366f1' }}>
+          sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A' }}>
           Back
         </Button>
         <Typography sx={{ fontWeight: 800, fontSize: 18 }}>
           Quote Comparison — {quote.reference}
         </Typography>
-        <Chip label={product?.label} sx={{ bgcolor: 'rgba(59,130,246,0.08)', color: '#3B82F6', fontWeight: 700 }} />
+        <Chip label={product?.label} sx={{ bgcolor: 'rgba(255,90,90,0.08)', color: '#FF5A5A', fontWeight: 700 }} />
         <Box sx={{ flex: 1 }} />
         <Button variant="outlined" size="small"
           startIcon={exportingExcel ? <CircularProgress size={12} color="inherit" /> : <FileDownloadOutlinedIcon />}
           onClick={exportExcel} disabled={exportingExcel}
-          sx={{ fontSize: 12, borderColor: 'rgba(99,102,241,0.3)', color: '#6366f1' }}>
+          sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A' }}>
           {exportingExcel ? 'Exporting…' : 'Export Excel'}
         </Button>
         <Button variant="outlined" size="small"
@@ -1159,7 +1231,21 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           sx={{ fontSize: 12, borderColor: 'rgba(99,102,241,0.3)', color: '#6366f1' }}>
           {exportingPdf ? 'Generating PDF…' : 'Export PDF'}
         </Button>
+        <Button variant={notFinalised ? 'contained' : 'outlined'} size="small"
+          onClick={toggleNotFinalised} disabled={markingNF}
+          startIcon={<span style={{ fontSize: 13 }}>⏳</span>}
+          sx={{ fontSize: 12, ...(notFinalised
+            ? { bgcolor: '#d97706', '&:hover': { bgcolor: '#b45309' } }
+            : { borderColor: 'rgba(245,158,11,0.4)', color: '#d97706' }) }}>
+          {markingNF ? 'Saving…' : notFinalised ? 'Not Finalised ✓' : 'Mark Not Finalised'}
+        </Button>
       </Stack>
+      {notFinalised && (
+        <Alert severity="warning" sx={{ mb: 2, fontSize: 12.5 }}
+          action={<Button color="inherit" size="small" onClick={toggleNotFinalised} disabled={markingNF}>Undo</Button>}>
+          Marked as <strong>Not Finalised</strong> — the customer proceeded with another company, not through us.
+        </Alert>
+      )}
       {exportError && (
         <Alert severity="error" sx={{ mb: 2, fontSize: 12 }} onClose={() => setExportError('')}>
           {exportError}
@@ -1204,7 +1290,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           <Typography sx={{ color: '#9CA3AF' }}>No responses received yet for this quote.</Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(99,102,241,0.12)', borderRadius: '14px', mb: 3 }}>
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(255,139,90,0.12)', borderRadius: '14px', mb: 3 }}>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -1213,7 +1299,13 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                   const isSelected = quote.customer_selection?.company_id === r.company_id;
                   return (
                   <TableCell key={r.id} align="center" sx={{ fontWeight: 700, minWidth: 160, bgcolor: isSelected ? 'rgba(16,185,129,0.06)' : 'transparent' }}>
-                    <Box>
+                    <Box sx={{ position: 'relative' }}>
+                      <Tooltip title={`Remove ${r.company_name}'s quote`}>
+                        <IconButton size="small" onClick={() => setDeleteResp(r)}
+                          sx={{ position: 'absolute', top: -6, right: -6, color: '#9CA3AF', '&:hover': { color: '#ef4444', bgcolor: 'rgba(239,68,68,0.08)' } }}>
+                          <CloseIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Tooltip>
                       <Typography sx={{ fontWeight: 800, fontSize: 13 }}>{r.company_name}</Typography>
                       {isSelected && <Box component="span" sx={{ fontSize: 10, color: '#059669', fontWeight: 700, bgcolor: 'rgba(16,185,129,0.12)', px: 1, py: 0.2, borderRadius: '10px', display: 'inline-block', mt: 0.3 }}>🏆 Customer's Choice</Box>}
 
@@ -1285,7 +1377,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                     { key: 'vat_amount',    label: 'VAT (LKR)' },
                     { key: 'other_premium', label: 'Other (LKR)' },
                   ].map((row, i) => (
-                    <TableRow key={row.key} sx={{ bgcolor: i % 2 === 0 ? 'rgba(239,246,255,0.4)' : '#fff' }}>
+                    <TableRow key={row.key} sx={{ bgcolor: i % 2 === 0 ? 'rgba(255,248,245,0.4)' : '#fff' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5 }}>{row.label}</TableCell>
                       {responses.map(r => (
                         <TableCell key={r.id} align="center" sx={{ fontSize: 12.5 }}>
@@ -1294,10 +1386,10 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                       ))}
                     </TableRow>
                   ))}
-                  <TableRow sx={{ bgcolor: 'rgba(59,130,246,0.06)' }}>
-                    <TableCell sx={{ fontWeight: 800, color: '#3B82F6' }}>Total Premium (LKR)</TableCell>
+                  <TableRow sx={{ bgcolor: 'rgba(255,90,90,0.06)' }}>
+                    <TableCell sx={{ fontWeight: 800, color: '#FF5A5A' }}>Total Premium (LKR)</TableCell>
                     {responses.map(r => (
-                      <TableCell key={r.id} align="center" sx={{ fontWeight: 800, color: '#3B82F6', fontSize: 15 }}>
+                      <TableCell key={r.id} align="center" sx={{ fontWeight: 800, color: '#FF5A5A', fontSize: 15 }}>
                         {Number(r.premium || 0).toLocaleString()}
                       </TableCell>
                     ))}
@@ -1340,12 +1432,12 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 <>
                   <TableRow>
                     <TableCell colSpan={responses.length + 1}
-                      sx={{ background: '#0F172A', color: '#6366f1', fontWeight: 800, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', py: 1.2 }}>
+                      sx={{ background: '#1A1A2E', color: '#FF8B5A', fontWeight: 800, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', py: 1.2 }}>
                       Covers Required
                     </TableCell>
                   </TableRow>
                   {coverFields.map((f, i) => (
-                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(239,246,255,0.5)' }}>
+                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5, pl: 3 }}>{f.label}</TableCell>
                       {responses.map(r => {
                         const cr = r.cover_responses?.[f.name];
@@ -1375,12 +1467,12 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 <>
                   <TableRow>
                     <TableCell colSpan={responses.length + 1}
-                      sx={{ background: '#0F172A', color: '#6366f1', fontWeight: 800, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', py: 1.2 }}>
+                      sx={{ background: '#1A1A2E', color: '#FF8B5A', fontWeight: 800, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', py: 1.2 }}>
                       Additional Clauses
                     </TableCell>
                   </TableRow>
                   {clauseFields.map((f, i) => (
-                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(239,246,255,0.5)' }}>
+                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5, pl: 3 }}>{f.label}</TableCell>
                       {responses.map(r => {
                         const cr = r.clause_responses?.[f.name];
@@ -1496,7 +1588,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 <Chip label="Declined" size="small"
                   sx={{ fontWeight: 700, fontSize: 11, bgcolor: 'rgba(239,68,68,0.10)', color: '#dc2626', flexShrink: 0 }} />
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{r.company_name}</Typography>
+                  <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{r.company_name}</Typography>
                   <Typography sx={{ fontSize: 12.5, color: '#6B7280' }}>{r.decline_reason || 'Outside underwriting guidelines'}</Typography>
                 </Box>
               </Box>
@@ -1504,6 +1596,23 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           </Stack>
         </Box>
       )}
+
+      {/* ── Delete response confirm ────────────────────────────────────────── */}
+      <Dialog open={!!deleteResp} onClose={() => !deletingResp && setDeleteResp(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>Remove this quote?</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 14, color: '#374151' }}>
+            Remove <strong>{deleteResp?.company_name}</strong>'s quote from this comparison? This permanently
+            deletes their response from the request and cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDeleteResp(null)} disabled={deletingResp} sx={{ color: '#6B7280' }}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={deleteResponse} disabled={deletingResp}>
+            {deletingResp ? 'Removing…' : 'Remove Quote'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Broker edit dialog ─────────────────────────────────────────────── */}
       <Dialog open={!!editTarget} onClose={() => setEditTarget(null)} maxWidth="md" fullWidth
@@ -1517,7 +1626,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           </Alert>
 
           {/* Premium Breakdown */}
-          <Typography sx={{ fontSize: 11, fontWeight: 800, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: 1, mb: 1.5 }}>
+          <Typography sx={{ fontSize: 11, fontWeight: 800, color: '#FF5A5A', textTransform: 'uppercase', letterSpacing: 1, mb: 1.5 }}>
             Premium Breakdown
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 2.5 }}>
@@ -1578,7 +1687,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 {coverFields.map((f, i) => {
                   const cr = editCoverResp[f.name] || { provided: '', terms: '' };
                   return (
-                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(239,246,255,0.5)', borderBottom: i < coverFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)', borderBottom: i < coverFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{f.label}</Typography>
                       <Select size="small" value={cr.provided} displayEmpty fullWidth
                         onChange={e => setECover(f.name, 'provided', e.target.value)}>
@@ -1607,7 +1716,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 {clauseFields.map((f, i) => {
                   const cr = editClauseResp[f.name] || { provided: '', terms: '' };
                   return (
-                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(239,246,255,0.5)', borderBottom: i < clauseFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)', borderBottom: i < clauseFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{f.label}</Typography>
                       <Select size="small" value={cr.provided} displayEmpty fullWidth
                         onChange={e => setEClause(f.name, 'provided', e.target.value)}>
@@ -1674,6 +1783,8 @@ const QuotationsPage = () => {
   const [toast,         setToast]         = useState({ open: false, msg: '', severity: 'success' });
   const [filterProduct,  setFilterProduct]  = useState('all');
   const [filterStatus,   setFilterStatus]   = useState('all');
+  const [searchText,     setSearchText]     = useState('');
+  const [unfinalisedOnly, setUnfinalisedOnly] = useState(false);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
   const [deleting,       setDeleting]       = useState(false);
   const [fieldErrors,    setFieldErrors]    = useState({});
@@ -1737,13 +1848,54 @@ const QuotationsPage = () => {
   }, []);
 
   const filteredQuotes = useMemo(() => {
-    let list = quotes;
-    if (dateFrom) list = list.filter(q => q.created_at?.toDate?.() >= dateFrom);
-    if (dateTo)   list = list.filter(q => q.created_at?.toDate?.() <= dateTo);
-    if (filterProduct !== 'all') list = list.filter(q => q.product_key === filterProduct);
-    if (filterStatus  !== 'all') list = list.filter(q => q.status === filterStatus);
-    return list;
-  }, [quotes, dateFrom, dateTo, filterProduct, filterStatus]);
+    // Resolve a quote's created date robustly (Firestore Timestamp, ISO string, or
+    // optimistic Date) — quotes without a parseable date are never filtered out by date.
+    const quoteDate = (q) => {
+      const c = q.created_at;
+      if (c?.toDate) return c.toDate();
+      if (c) { const d = new Date(c); return isNaN(d) ? null : d; }
+      return null;
+    };
+    // Normalise the range to whole days so "To" includes the entire end day.
+    const from = dateFrom ? new Date(new Date(dateFrom).setHours(0, 0, 0, 0)) : null;
+    const to   = dateTo   ? new Date(new Date(dateTo).setHours(23, 59, 59, 999)) : null;
+    const term = searchText.trim().toLowerCase();
+
+    return quotes.filter(q => {
+      if (from || to) {
+        const d = quoteDate(q);
+        if (d) {
+          if (from && d < from) return false;
+          if (to   && d > to)   return false;
+        }
+      }
+      if (filterProduct !== 'all' && q.product_key !== filterProduct) return false;
+      if (filterStatus  !== 'all' && (q.status || 'sent') !== filterStatus) return false;
+      // "Not finalised" = manually marked (customer went with another company not through us)
+      if (unfinalisedOnly && !q.not_finalised) return false;
+      if (term) {
+        const product = allP[q.product_key];
+        const insurers = [
+          ...(q.sent_to   || []).map(c => c.company_name),
+          ...(q.responses || []).map(r => r.company_name),
+        ];
+        const fd = q.form_data || {};
+        const haystack = [
+          q.reference, q.product_key, product?.label,
+          fd.proposer_name, fd.company_name, fd.full_name, fd.client_name,
+          fd.vehicle_no, fd.mobile, q.created_by_name,
+          ...insurers,
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [quotes, dateFrom, dateTo, filterProduct, filterStatus, searchText, unfinalisedOnly, allP]);
+
+  // Count of quotes manually marked as not finalised (customer went elsewhere)
+  const unfinalisedCount = useMemo(
+    () => quotes.filter(q => q.not_finalised === true).length,
+    [quotes]);
 
   const sentQuotes     = filteredQuotes.filter(q => (q.sent_to?.length || 0) > 0);
   const receivedQuotes = filteredQuotes.filter(q => (q.responses?.length || 0) > 0);
@@ -1974,7 +2126,9 @@ const QuotationsPage = () => {
         manager:            fd.manager            || '',
 
         // Insurance Company
+        insurance_type:     'General',   // default; broker can switch to Life in the form
         product:            productLabel,
+        product_key:        quote.product_key || '',
         insurance_provider: response.company_name,
 
         // Proposer Details (quotation uses different field names)
@@ -1993,6 +2147,7 @@ const QuotationsPage = () => {
         policy_period_to:   fd.period_to    || fd.return_date    || fd.loan_end   || fd.expiry_date       || '',
 
         // Sum Insured
+        sum_insured_currency: fd.sum_insured_currency || fd.currency || 'LKR',
         sum_insured: String(fd.sum_insured || fd.total_value || fd.market_value || fd.sum_assured || fd.limit_per_occurrence || fd.cyber_limit || fd.cover_limit || fd.hospitalization_cover || ''),
 
         // Motor-specific name remaps
@@ -2290,8 +2445,21 @@ const QuotationsPage = () => {
           </Box>
         </Stack>
 
-        {/* Product + Status filters */}
-        <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {/* Search + Product + Status filters */}
+        <Stack direction="row" spacing={1.5} sx={{ mb: 2, flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
+          <TextField
+            size="small" placeholder="Search ref, client, vehicle, insurer…"
+            value={searchText} onChange={e => setSearchText(e.target.value)}
+            sx={{ minWidth: 260, flex: 1, maxWidth: 420 }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 18, color: '#9CA3AF' }} /></InputAdornment>,
+              endAdornment: searchText ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchText('')}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Product Type</InputLabel>
             <Select value={filterProduct} label="Product Type" onChange={e => setFilterProduct(e.target.value)}>
@@ -2309,9 +2477,22 @@ const QuotationsPage = () => {
               <MenuItem value="confirmed">Confirmed</MenuItem>
             </Select>
           </FormControl>
-          {(filterProduct !== 'all' || filterStatus !== 'all') && (
-            <Button size="small" onClick={() => { setFilterProduct('all'); setFilterStatus('all'); }}
-              sx={{ fontSize: 12, color: '#9CA3AF' }}>Clear Filters</Button>
+          <Chip
+            label={`Not Finalised${unfinalisedCount ? ` (${unfinalisedCount})` : ''}`}
+            onClick={() => setUnfinalisedOnly(v => !v)}
+            size="medium"
+            icon={<span style={{ fontSize: 13, marginLeft: 8 }}>⏳</span>}
+            sx={{
+              fontWeight: 700, fontSize: 12.5, cursor: 'pointer', height: 38, borderRadius: '8px',
+              bgcolor: unfinalisedOnly ? '#d97706' : 'rgba(245,158,11,0.10)',
+              color: unfinalisedOnly ? '#fff' : '#d97706',
+              border: `1.5px solid ${unfinalisedOnly ? '#d97706' : 'rgba(245,158,11,0.35)'}`,
+              '&:hover': { bgcolor: unfinalisedOnly ? '#b45309' : 'rgba(245,158,11,0.18)' },
+            }}
+          />
+          {(filterProduct !== 'all' || filterStatus !== 'all' || searchText || dateFrom || dateTo || unfinalisedOnly) && (
+            <Button size="small" onClick={() => { setFilterProduct('all'); setFilterStatus('all'); setSearchText(''); setDateFrom(null); setDateTo(null); setUnfinalisedOnly(false); }}
+              sx={{ fontSize: 12, color: '#9CA3AF' }}>Clear All</Button>
           )}
         </Stack>
 
@@ -2321,10 +2502,10 @@ const QuotationsPage = () => {
         ) : (
           <>
             <Tabs value={tab} onChange={(_, v) => { setTab(v); setQPage(1); }} sx={{
-              mb: 2.5, borderBottom: '1px solid rgba(99,102,241,0.12)',
+              mb: 2.5, borderBottom: '1px solid rgba(255,139,90,0.12)',
               '& .MuiTab-root': { fontSize: 13, fontWeight: 600, textTransform: 'none', color: '#9CA3AF' },
-              '& .Mui-selected': { color: '#3B82F6' },
-              '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#3B82F6,#6366f1)', height: 2.5 },
+              '& .Mui-selected': { color: '#FF5A5A' },
+              '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)', height: 2.5 },
             }}>
               <Tab label={`Sent (${sentQuotes.length})`} />
               <Tab label={`Received (${receivedQuotes.length})`} />
@@ -2429,7 +2610,7 @@ const QuotationsPage = () => {
 
             <ProductForm product={product} values={formValues} onChange={setField} errors={fieldErrors} allProducts={allP} />
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(99,102,241,0.10)' }}>
+          <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255,139,90,0.10)' }}>
             <Button onClick={() => { flushDraftSave(); setNewQuoteOpen(false); }} variant="outlined"
               sx={{ borderColor: '#e0e0e0', color: '#6B7280' }}>Cancel</Button>
             <Button variant="contained" onClick={handleCreateQuote} disabled={saving}>
@@ -2442,7 +2623,7 @@ const QuotationsPage = () => {
         <Dialog open={sendOpen} onClose={() => { setSendOpen(false); setInsurerCatTab('all'); setInsurerSearch(''); }} maxWidth="sm" fullWidth
           PaperProps={{ sx: { maxHeight:'88vh' } }}>
           <DialogTitle sx={{ display:'flex', alignItems:'center', gap:1.5 }}>
-            <SendIcon sx={{ color:'#6366f1', fontSize:20 }} />
+            <SendIcon sx={{ color:'#FF8B5A', fontSize:20 }} />
             Select Insurance Companies
           </DialogTitle>
           <DialogContent sx={{ pt:2, display:'flex', flexDirection:'column', gap:0 }}>
@@ -2479,7 +2660,7 @@ const QuotationsPage = () => {
                   {/* Category tabs — auto-generated from actual data */}
                   <Stack direction="row" spacing={0.8} sx={{ mb:1.5, flexWrap:'wrap', gap:0.8 }}>
                     {['all', ...dialogCats].map(c => {
-                      const cc  = c === 'all' ? { bg:'rgba(37,99,235,0.10)',color:'#2563EB' } : (CAT_COLORS[c] || { bg:'rgba(107,114,128,0.10)', color:'#6B7280' });
+                      const cc  = c === 'all' ? { bg:'rgba(232,71,42,0.10)',color:'#E8472A' } : (CAT_COLORS[c] || { bg:'rgba(107,114,128,0.10)', color:'#6B7280' });
                       const cnt = c === 'all' ? companies.length : companies.filter(co => (co.category||'') === c).length;
                       return (
                         <Chip key={c} label={`${c === 'all' ? 'All' : c} (${cnt})`} size="small" clickable
@@ -2512,7 +2693,7 @@ const QuotationsPage = () => {
                   </Stack>
 
                   {/* Company list */}
-                  <Box sx={{ maxHeight:320, overflowY:'auto', border:'1px solid rgba(99,102,241,0.12)', borderRadius:'12px' }}>
+                  <Box sx={{ maxHeight:320, overflowY:'auto', border:'1px solid rgba(255,139,90,0.12)', borderRadius:'12px' }}>
                     {visible.length === 0 ? (
                       <Box sx={{ textAlign:'center', py:3 }}>
                         <Typography sx={{ fontSize:13, color:'#9CA3AF' }}>No companies match this filter.</Typography>
@@ -2525,13 +2706,13 @@ const QuotationsPage = () => {
                           sx={{
                             display:'flex', alignItems:'center', gap:1.5,
                             px:2, py:1.2, cursor:'pointer',
-                            bgcolor: sel ? 'rgba(37,99,235,0.04)' : i%2===0 ? '#fff' : 'rgba(239,246,255,0.5)',
-                            borderBottom: i < visible.length-1 ? '1px solid rgba(99,102,241,0.06)' : 'none',
+                            bgcolor: sel ? 'rgba(232,71,42,0.04)' : i%2===0 ? '#fff' : 'rgba(255,248,245,0.5)',
+                            borderBottom: i < visible.length-1 ? '1px solid rgba(255,139,90,0.06)' : 'none',
                             transition:'background 0.1s',
-                            '&:hover': { bgcolor:'rgba(37,99,235,0.06)' },
+                            '&:hover': { bgcolor:'rgba(232,71,42,0.06)' },
                           }}>
                           <Checkbox size="small" checked={sel}
-                            sx={{ p:0.3, color: sel ? '#2563EB' : '#D1D5DB', '&.Mui-checked':{ color:'#2563EB' } }} />
+                            sx={{ p:0.3, color: sel ? '#E8472A' : '#D1D5DB', '&.Mui-checked':{ color:'#E8472A' } }} />
                           <Box sx={{ flex:1, minWidth:0 }}>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <Typography sx={{ fontWeight:600, fontSize:13 }}>{co.name}</Typography>
@@ -2557,7 +2738,7 @@ const QuotationsPage = () => {
               </Alert>
             )}
           </DialogContent>
-          <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(99,102,241,0.10)' }}>
+          <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255,139,90,0.10)' }}>
             <Button onClick={() => setSendOpen(false)} variant="outlined"
               sx={{ borderColor:'#e0e0e0', color:'#6B7280' }}>Cancel</Button>
             <Button variant="contained" startIcon={sending ? <CircularProgress size={14} color="inherit" /> : <SendIcon />}
@@ -2606,7 +2787,7 @@ const QuotationsPage = () => {
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button variant="contained" onClick={() => setValOpen(false)}
-              sx={{ background: 'linear-gradient(135deg,#3B82F6,#6366f1)', minWidth: 100 }}>
+              sx={{ background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', minWidth: 100 }}>
               OK, fix them
             </Button>
           </DialogActions>

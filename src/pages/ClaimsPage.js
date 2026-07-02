@@ -61,10 +61,10 @@ function ClaimCard({ claim, onUpdate }) {
   };
 
   return (
-    <Card sx={{ mb: 1.5, border: '1px solid rgba(99,102,241,0.12)' }}>
+    <Card sx={{ mb: 1.5, border: '1px solid rgba(255,139,90,0.12)' }}>
       <CardContent sx={{ p:0,'&:last-child':{pb:0} }}>
         <Box sx={{ px:2.5, py:1.5, display:'flex', alignItems:'center', gap:1.5,
-                    cursor:'pointer','&:hover':{bgcolor:'rgba(59,130,246,0.02)'} }}
+                    cursor:'pointer','&:hover':{bgcolor:'rgba(255,90,90,0.02)'} }}
              onClick={() => setOpen(o=>!o)}>
           <Box sx={{ flex:1, minWidth:0 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:0.3 }}>
@@ -75,13 +75,13 @@ function ClaimCard({ claim, onUpdate }) {
               {claim.client_name} · {claim.policy_no} · Filed: {filed}
             </Typography>
           </Box>
-          <Typography sx={{ fontWeight:800, fontSize:14, color:'#3B82F6', flexShrink:0 }}>
+          <Typography sx={{ fontWeight:800, fontSize:14, color:'#FF5A5A', flexShrink:0 }}>
             {claim.loss_amount ? `LKR ${Number(claim.loss_amount).toLocaleString()}` : '—'}
           </Typography>
           {open ? <ExpandLessIcon sx={{ color:'#9CA3AF' }} /> : <ExpandMoreIcon sx={{ color:'#9CA3AF' }} />}
         </Box>
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px:2.5, pb:2.5, pt:0.5, borderTop:'1px solid rgba(99,102,241,0.08)' }}>
+          <Box sx={{ px:2.5, pb:2.5, pt:0.5, borderTop:'1px solid rgba(255,139,90,0.08)' }}>
             <Box sx={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1.5, mb:2 }}>
               {[
                 ['Incident Date', claim.incident_date],
@@ -231,7 +231,7 @@ const ClaimsPage = () => {
             <TextField size="small" fullWidth multiline minRows={3} label="Loss Description" value={form.description} onChange={e=>set('description',e.target.value)} />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{px:3,py:2,borderTop:'1px solid rgba(99,102,241,0.10)'}}>
+        <DialogActions sx={{px:3,py:2,borderTop:'1px solid rgba(255,139,90,0.10)'}}>
           <Button onClick={()=>setOpen(false)} variant="outlined" sx={{borderColor:'#e0e0e0',color:'#6B7280'}}>Cancel</Button>
           <Button variant="contained" onClick={handleCreate} disabled={saving}>{saving?'Saving…':'Register Claim'}</Button>
         </DialogActions>

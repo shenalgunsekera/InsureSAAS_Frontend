@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, TextField, Box, Typography, InputLabel, Link } from '@mui/material';
-import { openFile } from '../cloudinary';
+import { openFile } from '../storage';
 
 const ClientForm = ({ onSubmit, initialData = {}, isEdit = false }) => {
   const [name, setName] = useState(initialData.name || '');

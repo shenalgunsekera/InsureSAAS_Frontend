@@ -98,7 +98,7 @@ const RenewalsPage = () => {
         <CardContent sx={{ p:0, '&:last-child':{pb:0} }}>
           <Box sx={{ px:2.5, pt:2, pb:1, display:'flex', gap:2, alignItems:'center', flexWrap:'wrap' }}>
             <Tabs value={tab} onChange={(_,v)=>{ setTab(v); setRPage(1); }}
-              sx={{ '& .MuiTab-root':{fontSize:12.5, fontWeight:600, textTransform:'none', color:'#9CA3AF'}, '& .Mui-selected':{color:'#3B82F6'}, '& .MuiTabs-indicator':{background:'linear-gradient(90deg,#3B82F6,#6366f1)', height:2.5} }}>
+              sx={{ '& .MuiTab-root':{fontSize:12.5, fontWeight:600, textTransform:'none', color:'#9CA3AF'}, '& .Mui-selected':{color:'#FF5A5A'}, '& .MuiTabs-indicator':{background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)', height:2.5} }}>
               <Tab label={`Expiring Soon (${categorised.expiring.length})`} />
               <Tab label={`Expired (${categorised.expired.length})`} />
               <Tab label="All" />
@@ -125,7 +125,7 @@ const RenewalsPage = () => {
                   ) : filtered.slice((rPage-1)*rPer, rPage*rPer).map((c,i) => {
                     const s = statusChip(c.daysLeft);
                     return (
-                      <TableRow key={c.id} sx={{ bgcolor: i%2===0?'#fff':'rgba(239,246,255,0.6)' }}>
+                      <TableRow key={c.id} sx={{ bgcolor: i%2===0?'#fff':'rgba(255,248,245,0.6)' }}>
                         <TableCell sx={{ fontWeight:600 }}>{c.client_name}</TableCell>
                         <TableCell sx={{ fontFamily:'monospace' }}>{c.policy_no||'—'}</TableCell>
                         <TableCell>{c.product||'—'}</TableCell>
@@ -146,7 +146,7 @@ const RenewalsPage = () => {
             </TableContainer>
           )}
           {filtered.length > rPer && (
-            <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', px:2.5, py:1.5, borderTop:'1px solid rgba(99,102,241,0.08)', flexWrap:'wrap', gap:1 }}>
+            <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', px:2.5, py:1.5, borderTop:'1px solid rgba(255,139,90,0.08)', flexWrap:'wrap', gap:1 }}>
               <Typography sx={{ fontSize:12.5, color:'#9CA3AF' }}>
                 Showing {(rPage-1)*rPer+1}–{Math.min(rPage*rPer, filtered.length)} of {filtered.length}
               </Typography>

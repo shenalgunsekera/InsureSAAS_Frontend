@@ -8,6 +8,7 @@ import { useAuth } from '../App';
 import { uploadFile as uploadToCloudinary } from '../storage';
 import AddClientForm, { textFields as UW_FIELDS } from './AddClientForm';
 import ClientDetailsModal from './ClientDetailsModal';
+import { exportHeader, normaliseImportRow } from '../utils/csvHeaders';
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -84,7 +85,7 @@ function derivePolicyDays(client) {
 /* ── Excel export for underwriting sheet ─────────────────────────────── */
 async function exportUnderwritingExcel(clients) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'InsureSAAS';
+  wb.creator = 'InsureSAAS Insurance Brokers';
   wb.created = new Date();
 
   const ws = wb.addWorksheet('Underwriting', {
@@ -92,9 +93,9 @@ async function exportUnderwritingExcel(clients) {
     views: [{ state: 'frozen', xSplit: 1, ySplit: 4 }],
   });
 
-  const RED    = 'FF3B82F6';
-  const AMBER  = 'FF6366f1';
-  const DARK   = 'FF0F172A';
+  const RED    = 'FFFF5A5A';
+  const AMBER  = 'FFFF8B5A';
+  const DARK   = 'FF1A1A2E';
   const WHITE  = 'FFFFFFFF';
   const LTGRAY = 'FFF9FAFB';
 
@@ -110,12 +111,15 @@ async function exportUnderwritingExcel(clients) {
     { key: 'introducer_code',    header: 'Agent / Introducer',     w: 18 },
     // Client
     { key: 'client_name',        header: 'Policyholder',           w: 24 },
+    { key: 'customer_type',      header: 'Customer Type',          w: 14 },
     { key: 'nic_proof',          header: 'NIC / PP No.',           w: 16 },
     { key: 'street1',            header: 'Address',                w: 28 },
     { key: '_contact',           header: 'Contact & Email',        w: 26, derived: c => [c.mobile_no, c.email].filter(Boolean).join(' / ') },
     // Policy
+    { key: 'insurance_type',     header: 'Insurance Type',         w: 14 },
     { key: 'insurance_provider', header: 'Insurer',                w: 24 },
-    { key: 'sum_insured',        header: 'Sum Insured (Rs)',        w: 16, isNum: true },
+    { key: 'sum_insured_currency', header: 'Currency',             w: 10 },
+    { key: 'sum_insured',        header: 'Sum Insured',             w: 16, isNum: true },
     { key: 'vehicle_number',     header: 'Vehicle No.',            w: 14 },
     { key: 'product',            header: 'Policy Class',           w: 20 },
     { key: 'policy_period_to',   header: 'Policy Expiry',          w: 14, isDate: true },
@@ -137,6 +141,7 @@ async function exportUnderwritingExcel(clients) {
     { key: 'payment_method',     header: 'Payment Method',         w: 16 },
     { key: 'cheque_slip_no',     header: 'Cheque / Slip No.',      w: 18 },
     { key: 'receipt_no',         header: 'Receipt No.',            w: 14 },
+    { key: 'debit_note_no',      header: 'Debit Note No.',         w: 16 },
     // Commission
     { key: 'commission_pct',     header: 'Commission %',           w: 13, isNum: true },
     { key: 'commission_basic',   header: 'Commission Basic (Rs)',   w: 18, isNum: true },
@@ -145,7 +150,7 @@ async function exportUnderwritingExcel(clients) {
     { key: 'commission_total',   header: 'Total Commission (Rs)',   w: 18, isNum: true },
     { key: 'commission_paid_method', header: 'Commis. Method',     w: 16 },
     { key: 'commission_receive_date', header: 'Commis. Receive Date', w: 18, isDate: true },
-    { key: 'commission_amount_paid', header: 'Commis. Amount Paid (Rs)', w: 20, isNum: true },
+    { key: 'commission_amount_paid', header: 'Commis. Amount Received (Rs)', w: 20, isNum: true },
     { key: 'commission_vat',     header: 'Commis. VAT (Rs)',       w: 14, isNum: true },
     // Claims
     { key: 'claim_paid',         header: 'Claim Paid?',            w: 12 },
@@ -162,7 +167,7 @@ async function exportUnderwritingExcel(clients) {
   /* Title rows */
   ws.mergeCells(1, 1, 1, cols.length);
   const t1 = ws.getCell(1, 1);
-  t1.value = 'INSURESAAS LTD — UNDERWRITING REGISTER';
+  t1.value = 'CEILAO INSURANCE BROKERS (PVT) LTD — UNDERWRITING REGISTER';
   t1.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
   t1.font  = { name: 'Calibri', bold: true, size: 14, color: { argb: WHITE } };
   t1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -183,7 +188,7 @@ async function exportUnderwritingExcel(clients) {
   cols.forEach((c, i) => {
     const cell = ws.getCell(4, i + 1);
     cell.value = c.header;
-    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
     cell.font  = { name: 'Calibri', bold: true, size: 9.5, color: { argb: AMBER } };
     cell.alignment = { horizontal: c.isNum ? 'right' : 'center', vertical: 'middle', wrapText: true };
     cell.border = { bottom: { style: 'medium', color: { argb: RED } } };
@@ -304,7 +309,7 @@ function SkeletonRow() {
     <TableRow>
       {[180, 120, 120, 120, 90, 100].map((w, i) => (
         <TableCell key={i}>
-          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(59,130,246,0.06)' }} />
+          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(255,90,90,0.06)' }} />
         </TableCell>
       ))}
     </TableRow>
@@ -491,11 +496,12 @@ const TableSection = () => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(c =>
-        (c.client_name  || '').toLowerCase().includes(q) ||
-        (c.mobile_no    || '').toLowerCase().includes(q) ||
-        (c.policy_no    || '').toLowerCase().includes(q) ||
-        (c.product      || '').toLowerCase().includes(q) ||
-        (c.email        || '').toLowerCase().includes(q)
+        (c.client_name       || '').toLowerCase().includes(q) ||
+        (c.mobile_no         || '').toLowerCase().includes(q) ||
+        (c.policy_no         || '').toLowerCase().includes(q) ||
+        (c.insuresaas_ib_file_no || '').toLowerCase().includes(q) ||
+        (c.product           || '').toLowerCase().includes(q) ||
+        (c.email             || '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -541,8 +547,9 @@ const TableSection = () => {
       .map(f => f.name);
 
     const example = {
-      customer_type: 'Individual', product: 'Comprehensive',
+      insurance_type: 'General', customer_type: 'Individual', product: 'Comprehensive',
       insurance_provider: 'Ceylinco General Insurance',
+      sum_insured_currency: 'LKR', sum_insured: '5000000',
       client_name: 'John Doe', mobile_no: '0771234567',
       insuresaas_ib_file_no: 'MT-20250101-0001-JOHNDOE',
       manager: 'Jane Smith', introducer_code: 'INT001',
@@ -550,11 +557,14 @@ const TableSection = () => {
       policy_period_from: '2025-01-01', policy_period_to: '2026-01-01',
       basic_premium: '50000', net_premium: '58000', total_invoice: '64600',
       payment_status: 'Paid', payment_method: 'Bank Transfer',
-      commission_type: 'Percentage', commission_pct: '15',
-      commission_basic: '7500',
+      commission_type: 'Standard', commission_pct: '20',
+      commission_basic: '10000',
       date_added: new Date().toISOString().slice(0, 10),
     };
-    const csv = Papa.unparse([allFields, allFields.map(h => example[h] ?? '')]);
+    // Header row uses friendly names (e.g. total_premium) while values are still
+    // pulled by the internal key. The importer maps the friendly names back.
+    const headerRow = allFields.map(exportHeader);
+    const csv = Papa.unparse([headerRow, allFields.map(h => example[h] ?? '')]);
     const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
       download: 'insuresaas_underwriting_template.csv',
@@ -577,26 +587,40 @@ const TableSection = () => {
           setCsvImporting(false); return;
         }
         let imported = 0, errors = [];
-        const batch = writeBatch(db);
-        for (let i = 0; i < results.data.length; i++) {
-          const row = results.data[i];
-          const miss = required.filter(f => !row[f]);
-          if (miss.length) { errors.push({ row: i + 2, error: `Missing: ${miss.join(', ')}` }); continue; }
-          const ref = doc(collection(db, 'clients'));
-          const clean = {};
-          Object.entries(row).forEach(([k, v]) => { if (v !== '' && v != null) clean[k] = v; });
-          // Honour date_added if provided (preserves original date on backup restore)
-          const dateAdded = clean.date_added ? new Date(clean.date_added) : new Date();
-          delete clean.date_added;
-          batch.set(ref, { ...clean, created_at: isNaN(dateAdded) ? new Date() : dateAdded, is_active: true });
-          imported++;
-        }
+        // Firestore batches are capped at 500 writes — commit in chunks so large
+        // registers (hundreds/thousands of rows) import without hitting the limit.
+        const CHUNK = 450;
+        let batch = writeBatch(db);
+        let pending = 0;
         try {
-          await batch.commit();
+          for (let i = 0; i < results.data.length; i++) {
+            const row = normaliseImportRow(results.data[i]);
+            const miss = required.filter(f => !row[f]);
+            if (miss.length) { errors.push({ row: i + 2, error: `Missing: ${miss.join(', ')}` }); continue; }
+            const ref = doc(collection(db, 'clients'));
+            const clean = {};
+            Object.entries(row).forEach(([k, v]) => { if (v !== '' && v != null) clean[k] = v; });
+            // Auto-calculations the form normally derives — computed on import so the
+            // record shows complete totals without anyone re-saving it.
+            const n = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
+            const commTotal = n(clean.commission_basic) + n(clean.commission_srcc) + n(clean.commission_tc) + n(clean.commission_special_amount);
+            if (commTotal !== 0) clean.commission_total = String(Math.round(commTotal * 100) / 100);
+            if (clean.policy_period_from && clean.policy_period_to && !clean.policy_days) {
+              const a = new Date(clean.policy_period_from), b = new Date(clean.policy_period_to);
+              if (!isNaN(a) && !isNaN(b)) { const days = Math.round((b - a) / 86400000); if (days >= 0) clean.policy_days = String(days); }
+            }
+            // Honour date_added if provided (preserves original date on backup restore)
+            const dateAdded = clean.date_added ? new Date(clean.date_added) : new Date();
+            delete clean.date_added;
+            batch.set(ref, { ...clean, created_at: isNaN(dateAdded) ? new Date() : dateAdded, is_active: true });
+            imported++; pending++;
+            if (pending >= CHUNK) { await batch.commit(); batch = writeBatch(db); pending = 0; }
+          }
+          if (pending > 0) await batch.commit();
           if (errors.length) { setCsvErrors(errors); setCsvErrDlg(true); toast(`Imported ${imported}, ${errors.length} failed`, 'warning'); }
           else toast(`Successfully imported ${imported} clients!`);
           _cachedClients = null; fetchClients(true);
-        } catch { toast('Import failed', 'error'); }
+        } catch (err) { toast(`Import failed after ${imported} rows: ${err.message || 'error'}`, 'error'); }
         e.target.value = ''; setCsvImporting(false);
       },
     });
@@ -626,10 +650,10 @@ const TableSection = () => {
                 sx={{
                   fontWeight: 600, fontSize: 12,
                   background: filterType === t
-                    ? 'linear-gradient(135deg,#3B82F6,#6366f1)'
-                    : 'rgba(59,130,246,0.07)',
-                  color: filterType === t ? '#fff' : '#3B82F6',
-                  border: filterType === t ? 'none' : '1px solid rgba(59,130,246,0.20)',
+                    ? 'linear-gradient(135deg,#FF5A5A,#FF8B5A)'
+                    : 'rgba(255,90,90,0.07)',
+                  color: filterType === t ? '#fff' : '#FF5A5A',
+                  border: filterType === t ? 'none' : '1px solid rgba(255,90,90,0.20)',
                   transition: 'all 0.2s ease',
                   '&:hover': { opacity: 0.88 },
                 }}
@@ -641,12 +665,12 @@ const TableSection = () => {
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>Date Added:</Typography>
             <Select size="small" value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(99,102,241,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,139,90,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Years</MenuItem>
               {availableYears.map(y => <MenuItem key={y} value={y} sx={{ fontSize: 12 }}>{y}</MenuItem>)}
             </Select>
             <Select size="small" value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(99,102,241,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,139,90,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Months</MenuItem>
               {['January','February','March','April','May','June','July','August','September','October','November','December']
                 .map((m, i) => <MenuItem key={i} value={i} sx={{ fontSize: 12 }}>{m}</MenuItem>)}
@@ -669,8 +693,8 @@ const TableSection = () => {
             size="small" variant="outlined"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={handleDownloadTemplate}
-            sx={{ borderColor: 'rgba(99,102,241,0.35)', color: '#6366f1', fontSize: 12,
-                  '&:hover': { borderColor: '#6366f1', bgcolor: 'rgba(99,102,241,0.07)' } }}
+            sx={{ borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A', fontSize: 12,
+                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.07)' } }}
           >
             CSV Template
           </Button>
@@ -688,8 +712,8 @@ const TableSection = () => {
             startIcon={<FileUploadOutlinedIcon />}
             onClick={() => document.getElementById('csv-input').click()}
             disabled={csvImporting}
-            sx={{ borderColor: 'rgba(99,102,241,0.35)', color: '#6366f1', fontSize: 12,
-                  '&:hover': { borderColor: '#6366f1', bgcolor: 'rgba(99,102,241,0.07)' } }}
+            sx={{ borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A', fontSize: 12,
+                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.07)' } }}
           >
             {csvImporting ? 'Importing…' : 'Import CSV'}
           </Button>
@@ -729,7 +753,7 @@ const TableSection = () => {
       </Box>
 
       {/* ── table ────────────────────────────────────────────── */}
-      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(99,102,241,0.10)' }}>
+      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(255,139,90,0.10)' }}>
         <TableContainer>
           <Table sx={{ minWidth: 680 }}>
             <TableHead>
@@ -750,7 +774,7 @@ const TableSection = () => {
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(59,130,246,0.25)' }} />
+                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(255,90,90,0.25)' }} />
                           <Typography sx={{ color: '#9CA3AF', fontWeight: 500 }}>
                             {searchQuery ? 'No clients match your search' : 'No clients yet — add your first client!'}
                           </Typography>
@@ -769,13 +793,13 @@ const TableSection = () => {
                         key={client.id}
                         className={rowClass}
                         sx={{
-                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(239,246,255,0.7)',
+                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.7)',
                           animation: `stagger 0.3s ease both`,
                           animationDelay: `${Math.min(idx * 0.04, 0.4)}s`,
                         }}
                       >
                         <TableCell>
-                          <Typography sx={{ fontWeight: 600, fontSize: 13, color: '#0F172A' }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: 13, color: '#1A1A2E' }}>
                             {client.client_name}
                           </Typography>
                           {client.email && (
@@ -798,7 +822,7 @@ const TableSection = () => {
                             label={client.product || '—'}
                             size="small"
                             sx={{ fontSize: 11, fontWeight: 600,
-                                  bgcolor: 'rgba(99,102,241,0.10)', color: '#2563EB' }}
+                                  bgcolor: 'rgba(255,139,90,0.10)', color: '#c05010' }}
                           />
                         </TableCell>
                         <TableCell sx={{ fontSize: 13, fontFamily: 'monospace', letterSpacing: 0.3 }}>
@@ -827,7 +851,7 @@ const TableSection = () => {
                               <>
                                 <Tooltip title="Edit">
                                   <IconButton size="small" onClick={() => setEditClient(client)}
-                                    sx={{ color: '#6366f1', '&:hover': { bgcolor: 'rgba(99,102,241,0.10)' } }}>
+                                    sx={{ color: '#FF8B5A', '&:hover': { bgcolor: 'rgba(255,139,90,0.10)' } }}>
                                     <EditOutlinedIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
@@ -854,7 +878,7 @@ const TableSection = () => {
           <Box sx={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             px: 2.5, py: 1.5, flexWrap: 'wrap', gap: 1,
-            borderTop: '1px solid rgba(99,102,241,0.08)',
+            borderTop: '1px solid rgba(255,139,90,0.08)',
           }}>
             <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>
               Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, filtered.length)} of {filtered.length} clients
@@ -921,7 +945,7 @@ const TableSection = () => {
             Cancel
           </Button>
           <Button onClick={handleDelete} variant="contained"
-            sx={{ background: 'linear-gradient(135deg,#3B82F6,#e04040)', boxShadow: 'none',
+            sx={{ background: 'linear-gradient(135deg,#FF5A5A,#e04040)', boxShadow: 'none',
                   '&:hover': { background: 'linear-gradient(135deg,#e04040,#c03030)' } }}>
             Delete
           </Button>
@@ -940,7 +964,7 @@ const TableSection = () => {
             Cancel
           </Button>
           <Button onClick={handleDeleteAll} variant="contained"
-            sx={{ background: 'linear-gradient(135deg,#3B82F6,#e04040)', boxShadow: 'none' }}>
+            sx={{ background: 'linear-gradient(135deg,#FF5A5A,#e04040)', boxShadow: 'none' }}>
             Delete All
           </Button>
         </DialogActions>
@@ -1016,7 +1040,7 @@ const TableSection = () => {
                       : <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: 'rgba(99,102,241,0.15)', flexShrink: 0 }} />
                     }
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A2E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.file.name}
                       </Typography>
                       <Typography sx={{ fontSize: 11, color: '#9CA3AF' }}>

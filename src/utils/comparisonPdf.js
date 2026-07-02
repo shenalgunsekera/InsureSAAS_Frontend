@@ -12,9 +12,9 @@
 //      clickable link, with a graceful link fallback when an image can't be
 //      embedded (CORS / fetch failure) — so clicking a quote always works.
 
-const NAVY = [15,23,42];
-const RED = [59,130,246];
-const ORANGE = [99,102,241];
+const NAVY = [26, 26, 46];
+const RED = [255, 90, 90];
+const ORANGE = [255, 139, 90];
 const GREY = [148, 163, 184];
 
 // Max insurer columns per table chunk. Landscape A4 keeps ~225mm after the
@@ -74,9 +74,9 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     pdf.setFillColor(...NAVY); pdf.rect(0, 0, pw, 20, 'F');
     pdf.setFillColor(...RED); pdf.rect(0, 20, pw, 3, 'F');
     pdf.setTextColor(...ORANGE); pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
-    pdf.text('INSURESAAS LTD', pw / 2, 9, { align: 'center' });
+    pdf.text('CEILAO INSURANCE BROKERS (PVT) LTD', pw / 2, 9, { align: 'center' });
     pdf.setTextColor(...GREY); pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
-    pdf.text('INSURANCE SAAS PLATFORM  ·  SRI LANKA', pw / 2, 15, { align: 'center' });
+    pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw / 2, 15, { align: 'center' });
   };
 
   const drawFooter = () => {
@@ -85,7 +85,7 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     pdf.setFillColor(...NAVY); pdf.rect(0, ph - 14, pw, 14, 'F');
     pdf.setFillColor(...RED); pdf.rect(0, ph - 14, pw, 1, 'F');
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(...ORANGE);
-    pdf.text('InsureSAAS Ltd', 12, ph - 8);
+    pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph - 8);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...GREY);
     pdf.text(
       isBroker
@@ -97,7 +97,7 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     pdf.text(`Page ${pn} / ${tp}`, pw - 12, ph - 8, { align: 'right' });
     pdf.setFont('helvetica', 'italic'); pdf.setFontSize(6.5); pdf.setTextColor(100, 116, 139);
     pdf.text(`Generated: ${today}`, 12, ph - 3.5);
-    pdf.text('Insurance SaaS Platform  ·  Sri Lanka', pw - 12, ph - 3.5, { align: 'right' });
+    pdf.text('Insurance Broking & Risk Management  ·  Sri Lanka', pw - 12, ph - 3.5, { align: 'right' });
   };
 
   const drawInfoBand = (groupLabel) => {
@@ -114,8 +114,8 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     const colCount = resps.length + 1;
     const mkSectionRow = (label) => [{ content: label, colSpan: colCount, styles: { fillColor: NAVY, textColor: ORANGE, fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }];
     const mkRow = (label, vals, isTotal = false, isInternal = false, i = 0) => [
-      { content: label, styles: { fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [239,246,255], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : NAVY } },
-      ...vals.map(v => ({ content: v, styles: { halign: 'center', fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [239,246,255], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : [55, 65, 81] } })),
+      { content: label, styles: { fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 248, 245], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : NAVY } },
+      ...vals.map(v => ({ content: v, styles: { halign: 'center', fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 248, 245], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : [55, 65, 81] } })),
     ];
 
     const premiumRows = isPlansProduct

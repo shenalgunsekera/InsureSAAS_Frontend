@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, getDocs, query, orderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { textFields as UW_FIELDS } from './AddClientForm';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -64,45 +65,32 @@ import ViewListIcon from '@mui/icons-material/ViewList';
 import FunctionsIcon from '@mui/icons-material/Functions';
 
 /* ── Palette ─────────────────────────────────────────────────────────────── */
-const CHART_COLORS = ['#3B82F6','#6366f1','#10B981','#f59e0b','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+const CHART_COLORS = ['#FF5A5A','#6366f1','#10B981','#f59e0b','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
 
 /* ── Field definitions ───────────────────────────────────────────────────── */
-const CLIENT_FIELDS = [
-  { key: 'client_name',        label: 'Client Name',        type: 'string'  },
-  { key: 'customer_type',      label: 'Customer Type',      type: 'string'  },
-  { key: 'product',            label: 'Product',            type: 'string'  },
-  { key: 'main_class',         label: 'Main Class',         type: 'string'  },
-  { key: 'insurance_provider', label: 'Insurance Provider', type: 'string'  },
-  { key: 'insurer',            label: 'Insurer',            type: 'string'  },
-  { key: 'branch',             label: 'Branch',             type: 'string'  },
-  { key: 'policy_no',          label: 'Policy No',          type: 'string'  },
-  { key: 'policy_type',        label: 'Policy Type',        type: 'string'  },
-  { key: 'policy_period_from', label: 'Policy From',        type: 'date'    },
-  { key: 'policy_period_to',   label: 'Policy Expiry',      type: 'date'    },
-  { key: 'insuresaas_ib_file_no',  label: 'File No',            type: 'string'  },
-  { key: 'mobile_no',          label: 'Mobile',             type: 'string'  },
-  { key: 'email',              label: 'Email',              type: 'string'  },
-  { key: 'sales_rep_id',       label: 'Sales Rep',          type: 'string'  },
-  { key: 'sum_insured',        label: 'Sum Insured',        type: 'number'  },
-  { key: 'basic_premium',      label: 'Basic Premium',      type: 'number'  },
-  { key: 'srcc_premium',       label: 'SRCC Premium',       type: 'number'  },
-  { key: 'tc_premium',         label: 'TC Premium',         type: 'number'  },
-  { key: 'net_premium',        label: 'Net Premium',        type: 'number'  },
-  { key: 'total_invoice',      label: 'Total Invoice',      type: 'number'  },
-  { key: 'commission_basic',   label: 'Commission Basic',   type: 'number'  },
-  { key: 'commission_srcc',    label: 'Commission SRCC',    type: 'number'  },
-  { key: 'commission_tc',      label: 'Commission TC',      type: 'number'  },
-  { key: 'stamp_duty',         label: 'Stamp Duty',         type: 'number'  },
-  { key: 'admin_fees',         label: 'Admin Fees',         type: 'number'  },
-  { key: 'vat_fee',            label: 'VAT',                type: 'number'  },
-  { key: 'road_safety_fee',    label: 'Road Safety Fee',    type: 'number'  },
-  { key: 'policy_fee',         label: 'Policy Fee',         type: 'number'  },
-  { key: 'policy_',            label: 'Policy',             type: 'string'  },
-  { key: 'policies',           label: 'Policies',           type: 'number'  },
-  { key: 'coverage',           label: 'Coverage',           type: 'string'  },
-  { key: 'status',             label: 'Status',             type: 'string'  },
-  { key: 'created_at',         label: 'Date Added',         type: 'date'    },
+const uwType = (f) => (f.type === 'number' || f.type === 'currency') ? 'number' : (f.date ? 'date' : 'string');
+// keys that exist on a client doc but aren't editable form fields
+const CLIENT_SYSTEM_FIELDS = [
+  { key: 'created_at',  label: 'Date Added',  type: 'date'   },
+  { key: 'insurer',     label: 'Insurer',     type: 'string' },
+  { key: 'main_class',  label: 'Main Class',  type: 'string' },
+  { key: 'status',      label: 'Status',      type: 'string' },
 ];
+// Base = every underwriting form field (so the report can use ALL of them) + system fields.
+// Excludes derived/non-stored keys (date_added becomes created_at; year/month are derived).
+const CLIENT_FIELDS = (() => {
+  const skip = new Set(['date_added', 'policy_year', 'policy_month']);
+  const base = UW_FIELDS.filter(f => !skip.has(f.name)).map(f => ({ key: f.name, label: f.label, type: uwType(f) }));
+  const have = new Set(base.map(f => f.key));
+  return [...base, ...CLIENT_SYSTEM_FIELDS.filter(f => !have.has(f.key))];
+})();
+// keys to hide from the dynamic field list (internal / file URLs / JSON blobs)
+const isInternalKey = (k) =>
+  k.startsWith('doc_') || k.endsWith('_doc_url') || k.endsWith('_text') ||
+  ['id','updated_at','is_active','submitted_by','submitted_at','submitted_by_name','source_quote_id',
+   'cover_responses','clause_responses','plan_premiums','endorsements','product_key',
+   'date_added','policy_year','policy_month','rejection_reason','reviewed_by','reviewed_at'].includes(k);
+const prettyKey = (k) => k.replace(/^(cover_|clause_|fi_)/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const CLAIM_FIELDS = [
   { key: 'client_name',    label: 'Client Name',    type: 'string' },
@@ -115,6 +103,43 @@ const CLAIM_FIELDS = [
   { key: 'main_class',     label: 'Main Class',     type: 'string' },
 ];
 
+// Quotation report fields — these map to the flattened quote rows built in loadData().
+const QUOTE_FIELDS = [
+  { key: 'reference',          label: 'Reference',          type: 'string' },
+  { key: 'product',            label: 'Product',            type: 'string' },
+  // Proposer / client
+  { key: 'client_name',        label: 'Client',             type: 'string' },
+  { key: 'customer_type',      label: 'Customer Type',      type: 'string' },
+  { key: 'mobile',             label: 'Mobile',             type: 'string' },
+  { key: 'email',              label: 'Email',              type: 'string' },
+  { key: 'nic_no',             label: 'NIC / Reg No',       type: 'string' },
+  { key: 'address',            label: 'Address',            type: 'string' },
+  { key: 'city',               label: 'City',               type: 'string' },
+  { key: 'district',           label: 'District',           type: 'string' },
+  // Risk basics
+  { key: 'sum_insured',        label: 'Sum Insured',        type: 'number' },
+  { key: 'vehicle_no',         label: 'Vehicle No',         type: 'string' },
+  { key: 'period_from',        label: 'Period From',        type: 'date'   },
+  { key: 'period_to',          label: 'Period To',          type: 'date'   },
+  // Status / outcome
+  { key: 'status',             label: 'Status',             type: 'string' },
+  { key: 'not_finalised',      label: 'Not Finalised',      type: 'string' },
+  { key: 'not_finalised_at',   label: 'Marked On',          type: 'date'   },
+  { key: 'selected_company',   label: 'Selected Insurer',   type: 'string' },
+  { key: 'selected_premium',   label: 'Selected Premium',   type: 'number' },
+  // Insurers & responses
+  { key: 'insurers_sent',      label: 'Insurers Sent',      type: 'string' },
+  { key: 'sent_count',         label: 'No. Sent',           type: 'number' },
+  { key: 'insurers_responded', label: 'Insurers Responded', type: 'string' },
+  { key: 'response_count',     label: 'No. Responses',      type: 'number' },
+  { key: 'declined_count',     label: 'No. Declined',       type: 'number' },
+  { key: 'lowest_premium',     label: 'Lowest Premium',     type: 'number' },
+  // Audit
+  { key: 'days_outstanding',   label: 'Days Outstanding',   type: 'number' },
+  { key: 'created_by_name',    label: 'Created By',          type: 'string' },
+  { key: 'created_at',         label: 'Date Created',        type: 'date'   },
+];
+
 const NUMBER_OPS = ['sum','avg','min','max','count'];
 const FILTER_OPS = {
   string: ['equals','contains','starts with','not equals'],
@@ -123,10 +148,7 @@ const FILTER_OPS = {
 };
 
 const BUILTIN_TEMPLATES = [
-  { id:'premium_summary',  name:'Premium Summary',     description:'Total premiums by insurer and product',  icon:'💰', source:'clients', fields:['insurance_provider','product','net_premium','total_invoice'], groupBy:'insurance_provider', aggregations:[{field:'net_premium',op:'sum'},{field:'total_invoice',op:'sum'},{field:'client_name',op:'count'}], filters:[], sortBy:'total_invoice_sum', sortDir:'desc', viewMode:'aggregated', charts:[{id:'c1',type:'bar',field:'total_invoice_sum',label:'Total Invoice by Insurer'}] },
-  { id:'expiry_report',    name:'Policy Expiry Report', description:'Policies expiring in the next 90 days', icon:'📅', source:'clients', fields:['client_name','policy_no','policy_period_to','insurance_provider','product','mobile_no','net_premium'], groupBy:'', aggregations:[], filters:[{field:'policy_period_to',op:'between',value:'__next90__'}], sortBy:'policy_period_to', sortDir:'asc', viewMode:'flat', charts:[] },
-  { id:'commission_report',name:'Commission Report',   description:'Commission earned by insurer',          icon:'📊', source:'clients', fields:['insurance_provider','commission_basic','commission_srcc','commission_tc'], groupBy:'insurance_provider', aggregations:[{field:'commission_basic',op:'sum'},{field:'commission_srcc',op:'sum'},{field:'commission_tc',op:'sum'}], filters:[], sortBy:'commission_basic_sum', sortDir:'desc', viewMode:'subtotals', charts:[{id:'c1',type:'bar',field:'commission_basic_sum',label:'Basic Commission by Insurer'}] },
-  { id:'claims_summary',   name:'Claims Summary',      description:'Claims by status and insurer',          icon:'🛡️', source:'claims',  fields:['insurer','status','claim_amount','settled_amount','client_name'], groupBy:'status', aggregations:[{field:'claim_amount',op:'sum'},{field:'settled_amount',op:'sum'},{field:'client_name',op:'count'}], filters:[], sortBy:'client_name_count', sortDir:'desc', viewMode:'aggregated', charts:[{id:'c1',type:'pie',field:'client_name_count',label:'Claims by Status'}] },
+  { id:'unfinalised_quotes', name:'Not Finalised Quotations', description:'Quotes where the customer went with another company (marked not finalised) — full quote detail', icon:'⏳', source:'quotes', fields:['reference','product','client_name','customer_type','mobile','email','nic_no','address','city','district','sum_insured','vehicle_no','period_from','period_to','status','not_finalised_at','selected_company','selected_premium','insurers_sent','sent_count','insurers_responded','response_count','declined_count','lowest_premium','days_outstanding','created_by_name','created_at'], groupBy:'', aggregations:[], filters:[{field:'not_finalised',op:'equals',value:'Yes'}], sortBy:'not_finalised_at', sortDir:'desc', viewMode:'flat', charts:[] },
 ];
 
 /* ── Pure helpers ────────────────────────────────────────────────────────── */
@@ -152,7 +174,7 @@ function computeAgg(op, vals) {
   return 0;
 }
 
-function applyFilters(rows, filters) {
+function applyFilters(rows, filters, fieldList) {
   return rows.filter(row => {
     for (const f of filters) {
       const rawVal = row[f.field];
@@ -162,8 +184,9 @@ function applyFilters(rows, filters) {
         const d=rawVal?.toDate?rawVal.toDate():new Date(rawVal);
         if (isNaN(d)||d<now||d>end) return false; continue;
       }
-      const field=[...CLIENT_FIELDS,...CLAIM_FIELDS].find(f2=>f2.key===f.field);
-      if (!field) continue;
+      const field=(fieldList||[...CLIENT_FIELDS,...CLAIM_FIELDS,...QUOTE_FIELDS]).find(f2=>f2.key===f.field)
+        // Unknown/dynamic field — infer string vs number from the first non-empty value.
+        || { key:f.field, type:(rawVal!=='' && rawVal!=null && !isNaN(String(rawVal).replace(/,/g,'')))?'number':'string' };
       if (field.type==='string') {
         const val=(rawVal||'').toLowerCase(); const cmp=(f.value||'').toLowerCase();
         if (f.op==='equals'&&val!==cmp) return false;
@@ -290,11 +313,11 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
   const pageW=pdf.internal.pageSize.getWidth(); const pageH=pdf.internal.pageSize.getHeight();
   const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 
-  pdf.setFillColor(59,130,246); pdf.rect(0,0,pageW,26,'F');
+  pdf.setFillColor(255,90,90); pdf.rect(0,0,pageW,26,'F');
   pdf.setFillColor(26,26,46);  pdf.rect(0,26,pageW,10,'F');
   pdf.setTextColor(255,255,255);
   pdf.setFontSize(15); pdf.setFont('helvetica','bold');
-  pdf.text('InsureSAAS Ltd',pageW/2,11,{align:'center'});
+  pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd',pageW/2,11,{align:'center'});
   pdf.setFontSize(10); pdf.setFont('helvetica','normal');
   pdf.text(reportName,pageW/2,20,{align:'center'});
   pdf.setFontSize(8.5);
@@ -309,8 +332,8 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
       const total=rows.filter(r=>!r._type||r._type==='data').reduce((a,r)=>a+parseNum(r[c.key]),0);
       const x=10+i*boxW;
       pdf.setFillColor(255,248,245); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
-      pdf.setDrawColor(99,102,241); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
-      pdf.setTextColor(59,130,246); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
+      pdf.setDrawColor(255,139,90); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
+      pdf.setTextColor(255,90,90); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
       pdf.text(fmtNum(total),x+(boxW-3)/2,Y+10,{align:'center'});
       pdf.setTextColor(107,114,128); pdf.setFontSize(7.5); pdf.setFont('helvetica','normal');
       pdf.text(c.label,x+(boxW-3)/2,Y+16,{align:'center'});
@@ -361,7 +384,7 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
     },
     didDrawPage:()=>{
       pdf.setFontSize(7); pdf.setTextColor(180,180,180);
-      pdf.text('InsureSAAS Ltd — Confidential',10,pageH-6);
+      pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd — Confidential',10,pageH-6);
       pdf.text(`Page ${pdf.getNumberOfPages()}`,pageW-10,pageH-6,{align:'right'});
     },
   });
@@ -383,7 +406,7 @@ function exportCSV(columns, rows, reportName) {
   const lines = [
     // UTF-8 BOM handled by Blob — use plain ASCII separators to avoid Excel encoding issues
     q(reportName),
-    `${q('InsureSAAS Ltd')},${q(dateStr)}`,
+    `${q('InsureSAAS Insurance Brokers (Pvt) Ltd')},${q(dateStr)}`,
     `${q('Total records')},${dataRows.length}`,
     '',
   ];
@@ -417,7 +440,7 @@ function exportCSV(columns, rows, reportName) {
 /* ── Excel export — native charts via JSZip XML injection ────────────────── */
 async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   const wb = new ExcelJS.Workbook();
-  wb.creator  = 'InsureSAAS';
+  wb.creator  = 'InsureSAAS Insurance Brokers';
   wb.created  = new Date();
   const dateStr   = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
   const dataRows  = rows.filter(r => !r._type || r._type === 'data');
@@ -440,7 +463,7 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   const spanCols  = Math.max(maxColIdx, 8);
 
   wsSummary.mergeCells(1, 1, 1, spanCols);
-  setCell(wsSummary, 1, 1, 'INSURESAAS LTD',
+  setCell(wsSummary, 1, 1, 'CEILAO INSURANCE BROKERS (PVT) LTD',
     { fill:'FF1A1A2E', font:{ bold:true, size:16, color:{argb:'FFFFFFFF'} }, align:{ horizontal:'center', vertical:'middle' } });
   wsSummary.getRow(1).height = 32;
 
@@ -464,12 +487,12 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
       const col2  = col1 + 1;
       wsSummary.mergeCells(sumRow, col1, sumRow, col2);
       setCell(wsSummary, sumRow, col1, c.label,
-        { fill:'FF374151', font:{ bold:true, size:9, color:{argb:'FF6366F1'} }, align:{ horizontal:'center', vertical:'middle' } });
+        { fill:'FF374151', font:{ bold:true, size:9, color:{argb:'FFFF8B5A'} }, align:{ horizontal:'center', vertical:'middle' } });
       wsSummary.getRow(sumRow).height = 18;
       wsSummary.mergeCells(sumRow + 1, col1, sumRow + 1, col2);
       setCell(wsSummary, sumRow + 1, col1, total,
         { fill:'FFFFFFFF', font:{ bold:true, size:14, color:{argb:'FF1A1A2E'} }, align:{ horizontal:'center', vertical:'middle' }, numFmt:'#,##0.00',
-          border:{ left:{style:'thin',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}}, bottom:{style:'medium',color:{argb:'FF3B82F6'}} } });
+          border:{ left:{style:'thin',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}}, bottom:{style:'medium',color:{argb:'FFFF5A5A'}} } });
       wsSummary.getRow(sumRow + 1).height = 28;
     });
     sumRow += 3;
@@ -508,9 +531,9 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
     const cell = wsData.getCell(headerRow, i + 1);
     cell.value = c.label;
     cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1A1A2E' } };
-    cell.font  = { bold:true, size:10, color:{ argb:'FF6366F1' }, name:'Calibri' };
+    cell.font  = { bold:true, size:10, color:{ argb:'FFFF8B5A' }, name:'Calibri' };
     cell.alignment = { horizontal: c.type === 'number' ? 'right' : 'left', vertical:'middle' };
-    cell.border = { bottom:{ style:'medium', color:{ argb:'FF3B82F6' } } };
+    cell.border = { bottom:{ style:'medium', color:{ argb:'FFFF5A5A' } } };
   });
 
   wsData.views = [{ state:'frozen', ySplit: headerRow }];
@@ -712,7 +735,7 @@ function ReportChart({ chartCfg, data, groupByLabel, innerRef, onRemove, onUpdat
   const ChIcon = type==='pie'?PieChartOutlineIcon:type==='line'?ShowChartIcon:BarChartIcon;
   const yLabel = label || '';
   return (
-    <Card sx={{ border:'1px solid rgba(99,102,241,0.12)', mb:2 }}>
+    <Card sx={{ border:'1px solid rgba(255,139,90,0.12)', mb:2 }}>
       <CardContent ref={innerRef} sx={{ p:2.5 }}>
         <Stack direction={{ xs:'column', sm:'row' }} spacing={1} alignItems={{ sm:'center' }} sx={{ mb:1.5 }} flexWrap="wrap">
           <ChIcon sx={{ color:'#6366f1', fontSize:18, flexShrink:0 }} />
@@ -754,7 +777,7 @@ function ReportChart({ chartCfg, data, groupByLabel, innerRef, onRemove, onUpdat
         {groupByLabel && (
           <Typography sx={{fontSize:11,color:'#9CA3AF',mb:1}}>
             X Axis: <strong style={{color:'#6366f1'}}>{groupByLabel}</strong>
-            {chartCfg.field && <span> · Y Axis: <strong style={{color:'#3B82F6'}}>{yLabel} ({chartCfg.aggOp||'sum'})</strong></span>}
+            {chartCfg.field && <span> · Y Axis: <strong style={{color:'#FF5A5A'}}>{yLabel} ({chartCfg.aggOp||'sum'})</strong></span>}
           </Typography>
         )}
         <ResponsiveContainer width="100%" height={240}>
@@ -792,13 +815,20 @@ const ReportsPage = () => {
   const [tab, setTab] = useState(0);
   const [clients,    setClients]    = useState([]);
   const [claims,     setClaims]     = useState([]);
+  const [quotes,     setQuotes]     = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+  // Time period (by record creation date) — applied to whichever source is active.
+  const [periodFrom, setPeriodFrom] = useState(null);
+  const [periodTo,   setPeriodTo]   = useState(null);
+  // Which date the period range filters on (clients): policy start, expiry, or date added.
+  const [periodField, setPeriodField] = useState('policy_period_from');
   const [loading,    setLoading]    = useState(false);
   const [savedTemplates, setSavedTemplates] = useState([]);
 
   // Builder state
   const [source,       setSource]       = useState('clients');
   const [selFields,    setSelFields]    = useState(['client_name','insurance_provider','net_premium','total_invoice']);
+  const [summaryFields, setSummaryFields] = useState([]); // numeric fields featured in the top stat cards
   const [groupBy,      setGroupBy]      = useState('');
   const [aggregations, setAggregations] = useState([]);
   const [filters,      setFilters]      = useState([]);
@@ -830,12 +860,58 @@ const ReportsPage = () => {
 
   const loadData = useCallback(async()=>{
     setLoading(true);
-    const [cS,clS]=await Promise.all([
+    const [cS,clS,qS]=await Promise.all([
       getDocs(query(collection(db,'clients'),orderBy('created_at','desc'))),
       getDocs(query(collection(db,'claims'), orderBy('created_at','desc'))),
+      getDocs(query(collection(db,'quotes'), orderBy('created_at','desc'))),
     ]);
     setClients(cS.docs.map(d=>({id:d.id,...d.data()})));
     setClaims(clS.docs.map(d=>({id:d.id,...d.data()})));
+    // Flatten quotes into report-friendly rows (a quote is "finalised" once
+    // the broker converts it — status 'confirmed').
+    setQuotes(qS.docs.map(d=>{
+      const x=d.data(); const fd=x.form_data||{};
+      const created=x.created_at?.toDate?x.created_at.toDate():(x.created_at?new Date(x.created_at):null);
+      const resp=x.responses||[];
+      const active=resp.filter(r=>!r.declined);
+      const premiums=active.map(r=>Number(r.premium)||0).filter(n=>n>0);
+      return {
+        id:d.id,
+        reference:x.reference||'',
+        product:x.product_label||x.product_key||'',
+        // Proposer / client
+        client_name:fd.proposer_name||fd.company_name||fd.full_name||fd.client_name||'',
+        customer_type:fd.customer_type||'',
+        mobile:fd.mobile||fd.mobile_no||'',
+        email:fd.email||'',
+        nic_no:fd.nic_no||fd.business_reg||fd.nic_proof||'',
+        address:fd.address||fd.property_address||fd.address_of_risk||fd.premises_address||'',
+        city:fd.city||'',
+        district:fd.district||'',
+        // Risk basics
+        sum_insured:Number(fd.sum_insured||fd.total_value||fd.market_value||fd.sum_assured||0)||'',
+        vehicle_no:fd.vehicle_no||'',
+        period_from:fd.period_from||fd.departure_date||fd.commencement_date||fd.loan_start||'',
+        period_to:fd.period_to||fd.return_date||fd.expiry_date||fd.loan_end||'',
+        // Status / outcome
+        status:x.status||'',
+        not_finalised:x.not_finalised?'Yes':'No',
+        not_finalised_at:x.not_finalised_at||'',
+        selected_company:x.selected_company||x.customer_selection?.company_name||'',
+        selected_premium:Number(x.selected_premium||0)||'',
+        // Insurers & responses
+        insurers_sent:(x.sent_to||[]).map(c=>c.company_name).filter(Boolean).join(', '),
+        sent_count:(x.sent_to||[]).length,
+        insurers_responded:active.map(r=>r.company_name).filter(Boolean).join(', '),
+        response_count:active.length,
+        declined_count:resp.filter(r=>r.declined).length,
+        lowest_premium:premiums.length?Math.min(...premiums):'',
+        // Audit
+        days_outstanding:created?Math.max(0,Math.round((Date.now()-created.getTime())/86400000)):'',
+        created_by_name:x.created_by_name||'',
+        created_at:x.created_at,
+      };
+    }));
     setDataLoaded(true); setLoading(false);
   },[]);
 
@@ -848,50 +924,102 @@ const ReportsPage = () => {
 
   useEffect(()=>{loadData();loadSaved();},[loadData,loadSaved]);
 
-  const sourceFields = source==='clients'?CLIENT_FIELDS:CLAIM_FIELDS;
-
-  const runReport = useCallback(()=>{
-    const raw = source==='clients'?clients:claims;
-    const filtered = applyFilters(raw, filters);
-    if (viewMode==='pivot') {
-      setPivotData(buildPivot(filtered,groupBy,pivotColField,pivotValField,pivotValOp));
-      setResults(filtered);
-    } else if (viewMode==='aggregated') {
-      setResults(sortRows(aggregated(filtered,groupBy,aggregations),sortBy,sortDir));
-      setPivotData(null);
-    } else if (viewMode==='subtotals') {
-      setResults(withSubtotals(filtered,groupBy,aggregations));
-      setPivotData(null);
-    } else {
-      setResults(sortRows(filtered,sortBy,sortDir));
-      setPivotData(null);
+  // Client fields = all underwriting form fields + system fields + any extra keys
+  // actually present on the records (product-specific covers/clauses/risk fields).
+  const clientFields = useMemo(() => {
+    const have = new Set(CLIENT_FIELDS.map(f => f.key));
+    const extras = [];
+    for (const c of clients) {
+      for (const k of Object.keys(c)) {
+        if (have.has(k) || isInternalKey(k)) continue;
+        have.add(k);
+        const v = c[k];
+        const type = (typeof v === 'number') || (typeof v === 'string' && v.trim() !== '' && !isNaN(v.replace(/,/g, ''))) ? 'number' : 'string';
+        extras.push({ key: k, label: prettyKey(k), type });
+      }
     }
-    setRPage(1);
-  },[source,clients,claims,filters,viewMode,groupBy,pivotColField,pivotValField,pivotValOp,aggregations,sortBy,sortDir]);
+    extras.sort((a, b) => a.label.localeCompare(b.label));
+    return [...CLIENT_FIELDS, ...extras];
+  }, [clients]);
 
+  const fieldsFor = (src) => src === 'clients' ? clientFields : src === 'claims' ? CLAIM_FIELDS : QUOTE_FIELDS;
+  const sourceFields = fieldsFor(source);
+
+  // Compute report results from an explicit config + the current datasets/period.
+  // Used by both the Run button and by running a template directly, so a template
+  // run never depends on React state that hasn't updated yet.
+  const buildResults = (cfg) => {
+    const base = cfg.source==='clients'?clients:cfg.source==='claims'?claims:quotes;
+    const from = periodFrom ? new Date(new Date(periodFrom).setHours(0,0,0,0)) : null;
+    const to   = periodTo   ? new Date(new Date(periodTo).setHours(23,59,59,999)) : null;
+    // Clients can filter on policy dates; claims/quotes only have a creation date.
+    const dateField = cfg.source==='clients' ? (cfg.periodField||periodField) : 'created_at';
+    const raw = (from||to) ? base.filter(r=>{
+      const v=r[dateField]; const d=v?.toDate?v.toDate():(v?new Date(v):null);
+      if(!d||isNaN(d)) return false;
+      if(from && d<from) return false;
+      if(to   && d>to)   return false;
+      return true;
+    }) : base;
+    const filtered = applyFilters(raw, cfg.filters||[], fieldsFor(cfg.source));
+    if (cfg.viewMode==='pivot')
+      return { results: filtered, pivot: buildPivot(filtered,cfg.groupBy,cfg.pivotColField,cfg.pivotValField,cfg.pivotValOp) };
+    if (cfg.viewMode==='aggregated')
+      return { results: sortRows(aggregated(filtered,cfg.groupBy,cfg.aggregations),cfg.sortBy,cfg.sortDir), pivot: null };
+    if (cfg.viewMode==='subtotals')
+      return { results: withSubtotals(filtered,cfg.groupBy,cfg.aggregations), pivot: null };
+    return { results: sortRows(filtered,cfg.sortBy,cfg.sortDir), pivot: null };
+  };
+
+  const runReport = () => {
+    const { results, pivot } = buildResults({ source, filters, viewMode, groupBy, aggregations, sortBy, sortDir, pivotColField, pivotValField, pivotValOp, periodField });
+    setResults(results); setPivotData(pivot); setRPage(1);
+  };
+
+  // Load a template into the builder AND run it immediately, then switch to the
+  // Report Builder view so the results are shown without a second click.
   const loadTemplate = (tpl) => {
-    setSource(tpl.source||'clients');
-    setSelFields(tpl.fields||[]);
-    setGroupBy(tpl.groupBy||'');
-    setAggregations(tpl.aggregations||[]);
-    setFilters((tpl.filters||[]).filter(f=>f.value!=='__next90__'));
-    setSortBy(tpl.sortBy||'');
-    setSortDir(tpl.sortDir||'desc');
-    setViewMode(tpl.viewMode||'flat');
-    setCharts(tpl.charts||[]);
-    setResults(null); setPivotData(null); setTab(0);
+    const cfg = {
+      source: tpl.source||'clients',
+      fields: tpl.fields||[],
+      groupBy: tpl.groupBy||'',
+      aggregations: tpl.aggregations||[],
+      filters: (tpl.filters||[]).filter(f=>f.value!=='__next90__'),
+      sortBy: tpl.sortBy||'',
+      sortDir: tpl.sortDir||'desc',
+      viewMode: tpl.viewMode||'flat',
+      charts: tpl.charts||[],
+      pivotColField: tpl.pivotColField||'',
+      pivotValField: tpl.pivotValField||'',
+      pivotValOp: tpl.pivotValOp||'sum',
+      periodField: tpl.periodField||'policy_period_from',
+    };
+    // reflect the template in the builder controls
+    setSource(cfg.source); setSelFields(cfg.fields); setGroupBy(cfg.groupBy);
+    setAggregations(cfg.aggregations); setFilters(cfg.filters); setSortBy(cfg.sortBy);
+    setSortDir(cfg.sortDir); setViewMode(cfg.viewMode); setCharts(cfg.charts);
+    setPivotColField(cfg.pivotColField); setPivotValField(cfg.pivotValField); setPivotValOp(cfg.pivotValOp);
+    setSummaryFields(tpl.summaryFields||[]);
+    setPeriodField(cfg.periodField);
+    setSaveName(tpl.name||''); setSaveDesc(tpl.description||'');
+    // compute + show results immediately
     if (tpl.id==='expiry_report') {
       const now=new Date(); now.setHours(0,0,0,0);
       const end=new Date(now); end.setDate(end.getDate()+90);
       const ex=clients.filter(r=>{const v=r.policy_period_to;const d=v?.toDate?v.toDate():new Date(v);return !isNaN(d)&&d>=now&&d<=end;});
-      setResults(sortRows(ex,'policy_period_to','asc'));
+      setResults(sortRows(ex,'policy_period_to','asc')); setPivotData(null);
+    } else {
+      const { results, pivot } = buildResults(cfg);
+      setResults(results); setPivotData(pivot);
     }
+    setRPage(1);
+    setTab(1); // jump to Report Builder where results render
   };
 
   const handleSaveTpl = async()=>{
     if (!saveName.trim()) return; setSavingTpl(true);
     try {
-      const tpl={name:saveName.trim(),description:saveDesc.trim(),source,fields:selFields,groupBy,aggregations,filters,sortBy,sortDir,viewMode,charts,pivotColField,pivotValField,pivotValOp,created_at:serverTimestamp()};
+      const tpl={name:saveName.trim(),description:saveDesc.trim(),source,fields:selFields,summaryFields,groupBy,aggregations,filters,sortBy,sortDir,viewMode,charts,pivotColField,pivotValField,pivotValOp,periodField,created_at:serverTimestamp()};
       await setDoc(doc(collection(db,'report_templates')),tpl);
       setSaveOpen(false); setSaveName(''); setSaveDesc(''); loadSaved(); showToast('Template saved!');
     } catch(err){showToast(err.message,'error');}
@@ -1006,7 +1134,7 @@ const ReportsPage = () => {
   const rowSx = (row) => {
     if (row._type==='grandtotal') return { bgcolor:'#1A1A2E','& td':{color:'#fff',fontWeight:800,borderBottom:'none'} };
     if (row._type==='subtotal')   return { bgcolor:'rgba(99,102,241,0.08)','& td':{color:'#4338ca',fontWeight:700,fontStyle:'italic'} };
-    return { '&:nth-of-type(even)':{ bgcolor:'rgba(239,246,255,0.6)' }, '&:hover':{ bgcolor:'rgba(59,130,246,0.04)' } };
+    return { '&:nth-of-type(even)':{ bgcolor:'rgba(255,248,245,0.6)' }, '&:hover':{ bgcolor:'rgba(255,90,90,0.04)' } };
   };
 
   const totalDataRows = results ? results.filter(r=>!r._type||r._type==='data').length : 0;
@@ -1023,7 +1151,7 @@ const ReportsPage = () => {
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap">
           <Button size="small" variant="outlined" startIcon={<RefreshIcon/>} onClick={loadData} disabled={loading}
-            sx={{fontSize:12,borderColor:'rgba(99,102,241,0.35)',color:'#6366f1'}}>{loading?'Loading…':'Refresh'}</Button>
+            sx={{fontSize:12,borderColor:'rgba(255,139,90,0.35)',color:'#FF8B5A'}}>{loading?'Loading…':'Refresh'}</Button>
           {results&&<>
             <Button size="small" variant="outlined" startIcon={<PictureAsPdfOutlinedIcon/>}
               onClick={()=>exportPDF(displayCols,results,saveName||'Report',allChartEls())}
@@ -1039,33 +1167,17 @@ const ReportsPage = () => {
         </Stack>
       </Stack>
 
-      {/* Quick templates */}
-      <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:1,mb:1.5}}>Quick Templates</Typography>
-      <Stack direction={{xs:'column',sm:'row'}} spacing={1.5} sx={{mb:3}} flexWrap="wrap">
-        {BUILTIN_TEMPLATES.map(tpl=>(
-          <Card key={tpl.id} onClick={()=>loadTemplate(tpl)} sx={{flex:1,minWidth:160,cursor:'pointer',border:'1px solid rgba(99,102,241,0.12)',transition:'all 0.18s','&:hover':{transform:'translateY(-2px)',boxShadow:'0 6px 20px rgba(59,130,246,0.12)'}}}>
-            <CardContent sx={{p:2,'&:last-child':{pb:2}}}>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{mb:0.5}}>
-                <Typography sx={{fontSize:20}}>{tpl.icon}</Typography>
-                <Typography sx={{fontWeight:700,fontSize:13}}>{tpl.name}</Typography>
-              </Stack>
-              <Typography sx={{fontSize:11.5,color:'#9CA3AF'}}>{tpl.description}</Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Stack>
-
-      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(99,102,241,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#3B82F6'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#3B82F6,#6366f1)',height:2.5}}}>
+      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(255,139,90,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#FF5A5A'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)',height:2.5}}}>
+        <Tab icon={<BookmarkIcon sx={{fontSize:17}}/>} iconPosition="start" label={`Templates (${BUILTIN_TEMPLATES.length+savedTemplates.length})`}/>
         <Tab icon={<TuneIcon sx={{fontSize:17}}/>} iconPosition="start" label="Report Builder"/>
-        <Tab icon={<BookmarkIcon sx={{fontSize:17}}/>} iconPosition="start" label={`Saved${savedTemplates.length?` (${savedTemplates.length})`:''}`}/>
       </Tabs>
 
-      {tab===0&&(
+      {tab===1&&(
         <Stack direction={{xs:'column',lg:'row'}} spacing={2.5} alignItems="flex-start">
 
           {/* ── Config panel ── */}
           <Box sx={{width:{xs:'100%',lg:340},flexShrink:0}}>
-            <Card sx={{border:'1px solid rgba(99,102,241,0.12)',mb:2}}>
+            <Card sx={{border:'1px solid rgba(255,139,90,0.12)',mb:2}}>
               <CardContent sx={{p:2.5}}>
 
                 {/* Source */}
@@ -1074,16 +1186,63 @@ const ReportsPage = () => {
                   <Select value={source} onChange={e=>{setSource(e.target.value);setSelFields([]);setGroupBy('');setAggregations([]);setFilters([]);setResults(null);setPivotData(null);}}>
                     <MenuItem value="clients">Underwriting (Clients)</MenuItem>
                     <MenuItem value="claims">Claims</MenuItem>
+                    <MenuItem value="quotes">Quotations</MenuItem>
                   </Select>
                 </FormControl>
 
+                {/* Time period */}
+                <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Time Period</Typography>
+                {source==='clients' && (
+                  <FormControl fullWidth size="small" sx={{mb:1}}>
+                    <InputLabel sx={{fontSize:12}}>Period applies to</InputLabel>
+                    <Select label="Period applies to" value={periodField} onChange={e=>setPeriodField(e.target.value)} sx={{fontSize:13}}>
+                      <MenuItem value="policy_period_from" sx={{fontSize:13}}>Policy From (start date)</MenuItem>
+                      <MenuItem value="policy_period_to"   sx={{fontSize:13}}>Policy Expiry</MenuItem>
+                      <MenuItem value="created_at"         sx={{fontSize:13}}>Date Added</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+                <Stack direction="row" spacing={1} sx={{mb:1}}>
+                  <DatePicker label="From" value={periodFrom} onChange={setPeriodFrom}
+                    slotProps={{textField:{size:'small',fullWidth:true}}}/>
+                  <DatePicker label="To" value={periodTo} onChange={setPeriodTo}
+                    slotProps={{textField:{size:'small',fullWidth:true}}}/>
+                </Stack>
+                <Stack direction="row" spacing={0.7} sx={{mb:2.5,flexWrap:'wrap',gap:0.7}}>
+                  {[['This month',()=>{const n=new Date();return[new Date(n.getFullYear(),n.getMonth(),1),new Date(n.getFullYear(),n.getMonth()+1,0)];}],
+                    ['Last 30 days',()=>{const t=new Date();const f=new Date();f.setDate(f.getDate()-30);return[f,t];}],
+                    ['This year',()=>{const n=new Date();return[new Date(n.getFullYear(),0,1),new Date(n.getFullYear(),11,31)];}]].map(([lbl,fn])=>(
+                    <Chip key={lbl} label={lbl} size="small" onClick={()=>{const[f,t]=fn();setPeriodFrom(f);setPeriodTo(t);}}
+                      sx={{fontSize:10.5,cursor:'pointer',bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>
+                  ))}
+                  {(periodFrom||periodTo)&&(
+                    <Chip label="Clear" size="small" onClick={()=>{setPeriodFrom(null);setPeriodTo(null);}}
+                      sx={{fontSize:10.5,cursor:'pointer',bgcolor:'rgba(0,0,0,0.05)',color:'#6B7280'}}/>
+                  )}
+                </Stack>
+
                 {/* Fields */}
                 <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Fields to Show</Typography>
-                <Box sx={{maxHeight:180,overflowY:'auto',border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px',p:1,mb:2.5}}>
+                <Box sx={{maxHeight:180,overflowY:'auto',border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px',p:1,mb:1}}>
                   {sourceFields.map(f=>(
-                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={selFields.includes(f.key)} onChange={()=>setSelFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#6366f1','&.Mui-checked':{color:'#3B82F6'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
+                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={selFields.includes(f.key)} onChange={()=>setSelFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#FF8B5A','&.Mui-checked':{color:'#FF5A5A'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
                   ))}
                 </Box>
+                <Stack direction="row" spacing={1} sx={{mb:2.5}}>
+                  <Button size="small" onClick={()=>setSelFields(sourceFields.map(f=>f.key))} sx={{fontSize:10.5,color:'#6366f1',minWidth:0,p:0.3}}>Select all</Button>
+                  <Button size="small" onClick={()=>setSelFields([])} sx={{fontSize:10.5,color:'#9CA3AF',minWidth:0,p:0.3}}>Clear</Button>
+                </Stack>
+
+                {/* Summary cards — choose which numeric totals appear in the top boxes */}
+                <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Summary Cards (totals)</Typography>
+                <Box sx={{maxHeight:140,overflowY:'auto',border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px',p:1,mb:0.5}}>
+                  {sourceFields.filter(f=>f.type==='number').map(f=>(
+                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={summaryFields.includes(f.key)} onChange={()=>setSummaryFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#6366f1','&.Mui-checked':{color:'#6366f1'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
+                  ))}
+                </Box>
+                <Typography sx={{fontSize:10.5,color:'#9CA3AF',mb:2.5}}>
+                  {summaryFields.length ? `${summaryFields.length} chosen` : 'None chosen — defaults to the first 3 numeric fields shown.'}
+                </Typography>
 
                 {/* View Mode */}
                 <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>View Mode</Typography>
@@ -1132,7 +1291,7 @@ const ReportsPage = () => {
                       <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8}}>
                         Summary Columns
                       </Typography>
-                      <IconButton size="small" onClick={()=>setAggregations(p=>[...p,{field:sourceFields.find(f=>f.type==='number')?.key||'',op:'sum'}])} sx={{color:'#3B82F6'}}><AddIcon fontSize="small"/></IconButton>
+                      <IconButton size="small" onClick={()=>setAggregations(p=>[...p,{field:sourceFields.find(f=>f.type==='number')?.key||'',op:'sum'}])} sx={{color:'#FF5A5A'}}><AddIcon fontSize="small"/></IconButton>
                     </Stack>
                     <Typography sx={{fontSize:11,color:'#9CA3AF',mb:1,lineHeight:1.5}}>
                       These add calculated columns to each group
@@ -1195,7 +1354,7 @@ const ReportsPage = () => {
                 {/* Filters */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb:1}}>
                   <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8}}>Filters</Typography>
-                  <IconButton size="small" onClick={()=>setFilters(p=>[...p,{field:sourceFields[0].key,op:'equals',value:''}])} sx={{color:'#3B82F6'}}><AddIcon fontSize="small"/></IconButton>
+                  <IconButton size="small" onClick={()=>setFilters(p=>[...p,{field:sourceFields[0].key,op:'equals',value:''}])} sx={{color:'#FF5A5A'}}><AddIcon fontSize="small"/></IconButton>
                 </Stack>
                 <Stack spacing={1.2} sx={{mb:2.5}}>
                   {filters.map((f,i)=>{
@@ -1281,7 +1440,7 @@ const ReportsPage = () => {
             {!dataLoaded&&<Stack spacing={1}>{[1,2,3].map(i=><Skeleton key={i} height={56} sx={{borderRadius:'10px'}}/>)}</Stack>}
 
             {dataLoaded&&!results&&(
-              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(59,130,246,0.03)',borderRadius:'16px',border:'1px dashed rgba(99,102,241,0.20)'}}>
+              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(255,90,90,0.03)',borderRadius:'16px',border:'1px dashed rgba(255,139,90,0.20)'}}>
                 <Typography sx={{fontSize:40,mb:1}}>📊</Typography>
                 <Typography sx={{fontWeight:700,fontSize:15,color:'#1A1A2E',mb:0.5}}>Configure and run your report</Typography>
                 <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Select fields, set a view mode, add filters, then click Run Report</Typography>
@@ -1290,22 +1449,34 @@ const ReportsPage = () => {
 
             {results&&(
               <>
-                {/* Summary stats */}
-                <Stack direction="row" spacing={1.5} sx={{mb:2}} flexWrap="wrap">
-                  {[
-                    {label:'Total Records',val:totalDataRows,color:'#6366f1',bg:'rgba(99,102,241,0.08)'},
-                    ...displayCols.filter(c=>c.type==='number').slice(0,3).map(c=>({
-                      label:c.label,
-                      val:fmtNum(results.filter(r=>!r._type||r._type==='data').reduce((a,r)=>a+parseNum(r[c.key]),0)),
-                      color:'#3B82F6',bg:'rgba(59,130,246,0.07)',
-                    })),
-                  ].map((s,i)=>(
-                    <Box key={i} sx={{p:1.5,borderRadius:'10px',bgcolor:s.bg,border:`1px solid ${s.bg}`,minWidth:120}}>
-                      <Typography sx={{fontSize:18,fontWeight:800,color:s.color}}>{s.val}</Typography>
-                      <Typography sx={{fontSize:11,color:'#6B7280'}}>{s.label}</Typography>
+                {/* Summary stats — featured fields are user-chosen (Summary Cards),
+                    falling back to the first 3 numeric shown fields. */}
+                <Box sx={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))',gap:1.5,mb:2}}>
+                  {(() => {
+                    const dataRows = results.filter(r=>!r._type||r._type==='data');
+                    const chosen = summaryFields.length
+                      ? summaryFields.map(k=>sourceFields.find(f=>f.key===k)).filter(Boolean)
+                      : displayCols.filter(c=>c.type==='number').slice(0,3);
+                    return [
+                      {label:'Total Records',val:totalDataRows,color:'#6366f1',bg:'rgba(99,102,241,0.06)'},
+                      ...chosen.map(c=>({
+                        label:c.label,
+                        val:fmtNum(dataRows.reduce((a,r)=>a+parseNum(r[c.key]),0)),
+                        color:'#FF5A5A',bg:'rgba(255,90,90,0.05)',
+                      })),
+                    ];
+                  })().map((s,i)=>(
+                    <Box key={i} sx={{
+                      position:'relative', p:1.6, pl:2, borderRadius:'12px', bgcolor:s.bg,
+                      border:'1px solid rgba(0,0,0,0.05)', overflow:'hidden',
+                      display:'flex', flexDirection:'column', justifyContent:'center', minHeight:74,
+                    }}>
+                      <Box sx={{position:'absolute',left:0,top:0,bottom:0,width:4,bgcolor:s.color,opacity:0.85}}/>
+                      <Typography sx={{fontSize:10,fontWeight:700,color:'#6B7280',textTransform:'uppercase',letterSpacing:0.5,mb:0.4,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{s.label}</Typography>
+                      <Typography sx={{fontSize:20,fontWeight:800,color:s.color,lineHeight:1.1}}>{s.val}</Typography>
                     </Box>
                   ))}
-                </Stack>
+                </Box>
 
                 {/* Mode badge */}
                 <Stack direction="row" spacing={1} sx={{mb:2}}>
@@ -1328,9 +1499,9 @@ const ReportsPage = () => {
 
                 {/* Pivot Table */}
                 {viewMode==='pivot'&&pivotData&&(
-                  <Card sx={{border:'1px solid rgba(99,102,241,0.12)',mb:2}}>
+                  <Card sx={{border:'1px solid rgba(255,139,90,0.12)',mb:2}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(99,102,241,0.08)'}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255,139,90,0.08)'}}>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Pivot: {sourceFields.find(f=>f.key===groupBy)?.label} × {sourceFields.find(f=>f.key===pivotColField)?.label} → {sourceFields.find(f=>f.key===pivotValField)?.label} ({pivotValOp})
                         </Typography>
@@ -1339,16 +1510,16 @@ const ReportsPage = () => {
                         <Table size="small">
                           <TableHead>
                             <TableRow sx={{bgcolor:'#1A1A2E'}}>
-                              <TableCell sx={{color:'#6366f1',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2}}>{sourceFields.find(f=>f.key===groupBy)?.label||groupBy}</TableCell>
-                              {pivotData.colValues.map(cv=><TableCell key={cv} sx={{color:'#6366f1',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2,textAlign:'right'}}>{cv}</TableCell>)}
+                              <TableCell sx={{color:'#FF8B5A',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2}}>{sourceFields.find(f=>f.key===groupBy)?.label||groupBy}</TableCell>
+                              {pivotData.colValues.map(cv=><TableCell key={cv} sx={{color:'#FF8B5A',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2,textAlign:'right'}}>{cv}</TableCell>)}
                               <TableCell sx={{color:'#fff',fontWeight:800,fontSize:11.5,textAlign:'right',py:1.2}}>TOTAL</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {pivotData.pivotRows.map((row,i)=>(
                               <TableRow key={i} sx={row._type==='pivottotal'?{bgcolor:'#1A1A2E','& td':{color:'#fff',fontWeight:800}}:{
-                                '&:nth-of-type(even)':{bgcolor:'rgba(239,246,255,0.6)'},
-                                '&:hover':{bgcolor:'rgba(59,130,246,0.04)'},
+                                '&:nth-of-type(even)':{bgcolor:'rgba(255,248,245,0.6)'},
+                                '&:hover':{bgcolor:'rgba(255,90,90,0.04)'},
                               }}>
                                 <TableCell sx={{fontSize:12.5,fontWeight:row._type==='pivottotal'?800:600,py:1,whiteSpace:'nowrap'}}>{row._rowLabel}</TableCell>
                                 {pivotData.colValues.map(cv=><TableCell key={cv} sx={{fontSize:12.5,py:1,textAlign:'right',fontFamily:'monospace'}}>{fmtNum(row[`_p_${cv}`])}</TableCell>)}
@@ -1364,9 +1535,9 @@ const ReportsPage = () => {
 
                 {/* Flat / Subtotals / Aggregated table */}
                 {viewMode!=='pivot'&&(
-                  <Card sx={{border:'1px solid rgba(99,102,241,0.12)'}}>
+                  <Card sx={{border:'1px solid rgba(255,139,90,0.12)'}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(99,102,241,0.08)',display:'flex',alignItems:'center',gap:1}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255,139,90,0.08)',display:'flex',alignItems:'center',gap:1}}>
                         <TableChartOutlinedIcon sx={{color:'#9CA3AF',fontSize:18}}/>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Data ({totalDataRows} rows{viewMode==='subtotals'&&groupBy?', with subtotals':''})
@@ -1376,14 +1547,14 @@ const ReportsPage = () => {
                         <Table size="small">
                           <TableHead>
                             <TableRow sx={{bgcolor:'#1A1A2E'}}>
-                              {displayCols.map(c=><TableCell key={c.key} sx={{color:'#6366f1',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',borderBottom:'none',py:1.2,textAlign:c.type==='number'?'right':'left'}}>{c.label}</TableCell>)}
+                              {displayCols.map(c=><TableCell key={c.key} sx={{color:'#FF8B5A',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',borderBottom:'none',py:1.2,textAlign:c.type==='number'?'right':'left'}}>{c.label}</TableCell>)}
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {pagedResults.map((row,i)=>(
                               <TableRow key={i} sx={rowSx(row)}>
                                 {displayCols.map(c=>(
-                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(99,102,241,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
+                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(255,139,90,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
                                     {row._type==='subtotal'&&c===displayCols[0]?`↳ Subtotal: ${row[c.key]||''}`:
                                      row._type==='grandtotal'&&c===displayCols[0]?'GRAND TOTAL':
                                      renderCell(c,row)}
@@ -1397,7 +1568,7 @@ const ReportsPage = () => {
                       {viewMode!=='subtotals'&&results.length>R_PER_PAGE&&(
                         <Box sx={{display:'flex',justifyContent:'center',py:1.5}}>
                           <Pagination count={Math.ceil(results.length/R_PER_PAGE)} page={rPage} onChange={(_,v)=>setRPage(v)} size="small"
-                            sx={{'& .Mui-selected':{bgcolor:'rgba(59,130,246,0.12) !important',color:'#3B82F6',fontWeight:700}}}/>
+                            sx={{'& .Mui-selected':{bgcolor:'rgba(255,90,90,0.12) !important',color:'#FF5A5A',fontWeight:700}}}/>
                         </Box>
                       )}
                     </CardContent>
@@ -1409,19 +1580,41 @@ const ReportsPage = () => {
         </Stack>
       )}
 
-      {/* Saved templates tab */}
-      {tab===1&&(
+      {/* Templates tab — built-in + saved templates, each runs directly */}
+      {tab===0&&(
         <Box>
+          <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:1,mb:1.5}}>Built-in Reports</Typography>
+          <Stack spacing={1.5} sx={{mb:3}}>
+            {BUILTIN_TEMPLATES.map(tpl=>(
+              <Card key={tpl.id} sx={{border:'1px solid rgba(255,139,90,0.12)'}}>
+                <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
+                  <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
+                    <Typography sx={{fontSize:22}}>{tpl.icon}</Typography>
+                    <Box sx={{flex:1,minWidth:0}}>
+                      <Typography sx={{fontWeight:700,fontSize:14}}>{tpl.name}</Typography>
+                      <Typography sx={{fontSize:12,color:'#9CA3AF'}}>{tpl.description}</Typography>
+                    </Box>
+                    <Button size="small" variant="contained" startIcon={<PlayArrowIcon/>} onClick={()=>loadTemplate(tpl)} sx={{fontSize:12}}>Run</Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{mb:1.5}}>
+            <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:1}}>My Saved Templates</Typography>
+            <Button size="small" variant="outlined" startIcon={<TuneIcon sx={{fontSize:15}}/>} onClick={()=>setTab(1)} sx={{fontSize:11.5,borderColor:'rgba(99,102,241,0.35)',color:'#6366f1'}}>Open Report Builder</Button>
+          </Stack>
           {savedTemplates.length===0?(
-            <Box sx={{textAlign:'center',py:8}}>
-              <BookmarkOutlinedIcon sx={{fontSize:48,color:'rgba(59,130,246,0.2)',mb:1}}/>
+            <Box sx={{textAlign:'center',py:6,border:'1px dashed rgba(0,0,0,0.12)',borderRadius:'12px'}}>
+              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(255,90,90,0.2)',mb:1}}/>
               <Typography sx={{fontWeight:700,color:'#374151',mb:0.5}}>No saved templates yet</Typography>
-              <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Build a report and click "Save Template"</Typography>
+              <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Open the Report Builder, design a report and click "Save Template" — it will appear here.</Typography>
             </Box>
           ):(
             <Stack spacing={1.5}>
               {savedTemplates.map(tpl=>(
-                <Card key={tpl.id} sx={{border:'1px solid rgba(99,102,241,0.12)'}}>
+                <Card key={tpl.id} sx={{border:'1px solid rgba(255,139,90,0.12)'}}>
                   <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                     <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                       <Box sx={{flex:1,minWidth:0}}>
@@ -1429,13 +1622,13 @@ const ReportsPage = () => {
                         {tpl.description&&<Typography sx={{fontSize:12,color:'#9CA3AF'}}>{tpl.description}</Typography>}
                         <Stack direction="row" spacing={0.8} sx={{mt:0.5}} flexWrap="wrap">
                           <Chip label={tpl.source} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>
-                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(59,130,246,0.08)',color:'#3B82F6'}}/>
+                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(255,90,90,0.08)',color:'#FF5A5A'}}/>
                           {tpl.groupBy&&<Chip label={`By ${tpl.groupBy}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(16,185,129,0.08)',color:'#059669'}}/>}
                           {tpl.charts?.length>0&&<Chip label={`${tpl.charts.length} chart${tpl.charts.length!==1?'s':''}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>}
                         </Stack>
                       </Box>
                       <Stack direction="row" spacing={0.8}>
-                        <Button size="small" variant="contained" startIcon={<PlayArrowIcon/>} onClick={()=>loadTemplate(tpl)} sx={{fontSize:12}}>Load & Run</Button>
+                        <Button size="small" variant="contained" startIcon={<PlayArrowIcon/>} onClick={()=>loadTemplate(tpl)} sx={{fontSize:12}}>Run</Button>
                         <Tooltip title="Delete"><IconButton size="small" onClick={()=>handleDelTpl(tpl.id)} sx={{color:'#9CA3AF','&:hover':{color:'#ef4444'}}}><DeleteOutlineIcon fontSize="small"/></IconButton></Tooltip>
                       </Stack>
                     </Box>

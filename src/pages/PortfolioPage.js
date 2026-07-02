@@ -83,8 +83,8 @@ const STEPS = [
 ];
 
 const sectionHdr = (label, icon) => (
-  <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2, pb:1, borderBottom:'2px solid rgba(99,102,241,0.12)' }}>
-    <Box sx={{ color:'#3B82F6', display:'flex' }}>{icon}</Box>
+  <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2, pb:1, borderBottom:'2px solid rgba(255,139,90,0.12)' }}>
+    <Box sx={{ color:'#FF5A5A', display:'flex' }}>{icon}</Box>
     <Typography sx={{ fontWeight:800, fontSize:15, color:'#1A1A2E', textTransform:'uppercase', letterSpacing:0.8 }}>
       {label}
     </Typography>
@@ -154,17 +154,17 @@ function StepPortfolios({ industryCode, selected, onToggle }) {
             <Box key={p.code} onClick={() => onToggle(p.code)}
               sx={{
                 p:2, borderRadius:'12px', cursor:'pointer', transition:'all 0.15s',
-                border: active ? '2px solid #2563EB' : '1.5px solid rgba(99,102,241,0.18)',
-                bgcolor: active ? 'rgba(37,99,235,0.04)' : '#fff',
-                '&:hover': { borderColor:'#3B82F6', bgcolor:'rgba(59,130,246,0.03)' },
+                border: active ? '2px solid #E8472A' : '1.5px solid rgba(255,139,90,0.18)',
+                bgcolor: active ? 'rgba(232,71,42,0.04)' : '#fff',
+                '&:hover': { borderColor:'#E8712A', bgcolor:'rgba(232,113,42,0.03)' },
               }}>
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 <Box sx={{
                   width:32, height:32, borderRadius:'8px', flexShrink:0,
-                  bgcolor: active ? 'rgba(37,99,235,0.12)' : 'rgba(107,114,128,0.08)',
+                  bgcolor: active ? 'rgba(232,71,42,0.12)' : 'rgba(107,114,128,0.08)',
                   display:'flex', alignItems:'center', justifyContent:'center',
                 }}>
-                  {active ? <CheckCircleIcon sx={{ fontSize:18, color:'#2563EB' }} /> : <FolderOpenIcon sx={{ fontSize:18, color:'#9CA3AF' }} />}
+                  {active ? <CheckCircleIcon sx={{ fontSize:18, color:'#E8472A' }} /> : <FolderOpenIcon sx={{ fontSize:18, color:'#9CA3AF' }} />}
                 </Box>
                 <Box sx={{ flex:1 }}>
                   <Typography sx={{ fontWeight:700, fontSize:13, color: active ? '#1A1A2E' : '#374151' }}>
@@ -201,13 +201,13 @@ function StepAssets({ industryCode, selectedPortfolios, assetData, onAssetToggle
           const isOpen  = openPf === pfCode;
           const confirmed = assets.filter(a => assetData[a.assetCode]?.present).length;
           return (
-            <Card key={pfCode} elevation={0} sx={{ border:'1.5px solid rgba(99,102,241,0.15)', borderRadius:'12px' }}>
+            <Card key={pfCode} elevation={0} sx={{ border:'1.5px solid rgba(255,139,90,0.15)', borderRadius:'12px' }}>
               <Box sx={{ p:2, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}
                 onClick={() => setOpenPf(isOpen ? null : pfCode)}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Box sx={{ width:36, height:36, borderRadius:'10px', bgcolor:'rgba(37,99,235,0.08)',
+                  <Box sx={{ width:36, height:36, borderRadius:'10px', bgcolor:'rgba(232,71,42,0.08)',
                              display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <FolderOpenIcon sx={{ fontSize:18, color:'#2563EB' }} />
+                    <FolderOpenIcon sx={{ fontSize:18, color:'#E8472A' }} />
                   </Box>
                   <Box>
                     <Typography sx={{ fontWeight:700, fontSize:13.5 }}>{pf?.name || pfCode}</Typography>
@@ -246,7 +246,7 @@ function StepAssets({ industryCode, selectedPortfolios, assetData, onAssetToggle
                                     <Typography sx={{ fontWeight:600, fontSize:13 }}>{asset.name}</Typography>
                                     {mandatory === 'Yes' && (
                                       <Chip label="Core" size="small"
-                                        sx={{ fontSize:9.5, height:16, bgcolor:'rgba(37,99,235,0.10)', color:'#2563EB', fontWeight:700 }} />
+                                        sx={{ fontSize:9.5, height:16, bgcolor:'rgba(232,71,42,0.10)', color:'#E8472A', fontWeight:700 }} />
                                     )}
                                   </Stack>
                                   <Typography sx={{ fontSize:11, color:'#9CA3AF' }}>{asset.desc}</Typography>
@@ -327,8 +327,8 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
           <Box key={expCode}>
             {/* Exposure group header */}
             <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:1.5 }}>
-              <Box sx={{ width:3, height:18, borderRadius:2, bgcolor:'#3B82F6' }} />
-              <Typography sx={{ fontWeight:800, fontSize:12.5, color:'#3B82F6', textTransform:'uppercase', letterSpacing:0.8 }}>
+              <Box sx={{ width:3, height:18, borderRadius:2, bgcolor:'#FF5A5A' }} />
+              <Typography sx={{ fontWeight:800, fontSize:12.5, color:'#FF5A5A', textTransform:'uppercase', letterSpacing:0.8 }}>
                 {expLabels[expCode] || expCode.replace('EXP-','')} Risk
               </Typography>
             </Box>
@@ -346,7 +346,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
                     bgcolor:  isAdverse ? 'rgba(239,68,68,0.04)' : isSafe ? 'rgba(16,185,129,0.03)' : '#fff',
                     border:   isAdverse ? '1.5px solid rgba(239,68,68,0.25)'
                             : isSafe    ? '1.5px solid rgba(16,185,129,0.20)'
-                            :             '1px solid rgba(99,102,241,0.12)',
+                            :             '1px solid rgba(255,139,90,0.12)',
                   }}>
                     <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb:1.2 }}>
                       <Typography sx={{ fontWeight:600, fontSize:13.5, color:'#1A1A2E', flex:1, lineHeight:1.5 }}>
@@ -372,7 +372,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
                                 ...(selAdv  ? { background:'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow:'none', color:'#fff' }
                                   : selSafe ? { background:'linear-gradient(135deg,#10B981,#059669)', boxShadow:'none', color:'#fff' }
                                   :           { borderColor:'rgba(107,114,128,0.3)', color:'#374151', bgcolor:'#fff',
-                                                '&:hover':{ borderColor:'#3B82F6', bgcolor:'rgba(59,130,246,0.03)' } }),
+                                                '&:hover':{ borderColor:'#FF5A5A', bgcolor:'rgba(255,90,90,0.03)' } }),
                               }}>
                               {opt}
                             </Button>
@@ -395,7 +395,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
                                 ...(selAdv  ? { background:'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow:'none', color:'#fff' }
                                   : selSafe ? { background:'linear-gradient(135deg,#10B981,#059669)', boxShadow:'none', color:'#fff' }
                                   :           { borderColor:'rgba(107,114,128,0.3)', color:'#374151',
-                                                '&:hover':{ borderColor:'#3B82F6', bgcolor:'rgba(59,130,246,0.03)' } }),
+                                                '&:hover':{ borderColor:'#FF5A5A', bgcolor:'rgba(255,90,90,0.03)' } }),
                               }}>
                               {opt}
                             </Button>
@@ -453,11 +453,11 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
 
     // Header
     pdf.setFillColor(26,26,46); pdf.rect(0,0,pw,22,'F');
-    pdf.setFillColor(37,99,235); pdf.rect(0,22,pw,2.5,'F');
-    pdf.setFontSize(12); pdf.setFont('helvetica','bold'); pdf.setTextColor(99,102,241);
-    pdf.text('INSURESAAS LTD', pw/2, 10, {align:'center'});
+    pdf.setFillColor(232,71,42); pdf.rect(0,22,pw,2.5,'F');
+    pdf.setFontSize(12); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
+    pdf.text('CEILAO INSURANCE BROKERS (PVT) LTD', pw/2, 10, {align:'center'});
     pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
-    pdf.text('INSURANCE SAAS PLATFORM  ·  SRI LANKA', pw/2,17,{align:'center'});
+    pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2,17,{align:'center'});
 
     // Title block
     pdf.setFillColor(249,250,251); pdf.rect(0,24.5,pw,14,'F');
@@ -469,7 +469,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
     let y = 44;
     const addSection = (title) => {
       pdf.setFillColor(26,26,46); pdf.rect(10, y, pw-20, 8,'F');
-      pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(99,102,241);
+      pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
       pdf.text(title, 14, y+5.5);
       y += 11;
     };
@@ -500,10 +500,10 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
     autoTable(pdf, {
       startY: y,
       head: [[
-        {content:'#', styles:{fillColor:[26,26,46],textColor:[147,197,253],fontStyle:'bold',fontSize:8}},
-        {content:'Product', styles:{fillColor:[26,26,46],textColor:[147,197,253],fontStyle:'bold',fontSize:8}},
-        {content:'Recommendation', styles:{fillColor:[26,26,46],textColor:[147,197,253],fontStyle:'bold',fontSize:8}},
-        {content:'Reason', styles:{fillColor:[26,26,46],textColor:[147,197,253],fontStyle:'bold',fontSize:8}},
+        {content:'#', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
+        {content:'Product', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
+        {content:'Recommendation', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
+        {content:'Reason', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
       ]],
       body: recs.products.map((p,i) => [
         i+1, p.product.name, p.strength, p.reason,
@@ -522,8 +522,8 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
       autoTable(pdf, {
         startY: y,
         head: [[
-          {content:'Area', styles:{fillColor:[26,26,46],textColor:[147,197,253],fontStyle:'bold',fontSize:8}},
-          {content:'Risk Control Recommendation', styles:{fillColor:[26,26,46],textColor:[147,197,253],fontStyle:'bold',fontSize:8}},
+          {content:'Area', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
+          {content:'Risk Control Recommendation', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
         ]],
         body: recs.ruleAdvice.map(r => [r.rule.portfolioCode?.replace('PF-',''), r.advice]),
         styles: { fontSize:8, cellPadding:{top:3,bottom:3,left:4,right:4}, overflow:'linebreak' },
@@ -535,10 +535,10 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
     // Footer — 18mm tall, two lines
     const ph = pdf.internal.pageSize.getHeight();
     pdf.setFillColor(26,26,46);  pdf.rect(0, ph-18, pw, 18, 'F');
-    pdf.setFillColor(37,99,235); pdf.rect(0, ph-18, pw, 1.5, 'F');
+    pdf.setFillColor(232,71,42); pdf.rect(0, ph-18, pw, 1.5, 'F');
     // Line 1: company name (left) + date (right)
-    pdf.setFontSize(8); pdf.setFont('helvetica','bold'); pdf.setTextColor(99,102,241);
-    pdf.text('InsureSAAS Ltd', 12, ph-11);
+    pdf.setFontSize(8); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
+    pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph-11);
     pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(107,114,128);
     pdf.text(`Generated: ${today}`, pw-12, ph-11, {align:'right'});
     // Line 2: confidential note centred
@@ -572,7 +572,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
             </Box>
             <Stack spacing={0.8}>
               <Button variant="contained" startIcon={<FileDownloadOutlinedIcon />} onClick={exportPdf}
-                sx={{ background:'linear-gradient(135deg,#2563EB,#3B82F6)', fontSize:12 }}>
+                sx={{ background:'linear-gradient(135deg,#E8472A,#E8712A)', fontSize:12 }}>
                 Export PDF
               </Button>
               <Button variant="contained"
@@ -582,7 +582,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
                 {saving ? 'Saving…' : isSaved ? 'Saved ✓' : savedId ? 'Save Changes' : 'Save Review'}
               </Button>
               <Button variant="outlined" startIcon={<SendIcon />} onClick={onSend}
-                sx={{ fontSize:12, borderColor:'rgba(99,102,241,0.4)', color:'#6366f1' }}>
+                sx={{ fontSize:12, borderColor:'rgba(255,139,90,0.4)', color:'#FF8B5A' }}>
                 Send to Client
               </Button>
             </Stack>
@@ -620,13 +620,13 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
             const open = openProduct === p.product.code;
             return (
               <Card key={p.product.code} elevation={0}
-                sx={{ border:`1.5px solid ${open ? '#2563EB' : 'rgba(99,102,241,0.15)'}`, borderRadius:'12px' }}>
+                sx={{ border:`1.5px solid ${open ? '#E8472A' : 'rgba(255,139,90,0.15)'}`, borderRadius:'12px' }}>
                 <Box sx={{ p:2, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}
                   onClick={() => setOpenProduct(open ? null : p.product.code)}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ width:32, height:32, borderRadius:'8px', bgcolor:'rgba(37,99,235,0.08)',
+                    <Box sx={{ width:32, height:32, borderRadius:'8px', bgcolor:'rgba(232,71,42,0.08)',
                                display:'flex', alignItems:'center', justifyContent:'center',
-                               fontWeight:800, fontSize:13, color:'#2563EB' }}>
+                               fontWeight:800, fontSize:13, color:'#E8472A' }}>
                       {idx+1}
                     </Box>
                     <Box>
@@ -711,7 +711,7 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
   const gradeBg    = { Low:'#D1FAE5', Medium:'#FEF3C7', High:'#FEE2E2', Critical:'#FEE2E2' }[riskGrade.label] || '#F3F4F6';
 
   const productRows = products.map((p, i) => `
-    <tr style="background:${i%2===0?'#fff':'#EFF6FF'};">
+    <tr style="background:${i%2===0?'#fff':'#FFF8F5'};">
       <td style="padding:9px 12px;font-weight:600;font-size:13px;color:#1A1A2E;">${i+1}. ${p.product.name}</td>
       <td style="padding:9px 12px;font-size:12px;color:#6B7280;">${p.product.family}</td>
       <td style="padding:9px 12px;">
@@ -735,19 +735,19 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
 
   <!-- HEADER -->
   <tr><td style="background:#1A1A2E;padding:28px 32px;text-align:center;">
-    <div style="color:#6366f1;font-size:20px;font-weight:bold;letter-spacing:0.5px;">INSURESAAS</div>
+    <div style="color:#FF8B5A;font-size:20px;font-weight:bold;letter-spacing:0.5px;">CEILAO INSURANCE BROKERS</div>
     <div style="color:#9CA3AF;font-size:11px;margin-top:5px;letter-spacing:1px;">INSURANCE BROKING &amp; RISK MANAGEMENT &nbsp;·&nbsp; SRI LANKA</div>
   </td></tr>
-  <tr><td style="background:linear-gradient(90deg,#2563EB,#3B82F6);height:4px;"></td></tr>
+  <tr><td style="background:linear-gradient(90deg,#E8472A,#E8712A);height:4px;"></td></tr>
 
   <!-- BODY -->
   <tr><td style="padding:32px;">
     <p style="font-size:15px;color:#374151;margin:0 0 8px;">Dear <strong>${customer.name || 'Valued Client'}</strong>,</p>
     <p style="font-size:13.5px;color:#6B7280;line-height:1.7;margin:0 0 24px;">
-      Please find below your personalised <strong>Portfolio Insurance Review</strong> prepared by InsureSAAS.
+      Please find below your personalised <strong>Portfolio Insurance Review</strong> prepared by InsureSAAS Insurance Brokers.
       This report outlines the key risks identified for your business and our professional insurance recommendations.
     </p>
-    ${customMessage ? `<p style="font-size:13.5px;color:#374151;background:#EFF6FF;border-left:3px solid #2563EB;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 24px;">${customMessage}</p>` : ''}
+    ${customMessage ? `<p style="font-size:13.5px;color:#374151;background:#FFF8F5;border-left:3px solid #E8472A;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 24px;">${customMessage}</p>` : ''}
 
     <!-- RISK GRADE -->
     <div style="background:#F9FAFB;border-radius:10px;padding:20px;margin-bottom:24px;text-align:center;">
@@ -763,9 +763,9 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
       </div>
       <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border-radius:8px;overflow:hidden;">
         <tr style="background:#1A1A2E;">
-          <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6366f1;font-weight:700;text-transform:uppercase;">Product</th>
-          <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6366f1;font-weight:700;text-transform:uppercase;">Category</th>
-          <th style="padding:10px 12px;text-align:left;font-size:11px;color:#6366f1;font-weight:700;text-transform:uppercase;">Priority</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;color:#FF8B5A;font-weight:700;text-transform:uppercase;">Product</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;color:#FF8B5A;font-weight:700;text-transform:uppercase;">Category</th>
+          <th style="padding:10px 12px;text-align:left;font-size:11px;color:#FF8B5A;font-weight:700;text-transform:uppercase;">Priority</th>
         </tr>
         ${productRows}
       </table>
@@ -791,9 +791,9 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td>
-          <div style="color:#6366f1;font-size:13px;font-weight:700;">${brokerName || 'InsureSAAS'}</div>
-          <div style="color:#9CA3AF;font-size:11px;margin-top:3px;">InsureSAAS Ltd</div>
-          <div style="color:#9CA3AF;font-size:11px;">InsureSAAS &amp; Risk Management &nbsp;·&nbsp; Sri Lanka</div>
+          <div style="color:#FF8B5A;font-size:13px;font-weight:700;">${brokerName || 'InsureSAAS Insurance Brokers'}</div>
+          <div style="color:#9CA3AF;font-size:11px;margin-top:3px;">InsureSAAS Insurance Brokers (Pvt) Ltd</div>
+          <div style="color:#9CA3AF;font-size:11px;">Insurance Broking &amp; Risk Management &nbsp;·&nbsp; Sri Lanka</div>
         </td>
         <td align="right">
           <div style="color:#6B7280;font-size:10px;text-align:right;">
@@ -826,7 +826,7 @@ function SendDialog({ open, onClose, customer, industryCode, recs, riskGrade, ri
 
   const whatsappText = useMemo(() => {
     const top5 = recs.products.slice(0, 5).map((p, i) => `${i+1}. ${p.product.name} — ${p.strength.includes('Mandatory') ? 'Mandatory' : p.strength}`).join('\n');
-    return `Dear ${customer.name || 'Valued Client'},\n\nPlease find your *Portfolio Insurance Review* from InsureSAAS below.\n\n*Industry:* ${industry?.name || industryCode}\n*Risk Grade:* ${riskGrade.label} (Score: ${riskScore})\n\n*Recommended Insurance Programme:*\n${top5}\n\n${message ? `${message}\n\n` : ''}Please contact us to discuss your insurance programme.\n\n${customer.broker || 'Your Broker'}\nInsureSAAS Ltd\nInsurance SaaS Platform · Sri Lanka`;
+    return `Dear ${customer.name || 'Valued Client'},\n\nPlease find your *Portfolio Insurance Review* from InsureSAAS Insurance Brokers below.\n\n*Industry:* ${industry?.name || industryCode}\n*Risk Grade:* ${riskGrade.label} (Score: ${riskScore})\n\n*Recommended Insurance Programme:*\n${top5}\n\n${message ? `${message}\n\n` : ''}Please contact us to discuss your insurance programme.\n\n${customer.broker || 'Your Broker'}\nInsureSAAS Insurance Brokers (Pvt) Ltd\nInsurance Broking & Risk Management · Sri Lanka`;
   }, [customer, industry, industryCode, recs, riskGrade, riskScore, message]);
 
   const sendEmail = async () => {
@@ -864,9 +864,9 @@ function SendDialog({ open, onClose, customer, industryCode, recs, riskGrade, ri
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ pb:0 }}>Send Portfolio Review to Client</DialogTitle>
       <DialogContent sx={{ pt:2 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb:2.5, borderBottom:'1px solid rgba(99,102,241,0.12)',
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb:2.5, borderBottom:'1px solid rgba(255,139,90,0.12)',
           '& .MuiTab-root': { fontSize:13, fontWeight:600, textTransform:'none' },
-          '& .Mui-selected': { color:'#2563EB' }, '& .MuiTabs-indicator': { background:'linear-gradient(90deg,#2563EB,#3B82F6)' } }}>
+          '& .Mui-selected': { color:'#E8472A' }, '& .MuiTabs-indicator': { background:'#E8472A' } }}>
           <Tab icon={<EmailOutlinedIcon sx={{ fontSize:16 }} />} iconPosition="start" label="Email" />
           <Tab icon={<span style={{ fontSize:15 }}>💬</span>} iconPosition="start" label="WhatsApp" />
         </Tabs>
@@ -1015,7 +1015,7 @@ function SavedReviews({ onEdit }) {
       </Stack>
 
       {loading ? (
-        <Box sx={{ textAlign:'center', py:6 }}><CircularProgress sx={{ color:'#3B82F6' }} /></Box>
+        <Box sx={{ textAlign:'center', py:6 }}><CircularProgress sx={{ color:'#FF5A5A' }} /></Box>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign:'center', py:6 }}>
           <Typography sx={{ color:'#9CA3AF', fontWeight:600 }}>No saved reviews yet.</Typography>
@@ -1026,7 +1026,7 @@ function SavedReviews({ onEdit }) {
           {filtered.slice((pPage-1)*P_PER_PAGE, pPage*P_PER_PAGE).map(r => {
             const gs = gradeStyle[r.risk_grade] || gradeStyle.Medium;
             return (
-              <Card key={r.id} elevation={0} sx={{ border:'1.5px solid rgba(99,102,241,0.12)', borderRadius:'12px', '&:hover': { boxShadow:'0 4px 16px rgba(59,130,246,0.08)' } }}>
+              <Card key={r.id} elevation={0} sx={{ border:'1.5px solid rgba(255,139,90,0.12)', borderRadius:'12px', '&:hover': { boxShadow:'0 4px 16px rgba(255,90,90,0.08)' } }}>
                 <CardContent sx={{ p:2, '&:last-child': { pb:2 } }}>
                   <Stack direction={{ xs:'column', sm:'row' }} justifyContent="space-between" alignItems={{ sm:'center' }} spacing={1.5}>
                     <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1255,17 +1255,17 @@ export default function PortfolioPage() {
         </Box>
         {activeTab === 0 && step > 0 && (
           <Button variant="outlined" startIcon={<RestartAltIcon />} onClick={() => reset()}
-            sx={{ mt:{ xs:1.5, sm:0 }, borderColor:'rgba(99,102,241,0.3)', color:'#6366f1', fontSize:12 }}>
+            sx={{ mt:{ xs:1.5, sm:0 }, borderColor:'rgba(255,139,90,0.3)', color:'#FF8B5A', fontSize:12 }}>
             New Assessment
           </Button>
         )}
       </Stack>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb:3, borderBottom:'1px solid rgba(99,102,241,0.12)',
+      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb:3, borderBottom:'1px solid rgba(255,139,90,0.12)',
         '& .MuiTab-root': { fontSize:13, fontWeight:600, textTransform:'none', color:'#9CA3AF' },
-        '& .Mui-selected': { color:'#2563EB' },
-        '& .MuiTabs-indicator': { background:'linear-gradient(90deg,#2563EB,#3B82F6)', height:2.5 } }}>
+        '& .Mui-selected': { color:'#E8472A' },
+        '& .MuiTabs-indicator': { background:'linear-gradient(90deg,#E8472A,#E8712A)', height:2.5 } }}>
         <Tab icon={<AddCircleOutlineIcon sx={{ fontSize:17 }} />} iconPosition="start" label="New Assessment" />
         <Tab icon={<HistoryIcon sx={{ fontSize:17 }} />} iconPosition="start" label="Saved Reviews" />
       </Tabs>
@@ -1275,13 +1275,13 @@ export default function PortfolioPage() {
         <>
           <Stepper activeStep={step} alternativeLabel sx={{ mb:4,
             '& .MuiStepLabel-label': { fontSize:12, fontWeight:600 },
-            '& .MuiStepIcon-root.Mui-active': { color:'#2563EB' },
+            '& .MuiStepIcon-root.Mui-active': { color:'#E8472A' },
             '& .MuiStepIcon-root.Mui-completed': { color:'#10B981' },
           }}>
             {STEPS.map(s => <Step key={s.label}><StepLabel>{s.label}</StepLabel></Step>)}
           </Stepper>
 
-          <Card elevation={0} sx={{ border:'1.5px solid rgba(99,102,241,0.12)', borderRadius:'16px', mb:3 }}>
+          <Card elevation={0} sx={{ border:'1.5px solid rgba(255,139,90,0.12)', borderRadius:'16px', mb:3 }}>
             <CardContent sx={{ p:3 }}>
               {step === 0 && <StepCustomer data={customer} onChange={setCustomerField} />}
               {step === 1 && <StepPortfolios industryCode={customer.industry} selected={selectedPortfolios} onToggle={togglePortfolio} />}
@@ -1302,7 +1302,7 @@ export default function PortfolioPage() {
           <Stack direction="row" justifyContent="space-between">
             <Button variant="outlined" startIcon={<ArrowBackIcon />}
               onClick={() => setStep(s => s - 1)} disabled={step === 0}
-              sx={{ borderColor:'rgba(99,102,241,0.3)', color:'#6366f1', fontSize:13 }}>
+              sx={{ borderColor:'rgba(255,139,90,0.3)', color:'#FF8B5A', fontSize:13 }}>
               Back
             </Button>
             {step < STEPS.length - 1 ? (

@@ -61,7 +61,7 @@ const Header = () => {
       {/* search — only on clients page */}
       {isClients && (
         <TextField
-          placeholder="Search by name, mobile, policy…"
+          placeholder="Search by name, mobile, policy, file no…"
           size="small"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}

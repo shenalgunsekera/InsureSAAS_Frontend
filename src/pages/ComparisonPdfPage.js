@@ -28,7 +28,15 @@ const ComparisonPdfPage = () => {
           .then(snap => {
             if (!snap.exists()) { setError('Quote not found.'); setStatus('error'); return; }
             const data = snap.data();
-            setQuote({ id: snap.id, ...data });
+            // Strip broker-only commission fields before the customer page uses the
+            // data, so commission can never reach a customer-facing render.
+            const COMMISSION_KEYS = ['commission_type','commission_basic','commission_srcc',
+              'commission_tc','commission_total','commission_pct','commission_special_rate',
+              'commission_special_amount','commission_amount_paid','commission_vat'];
+            const cleanResponses = (data.responses || []).map(r => {
+              const c = { ...r }; COMMISSION_KEYS.forEach(k => delete c[k]); return c;
+            });
+            setQuote({ id: snap.id, ...data, responses: cleanResponses });
             // Resolve product definition (static or custom)
             const pKey = data.product_key;
             if (PRODUCTS[pKey]) {
@@ -71,7 +79,7 @@ const ComparisonPdfPage = () => {
     <Box sx={{ minHeight:'100vh', bgcolor:'#F9F9FB', display:'flex', alignItems:'center', justifyContent:'center', p:3 }}>
       <Box sx={{ maxWidth:440, width:'100%', textAlign:'center' }}>
 
-        <Box sx={{ width:64, height:64, borderRadius:'16px', mx:'auto', mb:2, background:'linear-gradient(135deg,#0F172A,#374151)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30 }}>
+        <Box sx={{ width:64, height:64, borderRadius:'16px', mx:'auto', mb:2, background:'linear-gradient(135deg,#1A1A2E,#374151)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30 }}>
           📄
         </Box>
 
@@ -82,18 +90,18 @@ const ComparisonPdfPage = () => {
            'Preparing Comparison PDF'}
         </Typography>
         <Typography sx={{ color:'#6B7280', fontSize:13, mb:3 }}>
-          InsureSAAS — {quote?.reference || '…'}
+          InsureSAAS Insurance Brokers — {quote?.reference || '…'}
         </Typography>
 
         {(status === 'loading' || status === 'generating') && (
-          <CircularProgress sx={{ color:'#3B82F6', mb:2 }} />
+          <CircularProgress sx={{ color:'#FF5A5A', mb:2 }} />
         )}
 
         {status === 'error' && (
           <>
             <Alert severity="error" sx={{ mb:2, textAlign:'left' }}>{error}</Alert>
             <Button variant="contained" onClick={() => window.location.reload()}
-              sx={{ background:'linear-gradient(135deg,#3B82F6,#6366f1)' }}>
+              sx={{ background:'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
               Try Again
             </Button>
           </>
@@ -105,14 +113,14 @@ const ComparisonPdfPage = () => {
               Your comparison PDF has been downloaded successfully.
             </Alert>
             <Button variant="outlined" onClick={generateAndDownload}
-              sx={{ borderColor:'rgba(59,130,246,0.3)', color:'#3B82F6' }}>
+              sx={{ borderColor:'rgba(255,90,90,0.3)', color:'#FF5A5A' }}>
               Download Again
             </Button>
           </>
         )}
 
         <Typography sx={{ fontSize:11.5, color:'#9CA3AF', mt:3 }}>
-          InsureSAAS Ltd — Confidential Quotation Portal
+          InsureSAAS Insurance Brokers (Pvt) Ltd — Confidential Quotation Portal
         </Typography>
       </Box>
     </Box>

@@ -12,8 +12,6 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
 import Button from '@mui/material/Button';
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
 import Link from '@mui/material/Link';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
@@ -26,16 +24,9 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import Alert from '@mui/material/Alert';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
-import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
-import ShieldOutlinedIcon from '@mui/icons-material/ShieldOutlined';
-import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
-import MonetizationOnOutlinedIcon from '@mui/icons-material/MonetizationOnOutlined';
-import PaymentOutlinedIcon from '@mui/icons-material/PaymentOutlined';
-import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
-import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
@@ -54,19 +45,6 @@ const docFields = [
   { label:'NIC / BR',         doc:'nic_br_doc_url',           text:'nic_br_text' },
 ];
 
-const TABS = [
-  { label:'Overview',    icon:<BadgeOutlinedIcon /> },
-  { label:'Proposer',    icon:<PersonOutlineIcon /> },
-  { label:'Policy',      icon:<CalendarMonthOutlinedIcon /> },
-  { label:'Risk',        icon:<ShieldOutlinedIcon /> },
-  { label:'Coverage',    icon:<AttachMoneyOutlinedIcon /> },
-  { label:'Financials',  icon:<MonetizationOnOutlinedIcon /> },
-  { label:'Commission',  icon:<PaymentOutlinedIcon /> },
-  { label:'Claims',      icon:<ReportProblemOutlinedIcon /> },
-  { label:'Endorsements',icon:<HistoryEduOutlinedIcon /> },
-  { label:'Documents',   icon:<FolderOutlinedIcon /> },
-];
-
 // Endorsement = a recorded change to an in-force policy (sum insured, period,
 // added covers/locations, etc.). Each carries the financial deltas it creates so
 // revised totals can be derived from the original policy values.
@@ -78,15 +56,21 @@ const endoNum = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
 const fmtSigned = (n) => `${n < 0 ? '-' : '+'}LKR ${Math.abs(n).toLocaleString()}`;
 
 function Field({ label, value }) {
-  if (!value && value !== 0) return null;
+  const empty = value === null || value === undefined || value === '';
   return (
     <Box>
       <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.6, mb: 0.3 }}>
         {label}
       </Typography>
-      <Typography sx={{ fontSize: 13.5, color: '#0F172A', fontWeight: 500, wordBreak: 'break-word' }}>
-        {value}
-      </Typography>
+      {empty ? (
+        <Typography sx={{ fontSize: 13, color: 'rgba(220,38,38,0.55)', fontStyle: 'italic', fontWeight: 500 }}>
+          Not filled
+        </Typography>
+      ) : (
+        <Typography sx={{ fontSize: 13.5, color: '#1A1A2E', fontWeight: 500, wordBreak: 'break-word' }}>
+          {value}
+        </Typography>
+      )}
     </Box>
   );
 }
@@ -97,7 +81,7 @@ function SubHeader({ title }) {
       <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, mb: -0.5, mt: 0.5 }}>
         {title}
       </Typography>
-      <Divider sx={{ mb: 1, borderColor: 'rgba(99,102,241,0.15)' }} />
+      <Divider sx={{ mb: 1, borderColor: 'rgba(255,139,90,0.15)' }} />
     </Grid>
   );
 }
@@ -105,9 +89,9 @@ function SubHeader({ title }) {
 function FinancialRow({ label, value }) {
   const fmt = v => v ? `LKR ${Number(v).toLocaleString()}` : '—';
   return (
-    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(99,102,241,0.08)' }}>
+    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(255,139,90,0.08)' }}>
       <Typography sx={{ fontSize:13, color:'#6B7280' }}>{label}</Typography>
-      <Typography sx={{ fontSize:13, fontWeight:700, color:'#0F172A' }}>{fmt(value)}</Typography>
+      <Typography sx={{ fontSize:13, fontWeight:700, color:'#1A1A2E' }}>{fmt(value)}</Typography>
     </Box>
   );
 }
@@ -116,22 +100,22 @@ function DocCard({ label, url, description }) {
   return (
     <Box sx={{
       p:1.5, borderRadius:'12px',
-      border:`1px solid ${url ? 'rgba(99,102,241,0.25)' : 'rgba(0,0,0,0.06)'}`,
-      bgcolor: url ? 'rgba(239,246,255,0.8)' : '#FAFAFA',
+      border:`1px solid ${url ? 'rgba(255,139,90,0.25)' : 'rgba(0,0,0,0.06)'}`,
+      bgcolor: url ? 'rgba(255,248,245,0.8)' : '#FAFAFA',
       transition:'all 0.2s ease',
-      '&:hover': url ? { boxShadow:'0 4px 16px rgba(59,130,246,0.10)', transform:'translateY(-1px)' } : {},
+      '&:hover': url ? { boxShadow:'0 4px 16px rgba(255,90,90,0.10)', transform:'translateY(-1px)' } : {},
     }}>
       <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', mb:0.5 }}>
         <Typography sx={{ fontSize:12, fontWeight:700, color:'#374151' }}>{label}</Typography>
         {url && (
           <Link href={viewUrl(url)} target="_blank" rel="noopener noreferrer"
-            sx={{ display:'flex', alignItems:'center', gap:0.3, fontSize:11, fontWeight:700, color:'#3B82F6', textDecoration:'none',
+            sx={{ display:'flex', alignItems:'center', gap:0.3, fontSize:11, fontWeight:700, color:'#FF5A5A', textDecoration:'none',
                   '&:hover':{ textDecoration:'underline' } }}>
             View <OpenInNewIcon sx={{ fontSize:11 }} />
           </Link>
         )}
       </Box>
-      <Typography sx={{ fontSize:11, color: url ? '#6366f1' : '#C4B5B0', fontWeight: url ? 500 : 400 }}>
+      <Typography sx={{ fontSize:11, color: url ? '#FF8B5A' : '#C4B5B0', fontWeight: url ? 500 : 400 }}>
         {url ? 'Document uploaded' : 'No document'}
       </Typography>
       {description && (
@@ -157,9 +141,10 @@ const UW_FIELD_ALIASES = {
 
 const ClientDetailsModal = ({ client, onClose }) => {
   const { user, userProfile } = useAuth();
-  const [tab,       setTab]       = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
+  const contentRef = React.useRef(null);
+  const [tab, setTab] = useState(0);
 
   // Endorsements — kept in local state so the modal (and its PDF/Excel) reflect
   // edits immediately; each change is also persisted to the client document.
@@ -187,6 +172,10 @@ const ClientDetailsModal = ({ client, onClose }) => {
   if (!client) return null;
 
   const ALL_PRODUCTS = { ...PRODUCTS, ...customProducts };
+
+  // Sum-insured currency (per policy) — format SI values with it.
+  const siCur = client.sum_insured_currency || 'LKR';
+  const fmtSI = v => (v || v === 0) && v !== '' ? `${siCur} ${Number(v).toLocaleString()}` : '—';
 
   // Revised totals = original policy value + cumulative endorsement deltas
   const sumDelta  = endorsements.reduce((a, e) => a + endoNum(e.sum_insured_change), 0);
@@ -307,21 +296,21 @@ const ClientDetailsModal = ({ client, onClose }) => {
       };
 
       const drawHeader = () => {
-        pdf.setFillColor(15,23,42);  pdf.rect(0,0,pw,20,'F');
-        pdf.setFillColor(37,99,235); pdf.rect(0,20,pw,2.5,'F');
-        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(99,102,241);
-        pdf.text('INSURESAAS LTD', pw/2, 9, {align:'center'});
+        pdf.setFillColor(26,26,46);  pdf.rect(0,0,pw,20,'F');
+        pdf.setFillColor(232,71,42); pdf.rect(0,20,pw,2.5,'F');
+        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
+        pdf.text('CEILAO INSURANCE BROKERS (PVT) LTD', pw/2, 9, {align:'center'});
         pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
-        pdf.text('INSURANCE SAAS PLATFORM  ·  SRI LANKA', pw/2, 15.5, {align:'center'});
+        pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2, 15.5, {align:'center'});
       };
 
       const drawFooter = () => {
         const pn = pdf.internal.getCurrentPageInfo().pageNumber;
         const tp = pdf.internal.getNumberOfPages();
-        pdf.setFillColor(15,23,42);  pdf.rect(0, ph-14, pw, 14, 'F');
-        pdf.setFillColor(37,99,235); pdf.rect(0, ph-14, pw, 1,  'F');
-        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(99,102,241);
-        pdf.text('InsureSAAS Ltd', 12, ph-8);
+        pdf.setFillColor(26,26,46);  pdf.rect(0, ph-14, pw, 14, 'F');
+        pdf.setFillColor(232,71,42); pdf.rect(0, ph-14, pw, 1,  'F');
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(255,139,90);
+        pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph-8);
         pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(107,114,128);
         pdf.text(`Page ${pn} / ${tp}`, pw-12, ph-8, {align:'right'});
         pdf.setFont('helvetica','italic'); pdf.setFontSize(6.5); pdf.setTextColor(100,116,139);
@@ -330,13 +319,13 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       drawHeader();
       pdf.setFillColor(249,250,251); pdf.rect(0, 22.5+TAB_H, pw, 13, 'F');
-      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(15,23,42);
+      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,26,46);
       pdf.text('UNDERWRITING RECORD', 14, 30.5+TAB_H);
       pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128);
       const fileRef = [client.insuresaas_ib_file_no && `File: ${client.insuresaas_ib_file_no}`, client.policy_no && `Policy: ${client.policy_no}`].filter(Boolean).join('   ·   ');
       if (fileRef) pdf.text(fileRef, pw-14, 30.5+TAB_H, {align:'right'});
 
-      pdf.setFillColor(37,99,235); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
+      pdf.setFillColor(232,71,42); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
       pdf.setFontSize(13); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,255,255);
       pdf.text(client.client_name || '—', 14, 44.5+TAB_H);
       const tags = [client.main_class, client.product, client.customer_type].filter(Boolean);
@@ -354,7 +343,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       let y = 55 + TAB_H;
       const tableOpts = (startY) => ({
         startY,
-        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[239,246,255], textColor:[55,65,81]}, 1:{textColor:[15,23,42]} },
+        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[255,248,245], textColor:[55,65,81]}, 1:{textColor:[26,26,46]} },
         styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
         bodyStyles: { fillColor:[255,255,255] },
         alternateRowStyles: { fillColor:[255,252,250] },
@@ -368,7 +357,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         startSec(sectionKey);
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:title, colSpan:2, styles:{fillColor:[15,23,42],textColor:[99,102,241],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:title, colSpan:2, styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: filtered,
         });
         y = pdf.lastAutoTable.finalY + 5;
@@ -380,14 +369,15 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Introducer Code',    client.introducer_code],
       ]);
       addSection('overview', 'INSURANCE COMPANY', [
+        ['Insurance Type',     client.insurance_type],
         ['Main Class',         client.main_class],
         ['Product',            client.product],
-        ['Customer Type',      client.customer_type],
         ['Insurance Provider', client.insurance_provider],
         ['Branch',             client.branch],
       ]);
 
       addSection('proposer', 'PROPOSER DETAILS', [
+        ['Customer Type',         client.customer_type],
         ['Client Name',           client.client_name],
         ['NIC / Passport No.',    client.nic_proof],
         ['Business Registration', client.business_registration],
@@ -437,10 +427,10 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const pdfUwRows = productFields.filter(f => f.section === 'Underwriting Information').map(f => [f.label, getRiskVal(f)]).filter(r => r[1]);
       if (pdfUwRows.length) addSection('risk', 'UNDERWRITING INFORMATION', pdfUwRows);
 
-      // Sum Insured breakdown then total
-      const pdfSumSubRows = productFields.filter(f => f.section === 'Sum Insured' && f.name !== 'sum_insured' && f.type !== 'file').map(f => [f.label, getRiskVal(f) ? fmtLKR(getRiskVal(f)) : null]).filter(r => r[1] && r[1] !== '—');
+      // Sum Insured breakdown then total (in the policy's currency)
+      const pdfSumSubRows = productFields.filter(f => f.section === 'Sum Insured' && f.name !== 'sum_insured' && f.type !== 'file').map(f => [f.label, getRiskVal(f) ? fmtSI(getRiskVal(f)) : null]).filter(r => r[1] && r[1] !== '—');
       if (pdfSumSubRows.length) addSection('coverage', 'SUM INSURED BREAKDOWN', pdfSumSubRows);
-      addSection('coverage', 'SUM INSURED', [['Sum Insured (Total)', fmtLKR(client.sum_insured)]]);
+      addSection('coverage', 'SUM INSURED', [['Currency', siCur], ['Sum Insured (Total)', fmtSI(client.sum_insured)]]);
       if (coverItems.length)  addSection('coverage', 'COVERS REQUIRED',   coverItems.map(([k,v]) => [fieldNameToLabel(k), String(v)]));
       if (clauseItems.length) addSection('coverage', 'ADDITIONAL CLAUSES', clauseItems.map(([k,v]) => [fieldNameToLabel(k), String(v)]));
 
@@ -464,12 +454,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
       if (finRows.length || client.total_invoice) {
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[15,23,42],textColor:[99,102,241],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: [...finRows, [
-            { content:'TOTAL INVOICE', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[37,99,235],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
-            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[37,99,235],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[232,71,42],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[232,71,42],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
           ]],
-          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[239,246,255],textColor:[55,65,81]}, 1:{halign:'right',textColor:[15,23,42]} },
+          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[255,248,245],textColor:[55,65,81]}, 1:{halign:'right',textColor:[26,26,46]} },
           styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
           bodyStyles: { fillColor:[255,255,255] },
           alternateRowStyles: { fillColor:[255,252,250] },
@@ -493,7 +483,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Total Commission',        client.commission_total ? fmtLKR(client.commission_total) : null],
         ['Commission Method',       client.commission_paid_method],
         ['Commission Receive Date', client.commission_receive_date],
-        ['Commission Amount Paid',  client.commission_amount_paid ? fmtLKR(client.commission_amount_paid) : null],
+        ['Commission Amount Received',  client.commission_amount_paid ? fmtLKR(client.commission_amount_paid) : null],
         ['Commission VAT',          client.commission_vat ? fmtLKR(client.commission_vat) : null],
       ]);
       addSection('commission', 'PAYMENT', [
@@ -503,6 +493,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Payment Method',  client.payment_method],
         ['Cheque / Slip No.', client.cheque_slip_no],
         ['Receipt No.',     client.receipt_no],
+        ['Debit Note No.',  client.debit_note_no],
       ]);
 
       addSection('claims', 'CLAIMS', [
@@ -519,13 +510,13 @@ const ClientDetailsModal = ({ client, onClose }) => {
         startSec('endorsements');
         addSection('endorsements', 'REVISED TOTALS (AFTER ENDORSEMENTS)', [
           ['Sum Insured', `${fmtLKR(client.sum_insured)}  ->  ${fmtLKR(revisedSum)}${sumDelta ? `  (${fmtSigned(sumDelta)})` : ''}`],
-          ['Total Invoice', `${fmtLKR(client.total_invoice)}  ->  ${fmtLKR(revisedPrem)}${premDelta ? `  (${fmtSigned(premDelta)})` : ''}`],
+          ['Total Premium', `${fmtLKR(client.total_invoice)}  ->  ${fmtLKR(revisedPrem)}${premDelta ? `  (${fmtSigned(premDelta)})` : ''}`],
           ['Total Commission', `${fmtLKR(client.commission_total)}  ->  ${fmtLKR(revisedComm)}${commDelta ? `  (${fmtSigned(commDelta)})` : ''}`],
         ]);
         autoTable(pdf, {
           startY: y,
           head: [[
-            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [15,23,42], textColor: [99,102,241], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
+            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [26,26,46], textColor: [255,139,90], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
           ], [
             { content: '#' }, { content: 'Effective' }, { content: 'Type' }, { content: 'Description' },
             { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' },
@@ -563,8 +554,8 @@ const ClientDetailsModal = ({ client, onClose }) => {
         let docY = 22.5 + TAB_H + 6, docCol = 0;
 
         const addDocPageHdr = (title) => {
-          pdf.setFillColor(15,23,42); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(99,102,241);
+          pdf.setFillColor(26,26,46); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
           pdf.text(title, pw/2, docY+6, {align:'center'});
           docY += 13;
         };
@@ -573,7 +564,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         for (const df of allPdfDocs) {
           if (docY + cellH > ph - 18) { pdf.addPage(); drawHeader(); docY = 28; docCol = 0; addDocPageHdr('UPLOADED DOCUMENTS (cont.)'); }
           const cx = margL + docCol*(colW+gap);
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(15,23,42);
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,26,46);
           pdf.text(df.label, cx, docY+5);
           const note = df.text ? client[df.text] : null;
           if (note) { pdf.setFontSize(7); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128); pdf.text(note, cx, docY+10, {maxWidth:colW}); }
@@ -622,7 +613,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         pdf.setFillColor(22,26,48); pdf.rect(0, 22.5, pw, TAB_H, 'F');
         PDF_TABS.forEach((t, idx) => {
           const tabX = idx * tabW, isAct = t.key === active;
-          if (isAct) { pdf.setFillColor(37,99,235); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
+          if (isAct) { pdf.setFillColor(232,71,42); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
           pdf.setFontSize(5.5); pdf.setFont('helvetica', isAct ? 'bold' : 'normal');
           const [r,g,b] = isAct ? [255,255,255] : [148,163,184];
           pdf.setTextColor(r,g,b);
@@ -655,7 +646,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const titleRow = ws.addRow([`${client.client_name || 'Client'} — Underwriting Record`, '']);
       ws.mergeCells(titleRow.number, 1, titleRow.number, 2);
       titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
-      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
       titleRow.getCell(1).alignment = { vertical: 'middle' };
       titleRow.height = 24;
       ws.addRow([]);
@@ -665,12 +656,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
         if (!filtered.length) return;
         const hr = ws.addRow([title, '']);
         ws.mergeCells(hr.number, 1, hr.number, 2);
-        hr.getCell(1).font = { bold: true, size: 11, color: { argb: 'FF6366f1' } };
-        hr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+        hr.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFF8B5A' } };
+        hr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
         filtered.forEach(([label, value]) => {
           const r = ws.addRow([label, xfmt(value)]);
           r.getCell(1).font = { bold: true, color: { argb: 'FF374151' } };
-          r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+          r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8F5' } };
           r.getCell(2).alignment = { wrapText: true };
         });
         ws.addRow([]);
@@ -686,10 +677,11 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['InsureSAAS File No.', client.insuresaas_ib_file_no], ['Manager', client.manager], ['Introducer Code', client.introducer_code],
       ]);
       addSheetSection('INSURANCE COMPANY', [
-        ['Main Class', client.main_class], ['Product', client.product], ['Customer Type', client.customer_type],
+        ['Insurance Type', client.insurance_type], ['Main Class', client.main_class], ['Product', client.product],
         ['Insurance Provider', client.insurance_provider], ['Branch', client.branch],
       ]);
       addSheetSection('PROPOSER DETAILS', [
+        ['Customer Type', client.customer_type],
         ['Client Name', client.client_name], ['NIC / Passport No.', client.nic_proof], ['Business Registration', client.business_registration],
         ['SVAT / VAT No.', client.svat_proof], ['Street 1', client.street1], ['Street 2', client.street2],
         ['City', client.city], ['District', client.district], ['Province', client.province], ['Postal Code', client.postal_code],
@@ -707,6 +699,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       addSheetSection('CLAIMS HISTORY', claimsHistFields.map(f => [f.label, getRiskVal(f)]));
       addSheetSection('UNDERWRITING INFORMATION', uwInfoFields.map(f => [f.label, getRiskVal(f)]));
       addSheetSection('SUM INSURED', [
+        ['Currency', siCur],
         ...sumSubFields.map(f => [f.label, getRiskVal(f)]),
         ['Sum Insured (Total)', client.sum_insured],
       ]);
@@ -717,7 +710,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Cess', client.cess], ['NBL', client.nbl], ['SSC Levy', client.ssc_levy], ['Other Premium', client.other_premium],
         ['Net Premium', client.net_premium], ['Stamp Duty', client.stamp_duty], ['Admin Fees', client.admin_fees],
         ['Road Safety Fee', client.road_safety_fee], ['Policy Fee', client.policy_fee], ['VAT', client.vat_fee],
-        ['Total Invoice', client.total_invoice], ['Deductible', client.deductible], ['Excesses', client.excesses],
+        ['Total Premium', client.total_invoice], ['Deductible', client.deductible], ['Excesses', client.excesses],
       ]);
       addSheetSection('COMMISSION', [
         ['Commission Type', client.commission_type], ['Basic Commission %', client.commission_pct],
@@ -725,11 +718,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Commission SRCC', client.commission_srcc], ['Commission TC', client.commission_tc],
         ['Special Adjustment', client.commission_special_amount], ['Total Commission', client.commission_total],
         ['Commission Method', client.commission_paid_method], ['Receive Date', client.commission_receive_date],
-        ['Commission Amount Paid', client.commission_amount_paid], ['Commission VAT', client.commission_vat],
+        ['Commission Amount Received', client.commission_amount_paid], ['Commission VAT', client.commission_vat],
       ]);
       addSheetSection('PAYMENT', [
         ['Payment Status', client.payment_status], ['Amount Received', client.amount_received], ['Payment Date', client.payment_date],
         ['Payment Method', client.payment_method], ['Cheque / Slip No.', client.cheque_slip_no], ['Receipt No.', client.receipt_no],
+        ['Debit Note No.', client.debit_note_no],
       ]);
       addSheetSection('CLAIMS', [
         ['Claim Paid?', client.claim_paid], ['Date of Claim', client.claim_date], ['Claim Amount', client.claim_amount],
@@ -756,7 +750,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         const totalsHdr = es.addRow(['REVISED TOTALS', '', '', '', 'Original', 'Change', 'Revised', '']);
         totalsHdr.font = { bold: true };
         es.addRow(['Sum Insured', '', '', '', endoNum(client.sum_insured), sumDelta, revisedSum, '']);
-        es.addRow(['Total Invoice', '', '', '', endoNum(client.total_invoice), premDelta, revisedPrem, '']);
+        es.addRow(['Total Premium', '', '', '', endoNum(client.total_invoice), premDelta, revisedPrem, '']);
         es.addRow(['Total Commission', '', '', '', endoNum(client.commission_total), commDelta, revisedComm, '']);
       }
 
@@ -777,19 +771,22 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
   const fmtLKR = v => v ? `LKR ${Number(v).toLocaleString()}` : null;
 
-  const renderTab = () => {
-    switch (tab) {
-      case 0: /* Overview — Introducer + Insurance Company */
+  const renderSection = (sec) => {
+    switch (sec) {
+      case 0: /* Introducer */
         return (
           <Grid container spacing={2.5}>
-            <SubHeader title="Introducer" />
             <Grid item xs={12} sm={6} md={4}><Field label="InsureSAAS File No." value={client.insuresaas_ib_file_no} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Manager"            value={client.manager} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Introducer Code"    value={client.introducer_code} /></Grid>
-            <SubHeader title="Insurance Company" />
+          </Grid>
+        );
+      case 11: /* Insurance Company */
+        return (
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} sm={6} md={4}><Field label="Insurance Type"      value={client.insurance_type} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Main Class"         value={client.main_class} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Product"            value={client.product} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Customer Type"      value={client.customer_type} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Insurance Provider" value={client.insurance_provider} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Branch"             value={client.branch} /></Grid>
           </Grid>
@@ -797,6 +794,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       case 1: /* Proposer Details */
         return (
           <Grid container spacing={2.5}>
+            <Grid item xs={12} sm={6} md={4}><Field label="Customer Type"         value={client.customer_type} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Client Name"           value={client.client_name} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="NIC / Passport No."    value={client.nic_proof} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Business Registration" value={client.business_registration} /></Grid>
@@ -877,11 +875,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
         return (
           <Grid container spacing={2.5}>
             <SubHeader title="Sum Insured" />
+            <Grid item xs={12} sm={6} md={4}><Field label="Currency" value={siCur} /></Grid>
             {sumSubFields.map(f => {
               const v = getFieldValue(f);
               return v ? (
                 <Grid item xs={12} sm={6} md={4} key={f.name}>
-                  <Field label={f.label} value={`LKR ${Number(v).toLocaleString()}`} />
+                  <Field label={f.label} value={fmtSI(v)} />
                 </Grid>
               ) : null;
             })}
@@ -891,7 +890,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
                   {sumSubFields.length > 0 ? 'Total Sum Insured' : 'Sum Insured'}
                 </Typography>
                 <Typography sx={{ fontSize:20, fontWeight:800, color:'#059669' }}>
-                  {client.sum_insured ? `LKR ${Number(client.sum_insured).toLocaleString()}` : '—'}
+                  {client.sum_insured ? fmtSI(client.sum_insured) : '—'}
                 </Typography>
               </Box>
             </Grid>
@@ -964,9 +963,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
                 <FinancialRow label="VAT"             value={client.vat_fee} />
               </Box>
             </Box>
-            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(59,130,246,0.08),rgba(99,102,241,0.06))', border:'1px solid rgba(59,130,246,0.15)', mb:2 }}>
-              <Typography sx={{ fontSize:12, color:'#9CA3AF', mb:0.5 }}>Total Invoice</Typography>
-              <Typography sx={{ fontSize:24, fontWeight:800, color:'#3B82F6' }}>
+            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(255,90,90,0.08),rgba(255,139,90,0.06))', border:'1px solid rgba(255,90,90,0.15)', mb:2 }}>
+              <Typography sx={{ fontSize:12, color:'#9CA3AF', mb:0.5 }}>Total Premium</Typography>
+              <Typography sx={{ fontSize:24, fontWeight:800, color:'#FF5A5A' }}>
                 LKR {Number(client.total_invoice || 0).toLocaleString()}
               </Typography>
             </Box>
@@ -981,10 +980,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
             )}
           </Box>
         );
-      case 6: /* Commission + Payment */
+      case 6: /* Commission */
         return (
           <Grid container spacing={2.5}>
-            <SubHeader title="Commission" />
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Type"         value={client.commission_type} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Basic Commission %"      value={client.commission_pct} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Special Rate (+/- %)"    value={client.commission_special_rate} /></Grid>
@@ -995,15 +993,20 @@ const ClientDetailsModal = ({ client, onClose }) => {
             <Grid item xs={12} sm={6} md={4}><Field label="Total Commission"        value={fmtLKR(client.commission_total)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Method"       value={client.commission_paid_method} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Receive Date"            value={client.commission_receive_date} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Commission Amount Paid"  value={fmtLKR(client.commission_amount_paid)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Commission Amount Received"  value={fmtLKR(client.commission_amount_paid)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission VAT"          value={fmtLKR(client.commission_vat)} /></Grid>
-            <SubHeader title="Payment" />
+          </Grid>
+        );
+      case 12: /* Payment */
+        return (
+          <Grid container spacing={2.5}>
             <Grid item xs={12} sm={6} md={4}><Field label="Payment Status"    value={client.payment_status} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Amount Received"   value={fmtLKR(client.amount_received)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Payment Date"      value={client.payment_date} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Payment Method"    value={client.payment_method} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Cheque / Slip No." value={client.cheque_slip_no} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Receipt No."       value={client.receipt_no} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Debit Note No."    value={client.debit_note_no} /></Grid>
           </Grid>
         );
       case 7: /* Claims */
@@ -1024,7 +1027,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
             <Box sx={{ display:'grid', gridTemplateColumns:{ xs:'1fr', sm:'1fr 1fr 1fr' }, gap:2, mb:2.5 }}>
               {[
                 { label:'Sum Insured',     orig: endoNum(client.sum_insured),     delta: sumDelta,  revised: revisedSum,  color:'#059669' },
-                { label:'Total Invoice',   orig: endoNum(client.total_invoice),   delta: premDelta, revised: revisedPrem, color:'#3B82F6' },
+                { label:'Total Premium',   orig: endoNum(client.total_invoice),   delta: premDelta, revised: revisedPrem, color:'#FF5A5A' },
                 { label:'Total Commission',orig: endoNum(client.commission_total),delta: commDelta, revised: revisedComm, color:'#ec4899' },
               ].map(c => (
                 <Box key={c.label} sx={{ p:1.8, borderRadius:'12px', border:`1px solid ${c.color}22`, bgcolor:`${c.color}08` }}>
@@ -1053,10 +1056,10 @@ const ClientDetailsModal = ({ client, onClose }) => {
                         <Chip label={e.type} size="small" sx={{ height:20, fontSize:10.5, fontWeight:700, bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
                         {e.effective_date && <Typography sx={{ fontSize:11.5, color:'#6B7280' }}>Effective {e.effective_date}</Typography>}
                       </Box>
-                      {e.description && <Typography sx={{ fontSize:13, color:'#0F172A', mt:0.5 }}>{e.description}</Typography>}
+                      {e.description && <Typography sx={{ fontSize:13, color:'#1A1A2E', mt:0.5 }}>{e.description}</Typography>}
                       <Stack direction="row" spacing={2} sx={{ mt:0.6, flexWrap:'wrap' }}>
                         {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#059669' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
-                        {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#3B82F6' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
+                        {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#FF5A5A' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
                         {endoNum(e.commission_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#ec4899' }}>Commission {fmtSigned(endoNum(e.commission_change))}</Typography>}
                       </Stack>
                       {e.created_by && <Typography sx={{ fontSize:10, color:'#9CA3AF', mt:0.4 }}>Recorded by {e.created_by}</Typography>}
@@ -1139,9 +1142,34 @@ const ClientDetailsModal = ({ client, onClose }) => {
             ))}
           </Grid>
         );
+      case 10: /* Other */
+        return (
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} sm={6} md={4}><Field label="Birthday Policy" value={client.birthday_policy} /></Grid>
+            <Grid item xs={12}             ><Field label="Notes"           value={client.notes} /></Grid>
+          </Grid>
+        );
       default: return null;
     }
   };
+
+  // One tab per form section (in form order). Each shows only its own data.
+  const SECTION_TABS = [
+    { label: 'Introducer',   sec: 0  },
+    { label: 'Insurance',    sec: 11 },
+    { label: 'Proposer',     sec: 1  },
+    { label: 'Period',       sec: 2  },
+    { label: 'Risk',         sec: 3  },
+    { label: 'Coverage',     sec: 4  },
+    { label: 'Premium',      sec: 5  },
+    { label: 'Commission',   sec: 6  },
+    { label: 'Payment',      sec: 12 },
+    { label: 'Claims',       sec: 7  },
+    { label: 'Other',        sec: 10 },
+    { label: `Endorsements${endorsements.length ? ` (${endorsements.length})` : ''}`, sec: 8 },
+    { label: 'Documents',    sec: 9  },
+  ];
+  const endoTabIdx = SECTION_TABS.findIndex(t => t.sec === 8);
 
   return (
     <Dialog open={!!client} onClose={onClose} maxWidth="md" fullWidth PaperProps={{ sx: { maxHeight: '90vh' } }}>
@@ -1163,29 +1191,26 @@ const ClientDetailsModal = ({ client, onClose }) => {
         </Box>
       </DialogTitle>
 
-      <Box sx={{ bgcolor:'rgba(239,246,255,0.5)', borderBottom:'1px solid rgba(99,102,241,0.12)' }}>
-        <Tabs
-          value={tab} onChange={(_, v) => setTab(v)}
-          variant="scrollable" scrollButtons="auto"
-          sx={{
-            minHeight:42,
-            '& .MuiTab-root': { fontSize:11.5, fontWeight:600, minHeight:42, py:0, textTransform:'none', color:'#9CA3AF', minWidth:'unset', px:1.5 },
-            '& .Mui-selected': { color:'#3B82F6' },
-            '& .MuiTabs-indicator': { background:'linear-gradient(90deg,#3B82F6,#6366f1)', height:2.5 },
-          }}
-        >
-          {TABS.map((t, i) => (
-            <Tab key={i} label={t.label} icon={t.icon} iconPosition="start"
-              sx={{ '& .MuiTab-iconWrapper': { fontSize:16, mr:0.5 } }} />
-          ))}
-        </Tabs>
-      </Box>
-
-      <DialogContent sx={{ p:3, overflowY:'auto' }}>
-        <Box className="anim-fade-in">{renderTab()}</Box>
+      <DialogContent sx={{ p:0, overflowY:'auto' }} ref={contentRef}>
+        {/* Each form section is its own clickable tab — click to see just its data. */}
+        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(255,139,90,0.15)' }}>
+          <Tabs
+            value={tab}
+            onChange={(e, v) => { setTab(v); if (contentRef.current) contentRef.current.scrollTop = 0; }}
+            variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile
+            sx={{ minHeight:44,
+                  '& .MuiTab-root': { minHeight:44, py:1, textTransform:'none', fontSize:12.5, fontWeight:700, color:'#9CA3AF', minWidth:0, px:1.8 },
+                  '& .Mui-selected': { color:'#FF5A5A !important' },
+                  '& .MuiTabs-indicator': { backgroundColor:'#FF5A5A', height:3, borderRadius:'3px 3px 0 0' } }}>
+            {SECTION_TABS.map(t => <Tab key={t.sec} label={t.label} />)}
+          </Tabs>
+        </Box>
+        <Box key={tab} className="anim-fade-in" sx={{ p:3 }}>
+          {renderSection(SECTION_TABS[tab]?.sec ?? 0)}
+        </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(99,102,241,0.10)', flexWrap:'wrap', gap:1 }}>
+      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255,139,90,0.10)', flexWrap:'wrap', gap:1 }}>
         <Button onClick={onClose} variant="outlined"
           sx={{ borderColor:'#e0e0e0', color:'#6B7280', '&:hover':{ borderColor:'#aaa' } }}>
           Close
@@ -1194,7 +1219,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         <Button
           variant="outlined"
           startIcon={<HistoryEduOutlinedIcon />}
-          onClick={() => setTab(8)}
+          onClick={() => { setTab(endoTabIdx); if (contentRef.current) contentRef.current.scrollTop = 0; }}
           sx={{ borderColor:'rgba(124,58,237,0.4)', color:'#7c3aed', fontSize:13,
                 '&:hover':{ borderColor:'#7c3aed', bgcolor:'rgba(124,58,237,0.04)' } }}>
           Endorsements{endorsements.length ? ` (${endorsements.length})` : ''}
@@ -1213,7 +1238,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
           startIcon={exporting ? <CircularProgress size={14} color="inherit" /> : <FileDownloadOutlinedIcon />}
           onClick={generatePdf}
           disabled={exporting}
-          sx={{ background:'linear-gradient(135deg,#0F172A,#2d2d44)', fontSize:13 }}>
+          sx={{ background:'linear-gradient(135deg,#1A1A2E,#2d2d44)', fontSize:13 }}>
           {exporting ? 'Generating PDF…' : 'Download PDF'}
         </Button>
       </DialogActions>

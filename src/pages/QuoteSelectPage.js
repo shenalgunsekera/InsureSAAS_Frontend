@@ -63,7 +63,7 @@ const QuoteSelectPage = () => {
 
   if (loading) return (
     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <CircularProgress sx={{ color: '#3B82F6' }} />
+      <CircularProgress sx={{ color: '#FF5A5A' }} />
     </Box>
   );
 
@@ -75,12 +75,12 @@ const QuoteSelectPage = () => {
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <Box sx={{
             width: 64, height: 64, borderRadius: '16px', mx: 'auto', mb: 2,
-            background: 'linear-gradient(135deg,#3B82F6,#6366f1)',
+            background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30,
           }}>🏆</Box>
           <Typography variant="h5" sx={{ fontWeight: 800 }}>Select Your Insurer</Typography>
           <Typography sx={{ color: '#6B7280', fontSize: 13, mt: 0.5 }}>
-            InsureSAAS · Ref: {quote?.reference}
+            InsureSAAS Insurance Brokers · Ref: {quote?.reference}
           </Typography>
         </Box>
 
@@ -96,7 +96,7 @@ const QuoteSelectPage = () => {
                 <Typography sx={{ color: '#4B5563', fontSize: 14, lineHeight: 1.7 }}>
                   You have selected <strong>{companyName}</strong> as your preferred insurer for{' '}
                   <strong>{quote?.product_label}</strong>.<br />
-                  InsureSAAS will be in touch shortly to proceed with your policy.
+                  InsureSAAS Insurance Brokers will be in touch shortly to proceed with your policy.
                 </Typography>
               </Box>
 
@@ -126,7 +126,7 @@ const QuoteSelectPage = () => {
                       </Typography>
                     </Box>
                     <Typography sx={{ color: '#6B7280', fontSize: 13 }}>
-                      To change your selection, please contact InsureSAAS directly.
+                      To change your selection, please contact InsureSAAS Insurance Brokers directly.
                     </Typography>
                   </>
                 )}
@@ -137,16 +137,16 @@ const QuoteSelectPage = () => {
                 <Typography sx={{ fontWeight: 700, fontSize: 15, color: '#374151' }}>
                   You are about to select:
                 </Typography>
-                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.18)', textAlign: 'center' }}>
-                  <Typography sx={{ fontWeight: 800, fontSize: 22, color: '#3B82F6' }}>{companyName}</Typography>
+                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(255,90,90,0.05)', border: '1px solid rgba(255,90,90,0.18)', textAlign: 'center' }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 22, color: '#FF5A5A' }}>{companyName}</Typography>
                   <Typography sx={{ color: '#6B7280', fontSize: 13, mt: 0.3 }}>{quote?.product_label}</Typography>
                 </Box>
                 <Typography sx={{ color: '#6B7280', fontSize: 13, lineHeight: 1.7 }}>
-                  By confirming, you notify InsureSAAS of your preferred insurer.
+                  By confirming, you notify InsureSAAS Insurance Brokers of your preferred insurer.
                   They will contact you to complete the policy issuance.
                 </Typography>
                 <Button fullWidth variant="contained" onClick={handleConfirm} disabled={confirming}
-                  sx={{ py: 1.4, fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg,#3B82F6,#6366f1)' }}>
+                  sx={{ py: 1.4, fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
                   {confirming ? 'Confirming…' : `Confirm — Go with ${companyName}`}
                 </Button>
               </Stack>
@@ -156,7 +156,7 @@ const QuoteSelectPage = () => {
         </Card>
 
         <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', textAlign: 'center', mt: 3 }}>
-          InsureSAAS Ltd — Confidential Quotation Portal
+          InsureSAAS Insurance Brokers (Pvt) Ltd — Confidential Quotation Portal
         </Typography>
       </Box>
     </Box>

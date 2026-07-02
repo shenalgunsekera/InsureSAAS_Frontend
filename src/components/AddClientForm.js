@@ -32,16 +32,18 @@ const PRODUCT_KEY_MAP = Object.fromEntries(
   Object.entries(PRODUCTS).map(([k, v]) => [v.label, k])
 );
 // product key → main class  (used to auto-fill the Main Class dropdown)
+// Allowed Main Class values (what the dropdown shows).
+const MAIN_CLASSES = ['Fire', 'Marine', 'Motor', 'Health', 'Miscellaneous', 'Individual', 'Group', 'Other'];
 const PRODUCT_MAIN_CLASS = {
-  motor: 'Motor',
+  motor: 'Motor', mf: 'Motor',
   fire: 'Fire',
   marine: 'Marine',
-  car: 'Engineering', ear: 'Engineering', dtap: 'Engineering',
-  public_liability: 'Liability', product_liability: 'Liability',
-  personal_accidents: 'People', wci: 'People', group_medical: 'People',
-  surgical: 'People', life_endowment: 'People',
-  travel: 'Miscellaneous', fgt: 'Miscellaneous', cyber: 'Miscellaneous',
-  title_insurance: 'Miscellaneous',
+  surgical: 'Health', group_medical: 'Group',
+  personal_accidents: 'Individual', life_endowment: 'Individual', travel: 'Individual',
+  wci: 'Group',
+  car: 'Miscellaneous', ear: 'Miscellaneous', dtap: 'Miscellaneous',
+  public_liability: 'Miscellaneous', product_liability: 'Miscellaneous',
+  fgt: 'Miscellaneous', cyber: 'Miscellaneous', title_insurance: 'Miscellaneous',
 };
 
 /* ── Risk field sections to pull from product config ─────────────────────── */
@@ -64,7 +66,9 @@ const docFields = [
 
 /* ── Dropdowns ────────────────────────────────────────────────────────────── */
 const dropdowns = {
-  main_class: ['Motor', 'Fire', 'Marine', 'Engineering', 'Liability', 'People', 'Miscellaneous'],
+  insurance_type: ['General', 'Life'],
+  sum_insured_currency: ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'JPY', 'INR', 'SGD', 'Other'],
+  main_class: MAIN_CLASSES,
   // Auto-generated from PRODUCTS config — if a product is added there, it appears here
   product: Object.values(PRODUCTS).map(p => p.label),
   customer_type: ['Individual', 'Company'],
@@ -91,8 +95,8 @@ const dropdowns = {
    For a "Special" commission, an additional special rate (+/-) is applied to the
    BASIC premium only; SRCC and TC rates remain fixed.                          */
 const COMMISSION_BASIC_RATES = {
-  Motor: 20, Fire: 20, Marine: 15, Engineering: 20,
-  Liability: 20, People: 20, Miscellaneous: 20,
+  Motor: 20, Fire: 20, Marine: 15, Health: 20,
+  Miscellaneous: 20, Individual: 20, Group: 20, Other: 20,
 };
 const COMMISSION_SRCC_RATE = 7.5;
 const COMMISSION_TC_RATE   = 7.5;
@@ -107,12 +111,13 @@ export const textFields = [
   { label: 'Manager',            name: 'manager',            section: 'Introducer' },
   { label: 'Introducer Code',    name: 'introducer_code',    section: 'Introducer' },
   // Insurance Company
+  { label: 'Insurance Type',     name: 'insurance_type',     section: 'Insurance Company', dropdown: true },
   { label: 'Main Class',         name: 'main_class',         section: 'Insurance Company', dropdown: true },
   { label: 'Product',            name: 'product',            section: 'Insurance Company', dropdown: true, required: true },
-  { label: 'Customer Type',      name: 'customer_type',      section: 'Insurance Company', dropdown: true, required: true },
   { label: 'Insurance Provider', name: 'insurance_provider', section: 'Insurance Company', dropdown: true, required: true },
   { label: 'Branch',             name: 'branch',             section: 'Insurance Company', dropdown: true },
   // Proposer Details
+  { label: 'Customer Type',      name: 'customer_type',      section: 'Proposer Details', dropdown: true, required: true },
   { label: 'Client Name',        name: 'client_name',        section: 'Proposer Details', required: true },
   { label: 'NIC / Passport No.', name: 'nic_proof',          section: 'Proposer Details' },
   { label: 'Business Registration', name: 'business_registration', section: 'Proposer Details' },
@@ -143,6 +148,7 @@ export const textFields = [
   // Vehicle (motor only — shown conditionally)
   { label: 'Vehicle Number',     name: 'vehicle_number',     section: 'Risk Information', motor: true },
   // Sum Insured (own section)
+  { label: 'Currency',           name: 'sum_insured_currency', section: 'Sum Insured', dropdown: true },
   { label: 'Sum Insured',        name: 'sum_insured',        section: 'Sum Insured', type: 'number' },
   { label: 'Basic Premium',      name: 'basic_premium',      section: 'Premium', type: 'number' },
   { label: 'SRCC Premium',       name: 'srcc_premium',       section: 'Premium', type: 'number' },
@@ -157,7 +163,7 @@ export const textFields = [
   { label: 'Stamp Duty',         name: 'stamp_duty',         section: 'Premium', type: 'number' },
   { label: 'VAT',                name: 'vat_fee',            section: 'Premium', type: 'number' },
   { label: 'Net Premium (excl. taxes)', name: 'net_premium', section: 'Premium', type: 'number' },
-  { label: 'Total Invoice (incl. taxes)', name: 'total_invoice', section: 'Premium', type: 'number' },
+  { label: 'Total Premium (incl. taxes)', name: 'total_invoice', section: 'Premium', type: 'number' },
   // Payment
   { label: 'Payment Status',     name: 'payment_status',     section: 'Payment', dropdown: true },
   { label: 'Amount Received',    name: 'amount_received',    section: 'Payment', type: 'number' },
@@ -165,6 +171,7 @@ export const textFields = [
   { label: 'Payment Method',     name: 'payment_method',     section: 'Payment', dropdown: true },
   { label: 'Cheque / Slip No.',  name: 'cheque_slip_no',     section: 'Payment' },
   { label: 'Receipt No.',        name: 'receipt_no',         section: 'Payment' },
+  { label: 'Debit Note No.',     name: 'debit_note_no',      section: 'Payment' },
   // Commission
   { label: 'Commission Type',    name: 'commission_type',    section: 'Commission', dropdown: true },
   { label: 'Basic Commission %', name: 'commission_pct',     section: 'Commission', type: 'number', readOnly: true },
@@ -176,7 +183,7 @@ export const textFields = [
   { label: 'Total Commission',   name: 'commission_total',   section: 'Commission', type: 'number', readOnly: true },
   { label: 'Commission Method',  name: 'commission_paid_method', section: 'Commission', dropdown: true },
   { label: 'Commission Receive Date', name: 'commission_receive_date', section: 'Commission', date: true },
-  { label: 'Commission Amount Paid',  name: 'commission_amount_paid',  section: 'Commission', type: 'number' },
+  { label: 'Commission Amount Received', name: 'commission_amount_paid',  section: 'Commission', type: 'number' },
   { label: 'Commission VAT',     name: 'commission_vat',     section: 'Commission', type: 'number' },
   // Claims
   { label: 'Claim Paid?',        name: 'claim_paid',         section: 'Claims', dropdown: true },
@@ -187,15 +194,13 @@ export const textFields = [
   { label: 'Partial Payment Reasons', name: 'partial_payment_reasons', section: 'Claims' },
   // Other
   { label: 'Birthday Policy',    name: 'birthday_policy',    section: 'Other', date: true },
-  { label: 'Sales Rep ID',       name: 'sales_rep_id',       section: 'Other' },
-  { label: 'Policies (count)',   name: 'policies',           section: 'Other', type: 'number' },
   { label: 'Date Added',         name: 'date_added',         section: 'Other', date: true },
   { label: 'Notes',              name: 'notes',              section: 'Other' },
 ];
 
 const SECTION_COLORS = {
-  Introducer:                 '#3B82F6',
-  'Insurance Company':        '#6366f1',
+  Introducer:                 '#FF5A5A',
+  'Insurance Company':        '#FF8B5A',
   'Proposer Details':         '#FFA95A',
   'Period of Insurance':      '#10B981',
   'Financial Interest':       '#0284c7',
@@ -237,9 +242,17 @@ const MONTHS = ['January','February','March','April','May','June','July','August
 
 function fmtNum(v) {
   if (v === '' || v === null || v === undefined) return '';
-  const clean = String(v).replace(/,/g, '');
-  const n = Number(clean);
-  return isNaN(n) ? clean : n.toLocaleString('en-US');
+  let s = String(v).replace(/,/g, '');
+  // Not a number-in-progress — show as-is.
+  if (!/^-?\d*\.?\d*$/.test(s)) return s;
+  const neg = s.startsWith('-');
+  if (neg) s = s.slice(1);
+  const hasDot = s.includes('.');
+  let [intPart, decPart = ''] = s.split('.');
+  intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ','); // thousands separators
+  // Preserve the decimal portion exactly as typed (trailing dot / zeros kept).
+  let out = intPart + (hasDot ? '.' + decPart : '');
+  return (neg ? '-' : '') + out;
 }
 
 /* ── sub-components ──────────────────────────────────────────────────────── */
@@ -255,17 +268,17 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
         onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
         onClick={() => document.getElementById(`file-${fieldName}`).click()}
         sx={{
-          border: `2px dashed ${dragging ? '#3B82F6' : uploaded ? '#10B981' : 'rgba(99,102,241,0.35)'}`,
+          border: `2px dashed ${dragging ? '#FF5A5A' : uploaded ? '#10B981' : 'rgba(255,139,90,0.35)'}`,
           borderRadius: '12px', p: 1.5, cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 1,
-          bgcolor: dragging ? 'rgba(59,130,246,0.04)' : uploaded ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
+          bgcolor: dragging ? 'rgba(255,90,90,0.04)' : uploaded ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
           transition: 'all 0.2s ease',
-          '&:hover': { borderColor: '#6366f1', bgcolor: 'rgba(99,102,241,0.04)' },
+          '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.04)' },
         }}
       >
         {uploaded
           ? <CheckCircleOutlinedIcon sx={{ color: '#10B981', fontSize: 20, flexShrink: 0 }} />
-          : <CloudUploadOutlinedIcon sx={{ color: '#6366f1', fontSize: 20, flexShrink: 0 }} />}
+          : <CloudUploadOutlinedIcon sx={{ color: '#FF8B5A', fontSize: 20, flexShrink: 0 }} />}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#374151', lineHeight: 1.2 }}>{label}</Typography>
           {fileName
@@ -277,7 +290,7 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
         {existing && !fileName && (
           <Link href={existing} target="_blank" rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            sx={{ fontSize: 10.5, color: '#6366f1', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            sx={{ fontSize: 10.5, color: '#FF8B5A', whiteSpace: 'nowrap', flexShrink: 0 }}>
             View
           </Link>
         )}
@@ -285,7 +298,7 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
       {progress !== null && progress < 100 && (
         <LinearProgress variant="determinate" value={progress}
           sx={{ mt: 0.5, borderRadius: '2px', height: 3,
-                '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#3B82F6,#6366f1)' } }} />
+                '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' } }} />
       )}
       <input type="file" id={`file-${fieldName}`} accept="application/pdf,image/*"
         style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
@@ -294,14 +307,14 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
 }
 
 function SectionHeader({ title }) {
-  const color = SECTION_COLORS[title] || '#3B82F6';
+  const color = SECTION_COLORS[title] || '#FF5A5A';
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, mt: 0.5 }}>
       <Box sx={{ width: 4, height: 20, borderRadius: '2px', background: `linear-gradient(180deg,${color},rgba(0,0,0,0))` }} />
       <Typography sx={{ fontWeight: 700, fontSize: 13, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.6 }}>
         {title}
       </Typography>
-      <Box sx={{ flex: 1, height: 1, bgcolor: 'rgba(99,102,241,0.12)' }} />
+      <Box sx={{ flex: 1, height: 1, bgcolor: 'rgba(255,139,90,0.12)' }} />
     </Box>
   );
 }
@@ -353,6 +366,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
       }
     });
     docFields.forEach(f => { obj[f.text] = initialData[f.text] || ''; });
+    if (!obj.sum_insured_currency) obj.sum_insured_currency = 'LKR'; // sensible default
     return obj;
   });
 
@@ -464,7 +478,9 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
   useEffect(() => {
     const key = productKeyMap[fields.product];
     const mc = (key && PRODUCT_MAIN_CLASS[key]) || allProducts[key]?.mainClass;
-    if (mc) setFields(f => ({ ...f, main_class: mc }));
+    // Only auto-fill with a value that exists in the dropdown; otherwise leave
+    // it for manual selection so the Select never shows an out-of-range value.
+    if (mc && MAIN_CLASSES.includes(mc)) setFields(f => ({ ...f, main_class: mc }));
   }, [fields.product, productKeyMap, allProducts]);
 
 
@@ -686,7 +702,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           readOnly fullWidth size="small"
           helperText={describeAutoCalc(f.autoCalc, labelFor)}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 },
-                '& .MuiInputBase-input': { color: '#3B82F6', fontWeight: 700 } }} />
+                '& .MuiInputBase-input': { color: '#FF5A5A', fontWeight: 700 } }} />
       );
     }
     if (f.type === 'select') return (
@@ -1062,14 +1078,14 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
 
         {saving && (
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: 12, color: '#6366f1', mb: 0.5, fontWeight: 600 }}>Uploading and saving…</Typography>
+            <Typography sx={{ fontSize: 12, color: '#FF8B5A', mb: 0.5, fontWeight: 600 }}>Uploading and saving…</Typography>
             <LinearProgress sx={{ borderRadius: '4px', height: 5,
-              '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#3B82F6,#6366f1)' } }} />
+              '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' } }} />
           </Box>
         )}
 
         <Box sx={{ display: 'flex', gap: 1.5, pt: 1, justifyContent: 'flex-end',
-                    borderTop: '1px solid rgba(99,102,241,0.12)', mt: 1 }}>
+                    borderTop: '1px solid rgba(255,139,90,0.12)', mt: 1 }}>
           <Button onClick={onCancel} variant="outlined" disabled={saving}
             sx={{ borderColor: '#e0e0e0', color: '#6B7280', '&:hover': { borderColor: '#aaa' } }}>
             Cancel

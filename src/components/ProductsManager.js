@@ -59,7 +59,7 @@ const TYPE_LABEL = {
 };
 
 const PRESET_COLORS = [
-  '#6366f1','#3B82F6','#0ea5e9','#f59e0b','#10B981',
+  '#6366f1','#FF5A5A','#0ea5e9','#f59e0b','#10B981',
   '#8b5cf6','#ef4444','#ec4899','#14b8a6','#f97316',
 ];
 
@@ -147,7 +147,7 @@ function ProductCard({ product, onView, onEdit, onDelete, onClone, isAdmin }) {
   const sectionCount = [...new Set((product.fields || []).map(f => f.section).filter(Boolean))].length;
   return (
     <Card sx={{
-      border: `1.5px solid ${product.isBuiltIn ? 'rgba(99,102,241,0.14)' : `${product.color}35`}`,
+      border: `1.5px solid ${product.isBuiltIn ? 'rgba(255,139,90,0.14)' : `${product.color}35`}`,
       transition: 'box-shadow 0.15s',
       '&:hover': { boxShadow: '0 4px 20px rgba(0,0,0,0.10)' },
     }}>
@@ -163,7 +163,7 @@ function ProductCard({ product, onView, onEdit, onDelete, onClone, isAdmin }) {
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" alignItems="center" spacing={0.8} sx={{ mb: 0.4 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: '#0F172A', lineHeight: 1.3 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 13.5, color: '#1A1A2E', lineHeight: 1.3 }}>
                 {product.label}
               </Typography>
               {product.isBuiltIn
@@ -202,7 +202,7 @@ function ProductCard({ product, onView, onEdit, onDelete, onClone, isAdmin }) {
                     Edit
                   </Button>
                   <IconButton size="small" onClick={() => onDelete(product)}
-                    sx={{ color: '#3B82F6', '&:hover': { bgcolor: 'rgba(59,130,246,0.08)' } }}>
+                    sx={{ color: '#FF5A5A', '&:hover': { bgcolor: 'rgba(255,90,90,0.08)' } }}>
                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </>
@@ -224,10 +224,10 @@ function FieldRow({ field, idx, onEdit, onRemove }) {
     }}>
       <DragIndicatorIcon sx={{ fontSize: 15, color: '#CBD5E1', cursor: 'grab', flexShrink: 0 }} />
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#0F172A' }}>
+        <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A2E' }}>
           {field.label}
           {field.autoCalc && (
-            <Box component="span" sx={{ ml: 0.6, fontSize: 9.5, fontWeight: 700, color: '#3B82F6', bgcolor: 'rgba(59,130,246,0.10)', px: 0.6, py: 0.1, borderRadius: '5px' }}>
+            <Box component="span" sx={{ ml: 0.6, fontSize: 9.5, fontWeight: 700, color: '#FF5A5A', bgcolor: 'rgba(255,90,90,0.10)', px: 0.6, py: 0.1, borderRadius: '5px' }}>
               ƒ auto
             </Box>
           )}
@@ -244,7 +244,7 @@ function FieldRow({ field, idx, onEdit, onRemove }) {
       <IconButton size="small" onClick={() => onEdit(idx)} sx={{ color: '#6366f1' }}>
         <EditOutlinedIcon sx={{ fontSize: 14 }} />
       </IconButton>
-      <IconButton size="small" onClick={() => onRemove(idx)} sx={{ color: '#3B82F6' }}>
+      <IconButton size="small" onClick={() => onRemove(idx)} sx={{ color: '#FF5A5A' }}>
         <DeleteOutlineIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Stack>
@@ -522,7 +522,7 @@ const ProductsManager = () => {
         </Box>
         {isAdmin && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}
-            sx={{ fontSize: 13, background: 'linear-gradient(135deg,#3B82F6,#6366f1)', boxShadow: '0 4px 12px rgba(59,130,246,0.25)' }}>
+            sx={{ fontSize: 13, background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', boxShadow: '0 4px 12px rgba(255,90,90,0.25)' }}>
             Add Product
           </Button>
         )}
@@ -611,7 +611,7 @@ const ProductsManager = () => {
         <Box sx={{ px: 3 }}>
           <Stepper activeStep={wizStep} alternativeLabel
             sx={{ '& .MuiStepLabel-label': { fontSize: 12, fontWeight: 600 },
-                  '& .Mui-active .MuiStepIcon-root': { color: '#3B82F6' },
+                  '& .Mui-active .MuiStepIcon-root': { color: '#FF5A5A' },
                   '& .Mui-completed .MuiStepIcon-root': { color: '#10B981' } }}>
             {WIZARD_STEPS.map((s, i) => (
               <Step key={s} completed={wizStep > i && stepValid(i)}>
@@ -646,7 +646,7 @@ const ProductsManager = () => {
                         <Box key={c} onClick={() => setForm(f => ({ ...f, color: c }))}
                           sx={{
                             width: 26, height: 26, borderRadius: '7px', bgcolor: c, cursor: 'pointer',
-                            border: form.color === c ? '2.5px solid #0F172A' : '2px solid transparent',
+                            border: form.color === c ? '2.5px solid #1A1A2E' : '2px solid transparent',
                             transition: 'border 0.15s',
                           }} />
                       ))}
@@ -704,15 +704,15 @@ const ProductsManager = () => {
           {wizStep === 1 && (
             <Box sx={{ p: 3 }}>
               {/* Shortcuts */}
-              <Box sx={{ mb: 2, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.18)' }}>
+              <Box sx={{ mb: 2, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,139,90,0.05)', border: '1px solid rgba(255,139,90,0.18)' }}>
                 <Stack direction="row" alignItems="center" spacing={0.8} sx={{ mb: 1 }}>
-                  <BoltOutlinedIcon sx={{ fontSize: 16, color: '#6366f1' }} />
+                  <BoltOutlinedIcon sx={{ fontSize: 16, color: '#FF8B5A' }} />
                   <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>Quick add — starter sections</Typography>
                 </Stack>
                 <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
                   {STARTER_SECTIONS.map(tpl => (
                     <Chip key={tpl.name} label={`${tpl.icon} ${tpl.name}`} size="small" onClick={() => addStarterSection(tpl)}
-                      sx={{ fontSize: 11.5, cursor: 'pointer', bgcolor: '#fff', border: '1px solid rgba(99,102,241,0.4)', color: '#b45309', '&:hover': { bgcolor: 'rgba(99,102,241,0.12)' } }} />
+                      sx={{ fontSize: 11.5, cursor: 'pointer', bgcolor: '#fff', border: '1px solid rgba(255,139,90,0.4)', color: '#b45309', '&:hover': { bgcolor: 'rgba(255,139,90,0.12)' } }} />
                   ))}
                 </Stack>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#b45309', mb: 0.8 }}>Quick add — common fields</Typography>
@@ -730,7 +730,7 @@ const ProductsManager = () => {
                 </Typography>
                 <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 15 }} />}
                   onClick={() => openAddField()}
-                  sx={{ fontSize: 12, borderColor: 'rgba(59,130,246,0.35)', color: '#3B82F6' }}>
+                  sx={{ fontSize: 12, borderColor: 'rgba(255,90,90,0.35)', color: '#FF5A5A' }}>
                   Add Custom Field
                 </Button>
               </Stack>
@@ -739,14 +739,14 @@ const ProductsManager = () => {
                 <Box key={section} sx={{ mb: 2 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between"
                     onClick={() => setOpenSections(s => ({ ...s, [section]: !s[section] }))}
-                    sx={{ cursor: 'pointer', p: 1, borderRadius: '8px', bgcolor: 'rgba(15,23,42,0.06)', mb: 0.5 }}>
-                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#0F172A' }}>
+                    sx={{ cursor: 'pointer', p: 1, borderRadius: '8px', bgcolor: 'rgba(26,26,46,0.06)', mb: 0.5 }}>
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#1A1A2E' }}>
                       {section} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>({fields.length})</span>
                     </Typography>
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <Tooltip title="Add field to this section">
                         <IconButton size="small" onClick={e => { e.stopPropagation(); openAddField(section); }}
-                          sx={{ color: '#3B82F6', '&:hover': { bgcolor: 'rgba(59,130,246,0.08)' } }}>
+                          sx={{ color: '#FF5A5A', '&:hover': { bgcolor: 'rgba(255,90,90,0.08)' } }}>
                           <AddIcon sx={{ fontSize: 15 }} />
                         </IconButton>
                       </Tooltip>
@@ -776,8 +776,8 @@ const ProductsManager = () => {
           {wizStep === 2 && (
             <Box sx={{ p: 3 }}>
               <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                <FunctionsIcon sx={{ fontSize: 18, color: '#3B82F6' }} />
-                <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>Auto-calculated totals</Typography>
+                <FunctionsIcon sx={{ fontSize: 18, color: '#FF5A5A' }} />
+                <Typography sx={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>Auto-calculated totals</Typography>
               </Stack>
               <Typography sx={{ fontSize: 12.5, color: '#6B7280', mb: 2 }}>
                 Make a number field fill itself in — no formulas to type. Pick <strong>Add up</strong> (e.g. a Sum Insured total)
@@ -800,15 +800,15 @@ const ProductsManager = () => {
                     const others = numericFields.filter(o => o.name !== f.name);
                     const labelFor = (n) => numericFields.find(x => x.name === n)?.label || n;
                     return (
-                      <Box key={f.name} sx={{ p: 1.5, borderRadius: '12px', border: `1px solid ${on ? 'rgba(59,130,246,0.30)' : 'rgba(0,0,0,0.08)'}`, bgcolor: on ? 'rgba(59,130,246,0.03)' : '#fff' }}>
+                      <Box key={f.name} sx={{ p: 1.5, borderRadius: '12px', border: `1px solid ${on ? 'rgba(255,90,90,0.30)' : 'rgba(0,0,0,0.08)'}`, bgcolor: on ? 'rgba(255,90,90,0.03)' : '#fff' }}>
                         <Stack direction="row" alignItems="center" justifyContent="space-between">
                           <Box>
-                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{f.label}</Typography>
+                            <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{f.label}</Typography>
                             <Typography sx={{ fontSize: 11, color: '#9CA3AF' }}>{f.section} · {TYPE_LABEL[f.type]}</Typography>
                           </Box>
                           <FormControlLabel
                             control={<Switch size="small" checked={on} onChange={e => updateAuto(f.name, { on: e.target.checked })} />}
-                            label={<Typography sx={{ fontSize: 12, fontWeight: 600, color: on ? '#3B82F6' : '#6B7280' }}>Auto-calculate</Typography>}
+                            label={<Typography sx={{ fontSize: 12, fontWeight: 600, color: on ? '#FF5A5A' : '#6B7280' }}>Auto-calculate</Typography>}
                             sx={{ mr: 0 }} />
                         </Stack>
                         <Collapse in={on}>
@@ -821,7 +821,7 @@ const ProductsManager = () => {
                                 {[['sum', 'Add up'], ['pct', 'Percentage']].map(([m, lbl]) => (
                                   <Chip key={m} label={lbl} size="small" onClick={() => updateAuto(f.name, { on: true, mode: m })}
                                     sx={{ fontSize: 11.5, cursor: 'pointer', fontWeight: 600,
-                                          ...(cfg.mode === m ? { bgcolor: 'rgba(59,130,246,0.12)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.4)' }
+                                          ...(cfg.mode === m ? { bgcolor: 'rgba(255,90,90,0.12)', color: '#FF5A5A', border: '1px solid rgba(255,90,90,0.4)' }
                                                              : { bgcolor: '#fff', color: '#6B7280', border: '1px solid rgba(0,0,0,0.15)' }) }} />
                                 ))}
                                 {isPct && (
@@ -842,7 +842,7 @@ const ProductsManager = () => {
                                 ))}
                               </Box>
                               {cfg.sources.length > 0 && (
-                                <Typography sx={{ fontSize: 11.5, color: '#3B82F6', fontWeight: 600, mt: 0.5 }}>
+                                <Typography sx={{ fontSize: 11.5, color: '#FF5A5A', fontWeight: 600, mt: 0.5 }}>
                                   {f.label} = {describeAutoCalc(buildAutoCalc(cfg), labelFor)}
                                 </Typography>
                               )}
@@ -890,7 +890,7 @@ const ProductsManager = () => {
                   <Box sx={{ mb: 2 }}>
                     {numericFields.filter(f => f.autoCalc).map(f => (
                       <Typography key={f.name} sx={{ fontSize: 12.5, color: '#374151', py: 0.3 }}>
-                        <strong style={{ color: '#3B82F6' }}>{f.label}</strong> = {describeAutoCalc(f.autoCalc, (n) => numericFields.find(x => x.name === n)?.label || n)}
+                        <strong style={{ color: '#FF5A5A' }}>{f.label}</strong> = {describeAutoCalc(f.autoCalc, (n) => numericFields.find(x => x.name === n)?.label || n)}
                       </Typography>
                     ))}
                   </Box>
@@ -909,7 +909,7 @@ const ProductsManager = () => {
                   <Stack key={i} direction="row" spacing={1} alignItems="center">
                     <TextField fullWidth size="small" value={row} placeholder="e.g. Annual Premium (LKR)"
                       onChange={e => updateRow(i, e.target.value)} sx={inputSx} />
-                    <IconButton size="small" onClick={() => removeRow(i)} sx={{ color: '#3B82F6', flexShrink: 0 }}>
+                    <IconButton size="small" onClick={() => removeRow(i)} sx={{ color: '#FF5A5A', flexShrink: 0 }}>
                       <DeleteOutlineIcon sx={{ fontSize: 17 }} />
                     </IconButton>
                   </Stack>
@@ -917,14 +917,14 @@ const ProductsManager = () => {
               </Stack>
               <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 15 }} />}
                 onClick={addRow}
-                sx={{ fontSize: 12, borderColor: 'rgba(99,102,241,0.35)', color: '#6366f1' }}>
+                sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A' }}>
                 Add Row
               </Button>
             </Box>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(99,102,241,0.10)' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255,139,90,0.10)' }}>
           <Button onClick={() => setEditOpen(false)} disabled={saving} sx={{ color: '#6B7280' }}>Cancel</Button>
           <Box sx={{ flex: 1 }} />
           {wizStep > 0 && (
@@ -933,7 +933,7 @@ const ProductsManager = () => {
           )}
           {wizStep < WIZARD_STEPS.length - 1 ? (
             <Button variant="contained" onClick={goNext}
-              sx={{ background: 'linear-gradient(135deg,#3B82F6,#6366f1)', minWidth: 110 }}>
+              sx={{ background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', minWidth: 110 }}>
               Next
             </Button>
           ) : (
@@ -1022,7 +1022,7 @@ const ProductsManager = () => {
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setFieldDlg(false)}>Cancel</Button>
           <Button variant="contained" onClick={saveField}
-            sx={{ background: 'linear-gradient(135deg,#3B82F6,#6366f1)' }}>
+            sx={{ background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
             {editFldIdx >= 0 ? 'Update Field' : 'Add Field'}
           </Button>
         </DialogActions>

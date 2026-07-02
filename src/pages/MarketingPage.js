@@ -3,7 +3,7 @@ import {
   collection, addDoc, getDocs, doc, getDoc, setDoc, deleteDoc,
   query, orderBy, serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { useAuth } from '../App';
 import { API_URL } from '../config';
 
@@ -40,6 +40,13 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HistoryIcon from '@mui/icons-material/History';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+
+// Attach the signed-in user's Firebase ID token so the backend can verify the
+// caller (the WhatsApp proxy is authenticated — see backend/index.js).
+const authedHeaders = async () => {
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+};
 
 const ACCENT   = '#25D366'; // WhatsApp green
 const ACCENT2  = '#128C7E';
@@ -160,7 +167,7 @@ const MarketingPage = () => {
     try {
       const res = await fetch(`${API_URL}/send-whatsapp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authedHeaders(),
         body: JSON.stringify({ to: testPhone, message: 'Test message from InsureSAAS ✅' }),
       });
       const data = await res.json();
@@ -273,7 +280,7 @@ const MarketingPage = () => {
       try {
         const res = await fetch(`${API_URL}/send-whatsapp`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await authedHeaders(),
           body: JSON.stringify({
             to:      client.mobile_no,
             message: msg,
