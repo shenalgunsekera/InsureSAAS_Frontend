@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
+import { logoutWithSessionClose } from '../utils/workSession';
 import { auth } from '../firebase';
 import { useAuth } from '../App';
 import { MODULES } from '../config/products';
@@ -45,7 +45,7 @@ const OperationalMenu = () => {
   const hour     = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const handleLogout = async () => { await signOut(auth); navigate('/login'); };
+  const handleLogout = async () => { await logoutWithSessionClose(auth); navigate('/login'); };
 
   // Only show modules the user can access (hidden completely for others)
   const visibleModules = MODULES.filter(m => hasAccess(m.key) && MODULE_ROUTES[m.key]);

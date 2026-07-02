@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { signOut } from 'firebase/auth';
+import { logoutWithSessionClose } from '../utils/workSession';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebase';
 
@@ -24,7 +24,7 @@ export function useSessionTimeout() {
   const logout = useCallback(async () => {
     clearAll();
     setWarning(false);
-    await signOut(auth);
+    await logoutWithSessionClose(auth);
     navigate('/login', { replace: true });
   }, [clearAll, navigate]);
 

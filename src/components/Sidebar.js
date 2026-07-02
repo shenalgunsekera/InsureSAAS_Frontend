@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { signOut } from 'firebase/auth';
+import { logoutWithSessionClose } from '../utils/workSession';
 import { auth } from '../firebase';
 import { useAuth } from '../App';
 import Box from '@mui/material/Box';
@@ -96,7 +96,7 @@ function DrawerContent({ onClose }) {
   const [ticketOpen, setTicketOpen] = useState(false);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await logoutWithSessionClose(auth);
     navigate('/login');
   };
 

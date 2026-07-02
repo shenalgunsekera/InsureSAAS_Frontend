@@ -11,8 +11,9 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, getDocFromServer, setDoc, addDoc, updateDoc, collection, getDocs, limit, query, where, onSnapshot, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { setActiveWorkSession, closeActiveWorkSession, logoutWithSessionClose } from './utils/workSession';
+import { doc, getDoc, getDocFromServer, setDoc, addDoc, updateDoc, collection, getDocs, limit, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { getOrCreateDeviceId, collectDeviceInfo, fetchLocationInfo } from './utils/deviceFingerprint';
 import { PRODUCTS, DEFAULT_MODULE_ACCESS } from './config/products';
@@ -311,7 +312,7 @@ function RequireAuth({ children }) {
       }
       if (cancelled) return;
 
-      if (initSess.blocked) { signOut(auth); setDeviceState('restricted'); return; }
+      if (initSess.blocked) { logoutWithSessionClose(auth); setDeviceState('restricted'); return; }
 
       if (initSett.lockdown_mode && !initSess.approved) {
         setDeviceState('restricted');
@@ -320,7 +321,7 @@ function RequireAuth({ children }) {
           snap => {
             if (cancelled || !snap.exists()) return;
             const d = snap.data();
-            if (d.blocked) { signOut(auth); setDeviceState('restricted'); return; }
+            if (d.blocked) { logoutWithSessionClose(auth); setDeviceState('restricted'); return; }
             if (d.approved) setDeviceState('allowed');
           }, () => {});
         const u2 = onSnapshot(doc(db, 'settings', 'device_control'),
@@ -340,7 +341,7 @@ function RequireAuth({ children }) {
         { includeMetadataChanges: true },
         snap => {
           if (cancelled || snap.metadata.fromCache) return;
-          if (snap.exists() && snap.data().blocked) { signOut(auth); setDeviceState('restricted'); }
+          if (snap.exists() && snap.data().blocked) { logoutWithSessionClose(auth); setDeviceState('restricted'); }
         },
         () => {},
       );
@@ -384,7 +385,7 @@ function RequireAuth({ children }) {
                          borderRadius: '10px', p: 1.5, fontFamily: 'monospace' }}>
           Device ID: {deviceId ? deviceId.slice(0, 18) + '…' : '…'}
         </Typography>
-        <Button variant="outlined" onClick={() => signOut(auth)} sx={{ mt: 3, borderColor: 'rgba(99,102,241,0.4)', color: '#6366f1', fontSize: 13 }}>
+        <Button variant="outlined" onClick={() => logoutWithSessionClose(auth)} sx={{ mt: 3, borderColor: 'rgba(99,102,241,0.4)', color: '#6366f1', fontSize: 13 }}>
           Sign Out
         </Button>
       </Box>
@@ -489,17 +490,14 @@ function App() {
             }
           } catch (_) {}
         }
+        // Register the active session so every logout path can close it while
+        // still authenticated (closing after signOut is rejected by the rules).
+        setActiveWorkSession(workSessionRef.current);
       } else {
-        // ── Auto close work session on logout ─────────────────────────────────
-        const session = workSessionRef.current;
-        if (session) {
-          const mins = Math.round((Date.now() - session.clockInTs) / 60000);
-          updateDoc(doc(db, 'work_sessions', session.id), {
-            clock_out:        Timestamp.now(),
-            duration_minutes: mins,
-          }).catch(() => {});
-          workSessionRef.current = null;
-        }
+        // Logout paths close the session BEFORE signOut; this is a best-effort
+        // fallback that no-ops if it was already closed.
+        closeActiveWorkSession();
+        workSessionRef.current = null;
         setUser(null);
         setUserProfile(null);
       }
