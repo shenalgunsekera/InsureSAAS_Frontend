@@ -74,7 +74,7 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     pdf.setFillColor(...NAVY); pdf.rect(0, 0, pw, 20, 'F');
     pdf.setFillColor(...RED); pdf.rect(0, 20, pw, 3, 'F');
     pdf.setTextColor(...ORANGE); pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
-    pdf.text('CEILAO INSURANCE BROKERS (PVT) LTD', pw / 2, 9, { align: 'center' });
+    pdf.text('InsureSAAS', pw / 2, 9, { align: 'center' });
     pdf.setTextColor(...GREY); pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
     pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw / 2, 15, { align: 'center' });
   };

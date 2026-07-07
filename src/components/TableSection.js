@@ -167,7 +167,7 @@ async function exportUnderwritingExcel(clients) {
   /* Title rows */
   ws.mergeCells(1, 1, 1, cols.length);
   const t1 = ws.getCell(1, 1);
-  t1.value = 'CEILAO INSURANCE BROKERS (PVT) LTD — UNDERWRITING REGISTER';
+  t1.value = 'InsureSAAS — UNDERWRITING REGISTER';
   t1.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
   t1.font  = { name: 'Calibri', bold: true, size: 14, color: { argb: WHITE } };
   t1.alignment = { horizontal: 'center', vertical: 'middle' };

@@ -118,7 +118,7 @@ async function buildClientWorkbook(client, logoBase64, ExcelJS) {
 
   ws.mergeCells('A5:B5');
   const cCell = ws.getCell('A5');
-  cCell.value = 'CEILAO INSURANCE BROKERS (PVT) LTD';
+  cCell.value = 'InsureSAAS';
   cCell.fill = xlFill(XL.dark);
   cCell.font = { bold: true, size: 12, color: { argb: XL.white }, name: 'Calibri' };
   cCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -612,7 +612,7 @@ const AdminPanel = () => {
     // Header
     ws.mergeCells('A1:G1');
     const h1 = ws.getCell('A1');
-    h1.value = 'CEILAO INSURANCE BROKERS (PVT) LTD'; h1.font = { bold:true, size:14, color:{argb:'FFFFFFFF'}, name:'Calibri' };
+    h1.value = 'InsureSAAS'; h1.font = { bold:true, size:14, color:{argb:'FFFFFFFF'}, name:'Calibri' };
     h1.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A1A2E'} }; h1.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(1).height = 26;
 
@@ -878,7 +878,7 @@ const AdminPanel = () => {
 
       // README so anyone opening the ZIP understands the structure
       masterZip.file('README.txt', [
-        'CEILAO INSURANCE BROKERS — FULL DATA BACKUP',
+        'InsureSAAS — FULL DATA BACKUP',
         `Date: ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}`,
         '',
         'FOLDER STRUCTURE',

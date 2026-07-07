@@ -463,7 +463,7 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   const spanCols  = Math.max(maxColIdx, 8);
 
   wsSummary.mergeCells(1, 1, 1, spanCols);
-  setCell(wsSummary, 1, 1, 'CEILAO INSURANCE BROKERS (PVT) LTD',
+  setCell(wsSummary, 1, 1, 'InsureSAAS',
     { fill:'FF1A1A2E', font:{ bold:true, size:16, color:{argb:'FFFFFFFF'} }, align:{ horizontal:'center', vertical:'middle' } });
   wsSummary.getRow(1).height = 32;
 

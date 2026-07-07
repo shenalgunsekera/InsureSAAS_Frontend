@@ -455,7 +455,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
     pdf.setFillColor(26,26,46); pdf.rect(0,0,pw,22,'F');
     pdf.setFillColor(232,71,42); pdf.rect(0,22,pw,2.5,'F');
     pdf.setFontSize(12); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
-    pdf.text('CEILAO INSURANCE BROKERS (PVT) LTD', pw/2, 10, {align:'center'});
+    pdf.text('InsureSAAS', pw/2, 10, {align:'center'});
     pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
     pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2,17,{align:'center'});
 
@@ -735,7 +735,7 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
 
   <!-- HEADER -->
   <tr><td style="background:#1A1A2E;padding:28px 32px;text-align:center;">
-    <div style="color:#FF8B5A;font-size:20px;font-weight:bold;letter-spacing:0.5px;">CEILAO INSURANCE BROKERS</div>
+    <div style="color:#FF8B5A;font-size:20px;font-weight:bold;letter-spacing:0.5px;">InsureSAAS</div>
     <div style="color:#9CA3AF;font-size:11px;margin-top:5px;letter-spacing:1px;">INSURANCE BROKING &amp; RISK MANAGEMENT &nbsp;·&nbsp; SRI LANKA</div>
   </td></tr>
   <tr><td style="background:linear-gradient(90deg,#E8472A,#E8712A);height:4px;"></td></tr>

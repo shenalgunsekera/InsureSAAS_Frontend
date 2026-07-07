@@ -1062,7 +1062,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     };
 
     // ── Title block ──
-    mergedRow('CEILAO INSURANCE BROKERS (PVT) LTD', RED, WHITE, 15, 30, 'center');
+    mergedRow('InsureSAAS', BLUE, WHITE, 15, 30, 'center');
     mergedRow('INSURANCE BROKING & RISK MANAGEMENT  ·  Sri Lanka', DARK, AMBER, 9, 18, 'center');
 
     // ── Reference info block ──

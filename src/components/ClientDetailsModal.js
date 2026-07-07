@@ -299,7 +299,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         pdf.setFillColor(26,26,46);  pdf.rect(0,0,pw,20,'F');
         pdf.setFillColor(232,71,42); pdf.rect(0,20,pw,2.5,'F');
         pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
-        pdf.text('CEILAO INSURANCE BROKERS (PVT) LTD', pw/2, 9, {align:'center'});
+        pdf.text(' InsureSAAS', pw/2, 9, {align:'center'});
         pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
         pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2, 15.5, {align:'center'});
       };
