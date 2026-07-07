@@ -13,8 +13,8 @@
 //      embedded (CORS / fetch failure) — so clicking a quote always works.
 
 const NAVY = [26, 26, 46];
-const RED = [255, 90, 90];
-const ORANGE = [255, 139, 90];
+const RED = [48, 64, 193];
+const ORANGE = [88, 90, 248];
 const GREY = [148, 163, 184];
 
 // Max insurer columns per table chunk. Landscape A4 keeps ~225mm after the
