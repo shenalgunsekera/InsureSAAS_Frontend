@@ -182,12 +182,18 @@ const ClientDetailsModal = ({ client, onClose }) => {
   const fmtSI = v => { const n = parseMoney(v); return Number.isFinite(n) ? `${siCur} ${n.toLocaleString()}` : '—'; };
 
   // Revised totals = original policy value + cumulative endorsement deltas
+  // The policy's main record already reflects the latest endorsement, so the
+  // current client figures ARE the revised totals; the original is derived by
+  // backing out the cumulative endorsement change.
   const sumDelta  = endorsements.reduce((a, e) => a + endoNum(e.sum_insured_change), 0);
   const premDelta = endorsements.reduce((a, e) => a + endoNum(e.premium_change), 0);
   const commDelta = endorsements.reduce((a, e) => a + endoNum(e.commission_change), 0);
-  const revisedSum  = endoNum(client.sum_insured)   + sumDelta;
-  const revisedPrem = endoNum(client.total_invoice) + premDelta;
-  const revisedComm = endoNum(client.commission_total) + commDelta;
+  const revisedSum  = endoNum(client.sum_insured);
+  const revisedPrem = endoNum(client.total_invoice);
+  const revisedComm = endoNum(client.commission_total);
+  const origSum   = revisedSum  - sumDelta;
+  const origPrem  = revisedPrem - premDelta;
+  const origComm  = revisedComm - commDelta;
 
   const coverItems  = Object.entries(client).filter(([k, v]) => k.startsWith('cover_')  && v && v !== 'No');
   const clauseItems = Object.entries(client).filter(([k, v]) => k.startsWith('clause_') && v && v !== 'No');
@@ -471,9 +477,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
       if (endorsements.length > 0) {
         startSec('endorsements');
         addSection('endorsements', 'REVISED TOTALS (AFTER ENDORSEMENTS)', [
-          ['Sum Insured', `${fmtLKR(client.sum_insured)}  ->  ${fmtLKR(revisedSum)}${sumDelta ? `  (${fmtSigned(sumDelta)})` : ''}`],
-          ['Total Premium', `${fmtLKR(client.total_invoice)}  ->  ${fmtLKR(revisedPrem)}${premDelta ? `  (${fmtSigned(premDelta)})` : ''}`],
-          ['Total Commission', `${fmtLKR(client.commission_total)}  ->  ${fmtLKR(revisedComm)}${commDelta ? `  (${fmtSigned(commDelta)})` : ''}`],
+          ['Sum Insured', `${fmtLKR(origSum)}  ->  ${fmtLKR(revisedSum)}${sumDelta ? `  (${fmtSigned(sumDelta)})` : ''}`],
+          ['Total Premium', `${fmtLKR(origPrem)}  ->  ${fmtLKR(revisedPrem)}${premDelta ? `  (${fmtSigned(premDelta)})` : ''}`],
+          ['Total Commission', `${fmtLKR(origComm)}  ->  ${fmtLKR(revisedComm)}${commDelta ? `  (${fmtSigned(commDelta)})` : ''}`],
         ]);
         autoTable(pdf, {
           startY: y,
@@ -491,7 +497,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
               e.effective_date || '—',
               e.type || '—',
               e.description || '—',
-              abs ? fmtLKR(e.sum_insured) : (endoNum(e.sum_insured_change) ? fmtSigned(endoNum(e.sum_insured_change)) : '—'),
+              endoNum(e.sum_insured_change) ? fmtSigned(endoNum(e.sum_insured_change)) : '—',
               abs ? fmtLKR(premTotal)    : (endoNum(e.premium_change) ? fmtSigned(endoNum(e.premium_change)) : '—'),
               abs ? fmtLKR(e.commission_total) : (endoNum(e.commission_change) ? fmtSigned(endoNum(e.commission_change)) : '—'),
             ];
@@ -715,9 +721,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
         es.addRow([]);
         const totalsHdr = es.addRow(['REVISED TOTALS', '', '', '', 'Original', 'Change', 'Revised', '']);
         totalsHdr.font = { bold: true };
-        es.addRow(['Sum Insured', '', '', '', endoNum(client.sum_insured), sumDelta, revisedSum, '']);
-        es.addRow(['Total Premium', '', '', '', endoNum(client.total_invoice), premDelta, revisedPrem, '']);
-        es.addRow(['Total Commission', '', '', '', endoNum(client.commission_total), commDelta, revisedComm, '']);
+        es.addRow(['Sum Insured', '', '', '', origSum, sumDelta, revisedSum, '']);
+        es.addRow(['Total Premium', '', '', '', origPrem, premDelta, revisedPrem, '']);
+        es.addRow(['Total Commission', '', '', '', origComm, commDelta, revisedComm, '']);
       }
 
       const buf = await wb.xlsx.writeBuffer();
@@ -994,9 +1000,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
             {/* Revised totals after all endorsements */}
             <Box sx={{ display:'grid', gridTemplateColumns:{ xs:'1fr', sm:'1fr 1fr 1fr' }, gap:2, mb:2.5 }}>
               {[
-                { label:'Sum Insured',     orig: endoNum(client.sum_insured),     delta: sumDelta,  revised: revisedSum,  color:'#059669' },
-                { label:'Total Premium',   orig: endoNum(client.total_invoice),   delta: premDelta, revised: revisedPrem, color:'#FF5A5A' },
-                { label:'Total Commission',orig: endoNum(client.commission_total),delta: commDelta, revised: revisedComm, color:'#ec4899' },
+                { label:'Sum Insured',     orig: origSum,  delta: sumDelta,  revised: revisedSum,  color:'#059669' },
+                { label:'Total Premium',   orig: origPrem, delta: premDelta, revised: revisedPrem, color:'#FF5A5A' },
+                { label:'Total Commission',orig: origComm, delta: commDelta, revised: revisedComm, color:'#ec4899' },
               ].map(c => (
                 <Box key={c.label} sx={{ p:1.8, borderRadius:'12px', border:`1px solid ${c.color}22`, bgcolor:`${c.color}08` }}>
                   <Typography sx={{ fontSize:10.5, fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:0.6 }}>{c.label}</Typography>
@@ -1031,7 +1037,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
                             <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>Basic LKR {endoNum(e.basic_premium).toLocaleString()}</Typography>
                             <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>SRCC LKR {endoNum(e.srcc_premium).toLocaleString()}</Typography>
                             <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>TC LKR {endoNum(e.tc_premium).toLocaleString()}</Typography>
-                            {e.sum_insured !== undefined && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured LKR {endoNum(e.sum_insured).toLocaleString()}</Typography>}
+                            {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
                             {endoNum(e.commission_total) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Commission LKR {endoNum(e.commission_total).toLocaleString()}</Typography>}
                           </>
                         ) : (

@@ -422,7 +422,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
   const freshDraft = (src = initialData) => ({
     effective_date: '', type: ENDORSEMENT_TYPES[0], description: '',
     basic_premium: src.basic_premium ?? '', srcc_premium: src.srcc_premium ?? '',
-    tc_premium: src.tc_premium ?? '', sum_insured: src.sum_insured ?? '', documents: [],
+    tc_premium: src.tc_premium ?? '', sum_insured_change: '', documents: [],
   });
   const [endoDraft, setEndoDraft] = useState(() => freshDraft());
   const [endoError, setEndoError] = useState('');
@@ -537,22 +537,23 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
       basic_premium: String(num(endoDraft.basic_premium)),
       srcc_premium:  String(num(endoDraft.srcc_premium)),
       tc_premium:    String(num(endoDraft.tc_premium)),
-      sum_insured:   String(num(endoDraft.sum_insured)),
+      sum_insured_change: String(num(endoDraft.sum_insured_change)),
       commission_total: String(endoCommission(endoDraft)),
       documents: endoDraft.documents,
       created_at: new Date().toISOString(),
       created_by: userProfile?.full_name || user?.email?.split('@')[0] || 'Unknown',
     };
     setEndorsements(list => [...list, entry]);
-    // Apply the revised figures to the policy — commission/net auto-recalc, saved on submit
+    // Apply revised premiums (absolute) + sum-insured change (+/-) to the policy —
+    // commission/net auto-recalc, saved on submit.
     setFields(f => ({ ...f,
       basic_premium: entry.basic_premium,
       srcc_premium:  entry.srcc_premium,
       tc_premium:    entry.tc_premium,
-      sum_insured:   entry.sum_insured,
+      sum_insured:   String(num(f.sum_insured) + num(entry.sum_insured_change)),
     }));
     setEndoDraft(freshDraft({ basic_premium: entry.basic_premium, srcc_premium: entry.srcc_premium,
-      tc_premium: entry.tc_premium, sum_insured: entry.sum_insured }));
+      tc_premium: entry.tc_premium }));
     setEndoError('');
   };
 
@@ -1253,7 +1254,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                             <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>Basic LKR {num(e.basic_premium).toLocaleString()}</Typography>
                             <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>SRCC LKR {num(e.srcc_premium).toLocaleString()}</Typography>
                             <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>TC LKR {num(e.tc_premium).toLocaleString()}</Typography>
-                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#0891B2' }}>Sum Insured LKR {num(e.sum_insured).toLocaleString()}</Typography>
+                            {num(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#0891B2' }}>Sum Insured {num(e.sum_insured_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.sum_insured_change)).toLocaleString()}</Typography>}
                             <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#059669' }}>Commission LKR {num(e.commission_total).toLocaleString()}</Typography>
                           </Box>
                           {Array.isArray(e.documents) && e.documents.length > 0 && (
@@ -1300,7 +1301,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                   <NumericField label="TC Premium" value={endoDraft.tc_premium} onChange={e => setEndoDraft(d => ({ ...d, tc_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <NumericField label="Sum Insured" value={endoDraft.sum_insured} onChange={e => setEndoDraft(d => ({ ...d, sum_insured: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                  <NumericField label="Sum Insured Change (+/-)" value={endoDraft.sum_insured_change} onChange={e => setEndoDraft(d => ({ ...d, sum_insured_change: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
