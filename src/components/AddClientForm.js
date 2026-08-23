@@ -419,10 +419,10 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
   // ── Endorsements (edit mode) ────────────────────────────────────────────
   const [endorsements, setEndorsements] = useState(() =>
     Array.isArray(initialData.endorsements) ? initialData.endorsements : []);
-  const freshDraft = (src = initialData) => ({
+  const freshDraft = () => ({
     effective_date: '', type: ENDORSEMENT_TYPES[0], description: '',
-    basic_premium: src.basic_premium ?? '', srcc_premium: src.srcc_premium ?? '',
-    tc_premium: src.tc_premium ?? '', sum_insured_change: '', documents: [],
+    basic_premium_change: '', srcc_premium_change: '', tc_premium_change: '',
+    sum_insured_change: '', documents: [],
   });
   const [endoDraft, setEndoDraft] = useState(() => freshDraft());
   const [endoError, setEndoError] = useState('');
@@ -490,16 +490,25 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
   }, [fields.commission_basic, fields.commission_srcc, fields.commission_tc, fields.commission_special_amount]);
 
   /* ── Endorsement helpers ──────────────────────────────────────────────────
-     Commission is NOT entered — it auto-calculates from the endorsement's
-     Basic/SRCC/TC using the same rate table + commission type as the policy. */
-  const endoCommission = (draft) => {
+     Every field is a +/- CHANGE applied to the policy's current value. Commission
+     is NOT entered — it recalculates from the new premiums using the same rate
+     table + commission type; the endorsement records the resulting commission change. */
+  const commissionOf = (basic, srcc, tc) => {
     const basicRate = COMMISSION_BASIC_RATES[fields.main_class] ?? 20;
-    const cb = num(draft.basic_premium) * basicRate / 100;
-    const cs = num(draft.srcc_premium) * srccRateFor(fields.main_class) / 100;
-    const ct = num(draft.tc_premium)   * tcRateFor(fields.main_class)   / 100;
-    const special = fields.commission_type === 'Special'
-      ? num(draft.basic_premium) * num(fields.commission_special_rate) / 100 : 0;
-    return Math.round((cb + cs + ct + special) * 100) / 100;
+    const cb = basic * basicRate / 100;
+    const cs = srcc  * srccRateFor(fields.main_class) / 100;
+    const ct = tc    * tcRateFor(fields.main_class)   / 100;
+    const special = fields.commission_type === 'Special' ? basic * num(fields.commission_special_rate) / 100 : 0;
+    return cb + cs + ct + special;
+  };
+  const endoCommissionChange = (draft) => {
+    const oldC = commissionOf(num(fields.basic_premium), num(fields.srcc_premium), num(fields.tc_premium));
+    const newC = commissionOf(
+      num(fields.basic_premium) + num(draft.basic_premium_change),
+      num(fields.srcc_premium)  + num(draft.srcc_premium_change),
+      num(fields.tc_premium)    + num(draft.tc_premium_change),
+    );
+    return Math.round((newC - oldC) * 100) / 100;
   };
 
   const handleEndoFiles = async (fileList) => {
@@ -534,26 +543,25 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
       effective_date: endoDraft.effective_date || '',
       type: endoDraft.type,
       description: endoDraft.description.trim(),
-      basic_premium: String(num(endoDraft.basic_premium)),
-      srcc_premium:  String(num(endoDraft.srcc_premium)),
-      tc_premium:    String(num(endoDraft.tc_premium)),
-      sum_insured_change: String(num(endoDraft.sum_insured_change)),
-      commission_total: String(endoCommission(endoDraft)),
+      basic_premium_change: String(num(endoDraft.basic_premium_change)),
+      srcc_premium_change:  String(num(endoDraft.srcc_premium_change)),
+      tc_premium_change:    String(num(endoDraft.tc_premium_change)),
+      sum_insured_change:   String(num(endoDraft.sum_insured_change)),
+      commission_change:    String(endoCommissionChange(endoDraft)),
       documents: endoDraft.documents,
       created_at: new Date().toISOString(),
       created_by: userProfile?.full_name || user?.email?.split('@')[0] || 'Unknown',
     };
     setEndorsements(list => [...list, entry]);
-    // Apply revised premiums (absolute) + sum-insured change (+/-) to the policy —
-    // commission/net auto-recalc, saved on submit.
+    // Apply each +/- change to the policy's current values — commission/net
+    // auto-recalculate from the new premiums, saved on submit.
     setFields(f => ({ ...f,
-      basic_premium: entry.basic_premium,
-      srcc_premium:  entry.srcc_premium,
-      tc_premium:    entry.tc_premium,
-      sum_insured:   String(num(f.sum_insured) + num(entry.sum_insured_change)),
+      basic_premium: String(num(f.basic_premium) + num(entry.basic_premium_change)),
+      srcc_premium:  String(num(f.srcc_premium)  + num(entry.srcc_premium_change)),
+      tc_premium:    String(num(f.tc_premium)    + num(entry.tc_premium_change)),
+      sum_insured:   String(num(f.sum_insured)   + num(entry.sum_insured_change)),
     }));
-    setEndoDraft(freshDraft({ basic_premium: entry.basic_premium, srcc_premium: entry.srcc_premium,
-      tc_premium: entry.tc_premium }));
+    setEndoDraft(freshDraft());
     setEndoError('');
   };
 
@@ -1251,11 +1259,11 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                           {e.effective_date && <Typography sx={{ fontSize: 11.5, color: '#6B7280' }}>Effective {e.effective_date}</Typography>}
                           {e.description && <Typography sx={{ fontSize: 13, color: '#111827', mt: 0.3 }}>{e.description}</Typography>}
                           <Box sx={{ display: 'flex', gap: 2, mt: 0.6, flexWrap: 'wrap' }}>
-                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>Basic LKR {num(e.basic_premium).toLocaleString()}</Typography>
-                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>SRCC LKR {num(e.srcc_premium).toLocaleString()}</Typography>
-                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>TC LKR {num(e.tc_premium).toLocaleString()}</Typography>
+                            {num(e.basic_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>Basic {num(e.basic_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.basic_premium_change)).toLocaleString()}</Typography>}
+                            {num(e.srcc_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>SRCC {num(e.srcc_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.srcc_premium_change)).toLocaleString()}</Typography>}
+                            {num(e.tc_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>TC {num(e.tc_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.tc_premium_change)).toLocaleString()}</Typography>}
                             {num(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#0891B2' }}>Sum Insured {num(e.sum_insured_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.sum_insured_change)).toLocaleString()}</Typography>}
-                            <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#059669' }}>Commission LKR {num(e.commission_total).toLocaleString()}</Typography>
+                            {num(e.commission_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#059669' }}>Commission {num(e.commission_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.commission_change)).toLocaleString()}</Typography>}
                           </Box>
                           {Array.isArray(e.documents) && e.documents.length > 0 && (
                             <Box sx={{ display: 'flex', gap: 1, mt: 0.8, flexWrap: 'wrap' }}>
@@ -1292,13 +1300,13 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                   <TextField label="Description of Change" fullWidth size="small" value={endoDraft.description} onChange={e => setEndoDraft(d => ({ ...d, description: e.target.value }))} placeholder="e.g. Sum insured increased; new location added…" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <NumericField label="Basic Premium" value={endoDraft.basic_premium} onChange={e => setEndoDraft(d => ({ ...d, basic_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                  <NumericField label="Basic Premium Change (+/-)" value={endoDraft.basic_premium_change} onChange={e => setEndoDraft(d => ({ ...d, basic_premium_change: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <NumericField label="SRCC Premium" value={endoDraft.srcc_premium} onChange={e => setEndoDraft(d => ({ ...d, srcc_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                  <NumericField label="SRCC Premium Change (+/-)" value={endoDraft.srcc_premium_change} onChange={e => setEndoDraft(d => ({ ...d, srcc_premium_change: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                  <NumericField label="TC Premium" value={endoDraft.tc_premium} onChange={e => setEndoDraft(d => ({ ...d, tc_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                  <NumericField label="TC Premium Change (+/-)" value={endoDraft.tc_premium_change} onChange={e => setEndoDraft(d => ({ ...d, tc_premium_change: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <NumericField label="Sum Insured Change (+/-)" value={endoDraft.sum_insured_change} onChange={e => setEndoDraft(d => ({ ...d, sum_insured_change: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
@@ -1306,8 +1314,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                 <Grid item xs={12}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                     <Box sx={{ px: 1.5, py: 0.8, borderRadius: '8px', bgcolor: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.2)' }}>
-                      <Typography sx={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>Auto Commission</Typography>
-                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#059669' }}>LKR {endoCommission(endoDraft).toLocaleString()}</Typography>
+                      <Typography sx={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>Auto Commission Change</Typography>
+                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#059669' }}>{endoCommissionChange(endoDraft) < 0 ? '-' : '+'}LKR {Math.abs(endoCommissionChange(endoDraft)).toLocaleString()}</Typography>
                     </Box>
                     <Button component="label" variant="outlined" size="small" startIcon={endoUploading ? <CircularProgress size={14} /> : <CloudUploadOutlinedIcon />} disabled={endoUploading} sx={{ textTransform: 'none', borderColor: '#7c3aed', color: '#7c3aed', fontSize: 12.5 }}>
                       {endoUploading ? 'Uploading…' : 'Upload Documents'}

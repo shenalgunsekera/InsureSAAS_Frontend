@@ -186,7 +186,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
   // current client figures ARE the revised totals; the original is derived by
   // backing out the cumulative endorsement change.
   const sumDelta  = endorsements.reduce((a, e) => a + endoNum(e.sum_insured_change), 0);
-  const premDelta = endorsements.reduce((a, e) => a + endoNum(e.premium_change), 0);
+  const premDelta = endorsements.reduce((a, e) => a + endoNum(e.basic_premium_change) + endoNum(e.srcc_premium_change) + endoNum(e.tc_premium_change) + endoNum(e.premium_change), 0);
   const commDelta = endorsements.reduce((a, e) => a + endoNum(e.commission_change), 0);
   const revisedSum  = endoNum(client.sum_insured);
   const revisedPrem = endoNum(client.total_invoice);
@@ -490,16 +490,15 @@ const ClientDetailsModal = ({ client, onClose }) => {
             { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' },
           ]],
           body: endorsements.map(e => {
-            const abs = (e.basic_premium !== undefined || e.srcc_premium !== undefined || e.tc_premium !== undefined);
-            const premTotal = endoNum(e.basic_premium) + endoNum(e.srcc_premium) + endoNum(e.tc_premium);
+            const premChange = endoNum(e.basic_premium_change) + endoNum(e.srcc_premium_change) + endoNum(e.tc_premium_change) + endoNum(e.premium_change);
             return [
               String(e.endorsement_no),
               e.effective_date || '—',
               e.type || '—',
               e.description || '—',
               endoNum(e.sum_insured_change) ? fmtSigned(endoNum(e.sum_insured_change)) : '—',
-              abs ? fmtLKR(premTotal)    : (endoNum(e.premium_change) ? fmtSigned(endoNum(e.premium_change)) : '—'),
-              abs ? fmtLKR(e.commission_total) : (endoNum(e.commission_change) ? fmtSigned(endoNum(e.commission_change)) : '—'),
+              premChange ? fmtSigned(premChange) : '—',
+              endoNum(e.commission_change) ? fmtSigned(endoNum(e.commission_change)) : '—',
             ];
           }),
           headStyles: { fillColor: [124,58,237], textColor: [255,255,255], fontStyle: 'bold', fontSize: 7.5 },
@@ -715,7 +714,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         endorsements.forEach(e => {
           es.addRow([
             e.endorsement_no, e.effective_date || '', e.type || '', e.description || '',
-            endoNum(e.sum_insured_change) || '', endoNum(e.premium_change) || '', endoNum(e.commission_change) || '', e.created_by || '',
+            endoNum(e.sum_insured_change) || '', (endoNum(e.basic_premium_change) + endoNum(e.srcc_premium_change) + endoNum(e.tc_premium_change) + endoNum(e.premium_change)) || '', endoNum(e.commission_change) || '', e.created_by || '',
           ]);
         });
         es.addRow([]);
@@ -1032,21 +1031,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
                       </Box>
                       {e.description && <Typography sx={{ fontSize:13, color:'#1A1A2E', mt:0.5 }}>{e.description}</Typography>}
                       <Box sx={{ display:'flex', gap:2, mt:0.6, flexWrap:'wrap' }}>
-                        {(e.basic_premium !== undefined || e.srcc_premium !== undefined || e.tc_premium !== undefined) ? (
-                          <>
-                            <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>Basic LKR {endoNum(e.basic_premium).toLocaleString()}</Typography>
-                            <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>SRCC LKR {endoNum(e.srcc_premium).toLocaleString()}</Typography>
-                            <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>TC LKR {endoNum(e.tc_premium).toLocaleString()}</Typography>
-                            {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
-                            {endoNum(e.commission_total) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Commission LKR {endoNum(e.commission_total).toLocaleString()}</Typography>}
-                          </>
-                        ) : (
-                          <>
-                            {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#059669' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
-                            {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#FF5A5A' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
-                            {endoNum(e.commission_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#ec4899' }}>Commission {fmtSigned(endoNum(e.commission_change))}</Typography>}
-                          </>
-                        )}
+                        {endoNum(e.basic_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>Basic {fmtSigned(endoNum(e.basic_premium_change))}</Typography>}
+                        {endoNum(e.srcc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>SRCC {fmtSigned(endoNum(e.srcc_premium_change))}</Typography>}
+                        {endoNum(e.tc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>TC {fmtSigned(endoNum(e.tc_premium_change))}</Typography>}
+                        {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#FF5A5A' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
+                        {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
+                        {endoNum(e.commission_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Commission {fmtSigned(endoNum(e.commission_change))}</Typography>}
                       </Box>
                       {Array.isArray(e.documents) && e.documents.length > 0 && (
                         <Box sx={{ display:'flex', gap:1, mt:0.8, flexWrap:'wrap' }}>
