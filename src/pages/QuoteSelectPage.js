@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
-import { db, auth } from '../firebase';
+import { db, ensureAnonymousUser } from '../firebase';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -29,7 +28,7 @@ const QuoteSelectPage = () => {
 
   useEffect(() => {
     if (!qid || !companyId) { setError('Invalid link — missing parameters.'); setLoading(false); return; }
-    signInAnonymously(auth)
+    ensureAnonymousUser()
       .catch(() => {})
       .finally(() => {
         getDoc(doc(db, 'quotes', qid))
@@ -137,7 +136,7 @@ const QuoteSelectPage = () => {
                 <Typography sx={{ fontWeight: 700, fontSize: 15, color: '#374151' }}>
                   You are about to select:
                 </Typography>
-                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(255,90,90,0.05)', border: '1px solid rgba(255,90,90,0.18)', textAlign: 'center' }}>
+                <Box sx={{ p: 2.5, borderRadius: '12px', bgcolor: 'rgba(255, 90, 90,0.05)', border: '1px solid rgba(255, 90, 90,0.18)', textAlign: 'center' }}>
                   <Typography sx={{ fontWeight: 800, fontSize: 22, color: '#FF5A5A' }}>{companyName}</Typography>
                   <Typography sx={{ color: '#6B7280', fontSize: 13, mt: 0.3 }}>{quote?.product_label}</Typography>
                 </Box>

@@ -4,10 +4,10 @@ import {
   doc, getDoc, updateDoc, arrayUnion, serverTimestamp,
   collection, addDoc, getDocs, query, where,
 } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
-import { db, auth } from '../firebase';
+import { db, ensureAnonymousUser } from '../firebase';
 import { uploadFile as uploadToCloudinary, openFile } from '../storage';
 import { PRODUCTS } from '../config/products';
+import { isInsurerFieldHidden, customInsurerRows, responseCustomValue, showInsurerTotal } from '../utils/insurerFields';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -45,6 +45,7 @@ function buildInfoSections(product, formData) {
   const sectionOrder = [];
   (product.fields || []).forEach(f => {
     if (!f.section || INSURER_SECTIONS.has(f.section)) return;
+    if (f.hideFromInsurer) return; // admin chose not to show this field to the insurer
     if (f.showIf) {
       if (f.showIf.notZero) {
         const pv = formData[f.showIf.field];
@@ -85,7 +86,7 @@ const CoverTable = ({ fields, responses, setResponses, quoteFormData, headerLabe
   <Box sx={{ overflowX: 'auto' }}>
     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 580 }}>
       <thead>
-        <tr style={{ background: 'rgba(255,90,90,0.05)', borderBottom: '2px solid rgba(255,90,90,0.15)' }}>
+        <tr style={{ background: 'rgba(255, 90, 90,0.05)', borderBottom: '2px solid rgba(255, 90, 90,0.15)' }}>
           {[headerLabel, 'Client Requested', 'We Provide', 'Special Terms'].map(h => (
             <th key={h} style={{ padding: '10px 14px', textAlign: h === headerLabel ? 'left' : 'center', fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
           ))}
@@ -96,7 +97,7 @@ const CoverTable = ({ fields, responses, setResponses, quoteFormData, headerLabe
           const clientVal = f.clientValue || quoteFormData?.[f.name] || 'No';
           const cr = responses[f.name] || { provided: '', terms: '' };
           return (
-            <tr key={f.name} style={{ background: i % 2 === 0 ? '#fff' : '#FFF8F5', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+            <tr key={f.name} style={{ background: i % 2 === 0 ? '#fff' : '#FFF5F2', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
               <td style={{ padding: '10px 14px', fontSize: 13.5, fontWeight: 600, color: '#374151', minWidth: 190 }}>{f.label}</td>
               <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                 <span style={clientBadge(clientVal)}>{clientVal}</span>
@@ -173,7 +174,7 @@ const QuoteResponsePage = () => {
 
   useEffect(() => {
     if (!qid) { setError('Invalid link — missing quote ID.'); setLoading(false); return; }
-    signInAnonymously(auth)
+    ensureAnonymousUser()
       .catch(() => {})
       .finally(() => {
         getDoc(doc(db, 'quotes', qid))
@@ -214,14 +215,20 @@ const QuoteResponsePage = () => {
             setPlanPremiums(Array.from({ length: Math.max(pc, 1) }, (_, i) => ({
               plan: i + 1, basic: '', tax_pct: '18', tax: 0, total: 0,
             })));
-            // Resolve product definition (static or custom)
+            // Resolve product definition. Prefer the LIVE product from Firestore
+            // (admin-panel edits are saved there) so any changes to sections/fields
+            // reach the insurer's form; fall back to the built-in static config for
+            // products that were never customised.
             const pKey = data.product_key;
-            if (PRODUCTS[pKey]) {
-              setProductDef(PRODUCTS[pKey]);
-            } else if (pKey) {
+            if (pKey) {
               getDoc(doc(db, 'products', pKey))
-                .then(ps => { if (ps.exists()) setProductDef(ps.data()); })
-                .catch(() => {});
+                .then(ps => {
+                  if (ps.exists()) setProductDef(ps.data());
+                  else if (PRODUCTS[pKey]) setProductDef(PRODUCTS[pKey]);
+                })
+                .catch(() => { if (PRODUCTS[pKey]) setProductDef(PRODUCTS[pKey]); });
+            } else if (PRODUCTS[pKey]) {
+              setProductDef(PRODUCTS[pKey]);
             }
           })
           .catch(() => setError('Failed to load quote. Please check your link.'))
@@ -299,7 +306,11 @@ const QuoteResponsePage = () => {
     (Number(form.road_safety_tax)  || 0) +
     (Number(form.stamp_fee)        || 0) +
     (Number(form.nbl)              || 0) +
-    (Number(form.ssc_levy)         || 0);
+    (Number(form.ssc_levy)         || 0) +
+    // custom amount fields defined on this product add into the total
+    (productDef?.customInsurerFields || [])
+      .filter(cf => cf.type !== 'text')
+      .reduce((s, cf) => s + (Number(form[cf.key]) || 0), 0);
 
   const validateInsurer = () => {
     const errs = {};
@@ -377,6 +388,12 @@ const QuoteResponsePage = () => {
         commission_type: form.commission_type,
         validity_days:   form.validity_days,
         notes:           form.notes,
+        // custom insurer fields configured on the product (label + value kept together)
+        ...((productDef?.customInsurerFields || []).length ? {
+          custom_fields: productDef.customInsurerFields
+            .filter(cf => form[cf.key] !== undefined && form[cf.key] !== '')
+            .map(cf => ({ key: cf.key, label: cf.label, type: cf.type || 'currency', value: form[cf.key] })),
+        } : {}),
         cover_responses:  coverResponses,
         clause_responses: clauseResponses,
         quote_file_url:  fileUrl,
@@ -474,19 +491,22 @@ const QuoteResponsePage = () => {
             [`Plan ${pi + 1} — Tax (LKR)`,           Number(p.tax    || 0).toLocaleString()],
             [`Plan ${pi + 1} — Total (LKR)`,         Number(p.total  || 0).toLocaleString()],
           ]),
-          ['Grand Total (LKR)', Number(submittedData?.premium || 0).toLocaleString()],
+          ...(showInsurerTotal(productDef) ? [['Grand Total (LKR)', Number(submittedData?.premium || 0).toLocaleString()]] : []),
         ]
       : [
-          ['Total Premium (LKR)', Number(submittedData?.premium       || 0).toLocaleString()],
-          ['Basic Premium (LKR)', Number(submittedData?.basic_premium || 0).toLocaleString()],
-          ['SRCC (LKR)',          Number(submittedData?.srcc_premium  || 0).toLocaleString()],
-          ['TC (LKR)',            Number(submittedData?.tc_premium    || 0).toLocaleString()],
-          ['Admin Fee (LKR)',     Number(submittedData?.admin_fee     || 0).toLocaleString()],
-          ['VAT (LKR)',           Number(submittedData?.vat_amount    || 0).toLocaleString()],
+          ...(showInsurerTotal(productDef) ? [['Total Premium (LKR)', Number(submittedData?.premium || 0).toLocaleString()]] : []),
+          ...[
+            ['basic_premium', 'Basic Premium (LKR)'],
+            ['srcc_premium',  'SRCC (LKR)'],
+            ['tc_premium',    'TC (LKR)'],
+            ['admin_fee',     'Admin Fee (LKR)'],
+            ['vat_amount',    'VAT (LKR)'],
+          ].filter(([k]) => !isInsurerFieldHidden(productDef, k)).map(([k, label]) => [label, Number(submittedData?.[k] || 0).toLocaleString()]),
+          ...customInsurerRows(productDef).map(cf => { const v = responseCustomValue(submittedData, cf.key); return [`${cf.label}${cf.type !== 'text' ? ' (LKR)' : ''}`, (v === '' || v == null) ? '—' : (cf.type === 'text' ? String(v) : Number(v).toLocaleString())]; }),
         ]
     ).concat([
-      ['Deductibles',  submittedData?.deductible    || '—'],
-      ['Excesses',     submittedData?.excesses      || '—'],
+      ...(isInsurerFieldHidden(productDef, 'deductible') ? [] : [['Deductibles', submittedData?.deductible || '—']]),
+      ...(isInsurerFieldHidden(productDef, 'excesses')   ? [] : [['Excesses',    submittedData?.excesses   || '—']]),
       ['Quote Validity', submittedData?.validity_days ? `${submittedData.validity_days} days` : '—'],
       ['Notes / Terms',  submittedData?.notes        || '—'],
     ]);
@@ -496,7 +516,7 @@ const QuoteResponsePage = () => {
       head: [['Field', 'Value']],
       body: premRows,
       headStyles: { fillColor: [255, 90, 90], textColor: 255, fontStyle: 'bold', fontSize: 10 },
-      alternateRowStyles: { fillColor: [255, 248, 245] },
+      alternateRowStyles: { fillColor: [255, 245, 242] },
       columnStyles: { 0: { fontStyle: 'bold', cellWidth: 65 } },
       styles: { fontSize: 9.5, cellPadding: 4 },
       margin: { left: 14, right: 14 },
@@ -524,7 +544,7 @@ const QuoteResponsePage = () => {
         head: [['Cover / Clause', 'Provided', 'Special Terms']],
         body: coverEntries.map(([k, v]) => [labelFor(k), v.provided || '—', v.terms || '—']),
         headStyles: { fillColor: [26, 26, 46], textColor: [255, 139, 90], fontSize: 10 },
-        alternateRowStyles: { fillColor: [255, 248, 245] },
+        alternateRowStyles: { fillColor: [255, 245, 242] },
         styles: { fontSize: 9.5, cellPadding: 4 },
         margin: { left: 14, right: 14 },
       });
@@ -537,7 +557,7 @@ const QuoteResponsePage = () => {
         head: [['Additional Clause', 'Included', 'Special Terms']],
         body: clauseEntries.map(([k, v]) => [labelFor(k), v.provided || '—', v.terms || '—']),
         headStyles: { fillColor: [26, 26, 46], textColor: [255, 139, 90], fontSize: 10 },
-        alternateRowStyles: { fillColor: [255, 248, 245] },
+        alternateRowStyles: { fillColor: [255, 245, 242] },
         styles: { fontSize: 9.5, cellPadding: 4 },
         margin: { left: 14, right: 14 },
       });
@@ -567,6 +587,7 @@ const QuoteResponsePage = () => {
         commission_type: submittedData.commission_type || '',
         validity_days:   submittedData.validity_days?.toString()  || '',
         notes:           submittedData.notes          || '',
+        ...Object.fromEntries((submittedData.custom_fields || []).map(cf => [cf.key, (cf.value ?? '').toString()])),
       });
       setCoverResponses(submittedData.cover_responses  || {});
       setClauseResponses(submittedData.clause_responses || {});
@@ -581,6 +602,10 @@ const QuoteResponsePage = () => {
   const product      = productDef || null;
   const isPlansProduct = !!product?.hasPlans;
   const infoSections = buildInfoSections(product, quote?.form_data);
+  // Premium/quote input fields the admin turned off for this product — the
+  // insurer simply doesn't see them (default: every field shown).
+  const hiddenInsurerFields = new Set(product?.hiddenInsurerFields || []);
+  const showPrem = (k) => !hiddenInsurerFields.has(k);
   const parseDynamicExtras = (storeKey) => {
     try {
       return (JSON.parse(quote?.form_data?.[storeKey] || '[]'))
@@ -633,7 +658,7 @@ const QuoteResponsePage = () => {
               <Typography sx={{ fontSize: 13.5, color: '#1A1A2E' }}>{submittedData.decline_reason}</Typography>
             </Box>
             <Button fullWidth variant="outlined" onClick={() => { setSubmitted(false); setSubmittedData(null); setEditing(true); }}
-              sx={{ py: 1.1, fontSize: 13, borderColor: 'rgba(255,90,90,0.3)', color: '#FF5A5A' }}>
+              sx={{ py: 1.1, fontSize: 13, borderColor: 'rgba(255, 90, 90,0.3)', color: '#FF5A5A' }}>
               Changed your mind? Submit a quotation instead
             </Button>
           </CardContent>
@@ -670,23 +695,26 @@ const QuoteResponsePage = () => {
                       [`Plan ${pi + 1} — Tax`,    p.tax    ? `LKR ${Number(p.tax).toLocaleString()}`    : '—'],
                       [`Plan ${pi + 1} — Total`,  `LKR ${Number(p.total || 0).toLocaleString()}`],
                     ]),
-                    ['Grand Total',   `LKR ${Number(submittedData?.premium || 0).toLocaleString()}`],
+                    ...(showInsurerTotal(productDef) ? [['Grand Total', `LKR ${Number(submittedData?.premium || 0).toLocaleString()}`]] : []),
                   ]
                 : [
-                    ['Total Premium', `LKR ${Number(submittedData?.premium || 0).toLocaleString()}`],
-                    ['Basic Premium', submittedData?.basic_premium ? `LKR ${Number(submittedData.basic_premium).toLocaleString()}` : '—'],
-                    ['SRCC',         submittedData?.srcc_premium  ? `LKR ${Number(submittedData.srcc_premium).toLocaleString()}`  : '—'],
-                    ['TC',           submittedData?.tc_premium    ? `LKR ${Number(submittedData.tc_premium).toLocaleString()}`    : '—'],
-                    ['Admin Fee',    submittedData?.admin_fee     ? `LKR ${Number(submittedData.admin_fee).toLocaleString()}`     : '—'],
-                    ['VAT',          submittedData?.vat_amount    ? `LKR ${Number(submittedData.vat_amount).toLocaleString()}`    : '—'],
+                    ...(showInsurerTotal(productDef) ? [['Total Premium', `LKR ${Number(submittedData?.premium || 0).toLocaleString()}`]] : []),
+                    ...[
+                      ['basic_premium', 'Basic Premium'],
+                      ['srcc_premium',  'SRCC'],
+                      ['tc_premium',    'TC'],
+                      ['admin_fee',     'Admin Fee'],
+                      ['vat_amount',    'VAT'],
+                    ].filter(([k]) => !isInsurerFieldHidden(productDef, k)).map(([k, label]) => [label, submittedData?.[k] ? `LKR ${Number(submittedData[k]).toLocaleString()}` : '—']),
+                    ...customInsurerRows(productDef).map(cf => { const v = responseCustomValue(submittedData, cf.key); return [cf.label, (v === '' || v == null) ? '—' : (cf.type === 'text' ? String(v) : `LKR ${Number(v).toLocaleString()}`)]; }),
                   ]
               ).concat([
-                ['Deductibles', submittedData?.deductible    || '—'],
-                ['Excesses',    submittedData?.excesses      || '—'],
+                ...(isInsurerFieldHidden(productDef, 'deductible') ? [] : [['Deductibles', submittedData?.deductible || '—']]),
+                ...(isInsurerFieldHidden(productDef, 'excesses')   ? [] : [['Excesses',    submittedData?.excesses   || '—']]),
                 ['Validity',    submittedData?.validity_days ? `${submittedData.validity_days} days` : '—'],
                 ['Submitted',   new Date(submittedData?.submitted_at || Date.now()).toLocaleString('en-GB')],
               ]).map(([l, v]) => (
-                <Box key={l} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.8, borderBottom: '1px solid rgba(255,139,90,0.08)' }}>
+                <Box key={l} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.8, borderBottom: '1px solid rgba(255, 139, 90,0.08)' }}>
                   <Typography sx={{ fontSize: 13, color: '#6B7280' }}>{l}</Typography>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{v}</Typography>
                 </Box>
@@ -700,7 +728,7 @@ const QuoteResponsePage = () => {
               </Button>
               {canEdit ? (
                 <Button fullWidth variant="outlined" onClick={handleEdit}
-                  sx={{ py: 1.2, fontSize: 13, borderColor: 'rgba(255,90,90,0.3)', color: '#FF5A5A' }}>
+                  sx={{ py: 1.2, fontSize: 13, borderColor: 'rgba(255, 90, 90,0.3)', color: '#FF5A5A' }}>
                   {reditApproved ? '✏️ Re-edit Approved — Edit & Resubmit' : 'Made a Mistake? Edit & Resubmit'}
                 </Button>
               ) : reditPending ? (
@@ -711,7 +739,7 @@ const QuoteResponsePage = () => {
                   </Typography>
                 </Box>
               ) : showReditForm ? (
-                <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid rgba(255,90,90,0.2)' }}>
+                <Box sx={{ p: 2, borderRadius: '10px', border: '1px solid rgba(255, 90, 90,0.2)' }}>
                   <Typography sx={{ fontSize: 13, fontWeight: 700, mb: 1.5, color: '#374151' }}>Request Re-edit Access</Typography>
                   <TextField fullWidth size="small" multiline rows={3}
                     label="Reason for re-edit *"
@@ -735,7 +763,7 @@ const QuoteResponsePage = () => {
                     The 15-minute edit window has closed. Need to make a change?
                   </Typography>
                   <Button variant="outlined" size="small" onClick={() => setShowReditForm(true)}
-                    sx={{ borderColor: 'rgba(255,90,90,0.3)', color: '#FF5A5A', fontSize: 12 }}>
+                    sx={{ borderColor: 'rgba(255, 90, 90,0.3)', color: '#FF5A5A', fontSize: 12 }}>
                     Request Re-edit Access
                   </Button>
                 </Box>
@@ -802,7 +830,7 @@ const QuoteResponsePage = () => {
                   <Typography sx={{
                     fontSize: 11, fontWeight: 800, color: '#FF5A5A',
                     textTransform: 'uppercase', letterSpacing: 1,
-                    mb: 1.5, pb: 0.5, borderBottom: '1px solid rgba(255,90,90,0.12)',
+                    mb: 1.5, pb: 0.5, borderBottom: '1px solid rgba(255, 90, 90,0.12)',
                   }}>
                     {sec.name}
                   </Typography>
@@ -949,7 +977,7 @@ const QuoteResponsePage = () => {
                                     {Number(p[row.key] || 0).toLocaleString()}
                                   </Typography>
                                 ) : (
-                                  <TextField size="small" type="number" fullWidth placeholder="0"
+                                  <TextField size="small" type="number" fullWidth placeholder="0" inputProps={{ step: 'any', inputMode: 'decimal' }}
                                     value={p[row.key] || ''}
                                     onChange={e => updatePlanPremium(pi, row.key, e.target.value)}
                                     sx={{ '& .MuiInputBase-root': { fontSize: 13 } }} />
@@ -972,65 +1000,90 @@ const QuoteResponsePage = () => {
                 /* ── Standard premium breakdown ── */
                 <Box sx={{
                   p: 2, borderRadius: '12px',
-                  border: `1px solid ${['basic_premium','srcc_premium','tc_premium','admin_fee','vat_amount'].some(k => fieldErrors[k]) ? 'rgba(239,68,68,0.4)' : 'rgba(255,90,90,0.15)'}`,
-                  bgcolor: 'rgba(255,90,90,0.02)',
+                  border: `1px solid ${['basic_premium','srcc_premium','tc_premium','admin_fee','vat_amount'].some(k => fieldErrors[k]) ? 'rgba(239,68,68,0.4)' : 'rgba(255, 90, 90,0.15)'}`,
+                  bgcolor: 'rgba(255, 90, 90,0.02)',
                 }}>
                   <Typography sx={{ fontSize: 12, fontWeight: 800, color: '#FF5A5A', textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.5 }}>
                     Premium Breakdown
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                    <TextField label="Basic Premium (LKR) *" type="number" size="small" fullWidth
+                    {showPrem('basic_premium') && (
+                    <TextField label="Basic Premium (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
                       error={!!fieldErrors.basic_premium} helperText={fieldErrors.basic_premium}
-                      value={form.basic_premium} onChange={e => setFE('basic_premium', e.target.value)} />
-                    <TextField label="Strike Riot Civil Commotion — SRCC (LKR)" type="number" size="small" fullWidth
+                      value={form.basic_premium} onChange={e => setFE('basic_premium', e.target.value)} />)}
+                    {showPrem('srcc_premium') && (
+                    <TextField label="Strike Riot Civil Commotion — SRCC (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
                       error={!!fieldErrors.srcc_premium} helperText={fieldErrors.srcc_premium}
-                      value={form.srcc_premium} onChange={e => setFE('srcc_premium', e.target.value)} />
-                    <TextField label="Terrorism Cover — TC (LKR)" type="number" size="small" fullWidth
+                      value={form.srcc_premium} onChange={e => setFE('srcc_premium', e.target.value)} />)}
+                    {showPrem('tc_premium') && (
+                    <TextField label="Terrorism Cover — TC (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
                       error={!!fieldErrors.tc_premium} helperText={fieldErrors.tc_premium}
-                      value={form.tc_premium} onChange={e => setFE('tc_premium', e.target.value)} />
-                    <TextField label="Policy Fees (LKR)" type="number" size="small" fullWidth
-                      value={form.policy_fees} onChange={e => setFE('policy_fees', e.target.value)} />
-                    <TextField label="Cess (LKR)" type="number" size="small" fullWidth
-                      value={form.cess} onChange={e => setFE('cess', e.target.value)} />
-                    <TextField label="Road Safety Tax (LKR)" type="number" size="small" fullWidth
-                      value={form.road_safety_tax} onChange={e => setFE('road_safety_tax', e.target.value)} />
-                    <TextField label="Stamp Fee (LKR)" type="number" size="small" fullWidth
-                      value={form.stamp_fee} onChange={e => setFE('stamp_fee', e.target.value)} />
-                    <TextField label="NBL (LKR)" type="number" size="small" fullWidth
-                      value={form.nbl} onChange={e => setFE('nbl', e.target.value)} />
-                    <TextField label="SSC Levy (LKR)" type="number" size="small" fullWidth
-                      value={form.ssc_levy} onChange={e => setFE('ssc_levy', e.target.value)} />
-                    <TextField label="Admin Fee (LKR)" type="number" size="small" fullWidth
+                      value={form.tc_premium} onChange={e => setFE('tc_premium', e.target.value)} />)}
+                    {showPrem('policy_fees') && (
+                    <TextField label="Policy Fees (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.policy_fees} onChange={e => setFE('policy_fees', e.target.value)} />)}
+                    {showPrem('cess') && (
+                    <TextField label="Cess (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.cess} onChange={e => setFE('cess', e.target.value)} />)}
+                    {showPrem('road_safety_tax') && (
+                    <TextField label="Road Safety Tax (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.road_safety_tax} onChange={e => setFE('road_safety_tax', e.target.value)} />)}
+                    {showPrem('stamp_fee') && (
+                    <TextField label="Stamp Fee (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.stamp_fee} onChange={e => setFE('stamp_fee', e.target.value)} />)}
+                    {showPrem('nbl') && (
+                    <TextField label="NBL (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.nbl} onChange={e => setFE('nbl', e.target.value)} />)}
+                    {showPrem('ssc_levy') && (
+                    <TextField label="SSC Levy (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.ssc_levy} onChange={e => setFE('ssc_levy', e.target.value)} />)}
+                    {showPrem('admin_fee') && (
+                    <TextField label="Admin Fee (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
                       error={!!fieldErrors.admin_fee} helperText={fieldErrors.admin_fee}
-                      value={form.admin_fee} onChange={e => setFE('admin_fee', e.target.value)} />
-                    <TextField label="VAT (LKR)" type="number" size="small" fullWidth
+                      value={form.admin_fee} onChange={e => setFE('admin_fee', e.target.value)} />)}
+                    {showPrem('vat_amount') && (
+                    <TextField label="VAT (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
                       error={!!fieldErrors.vat_amount} helperText={fieldErrors.vat_amount}
-                      value={form.vat_amount} onChange={e => setFE('vat_amount', e.target.value)} />
-                    <TextField label="Other (LKR)" type="number" size="small" fullWidth
-                      value={form.other_premium} onChange={e => setFE('other_premium', e.target.value)} />
+                      value={form.vat_amount} onChange={e => setFE('vat_amount', e.target.value)} />)}
+                    {showPrem('other_premium') && (
+                    <TextField label="Other (LKR)" type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                      value={form.other_premium} onChange={e => setFE('other_premium', e.target.value)} />)}
+                    {(product?.customInsurerFields || []).map(cf => (
+                      cf.type === 'text' ? (
+                        <TextField key={cf.key} label={cf.label} size="small" fullWidth
+                          value={form[cf.key] || ''} onChange={e => setFE(cf.key, e.target.value)} />
+                      ) : (
+                        <TextField key={cf.key} label={`${cf.label} (LKR)`} type="number" size="small" fullWidth inputProps={{ step: 'any', inputMode: 'decimal' }}
+                          value={form[cf.key] || ''} onChange={e => setFE(cf.key, e.target.value)} />
+                      )
+                    ))}
                   </Box>
-                  <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', bgcolor: 'rgba(255,90,90,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {!product?.hideInsurerTotal && (
+                  <Box sx={{ mt: 1.5, p: 1.5, borderRadius: '8px', bgcolor: 'rgba(255, 90, 90,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>Total Premium (LKR)</Typography>
                     <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#FF5A5A' }}>
                       {totalPremium > 0 ? totalPremium.toLocaleString() : '—'}
                     </Typography>
-                  </Box>
+                  </Box>)}
                 </Box>
               )}
 
               {/* Deductibles & Excesses */}
+              {(showPrem('deductible') || showPrem('excesses')) && (
               <Box sx={{ p: 2, borderRadius: '12px', border: `1px solid ${fieldErrors.deductible ? 'rgba(239,68,68,0.4)' : 'rgba(0,0,0,0.1)'}` }}>
                 <Typography sx={{ fontSize: 12, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.8, mb: 1.5 }}>
                   Deductibles & Excesses
                 </Typography>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5 }}>
-                  <TextField label="Deductibles *" size="small" fullWidth
+                  {showPrem('deductible') && (
+                  <TextField label="Deductibles" size="small" fullWidth
                     error={!!fieldErrors.deductible} helperText={fieldErrors.deductible}
-                    value={form.deductible} onChange={e => setFE('deductible', e.target.value)} />
+                    value={form.deductible} onChange={e => setFE('deductible', e.target.value)} />)}
+                  {showPrem('excesses') && (
                   <TextField label="Excesses" size="small" fullWidth
-                    value={form.excesses} onChange={e => setFE('excesses', e.target.value)} />
+                    value={form.excesses} onChange={e => setFE('excesses', e.target.value)} />)}
                 </Box>
-              </Box>
+              </Box>)}
 
               {/* Commission */}
               <Box>
@@ -1075,11 +1128,11 @@ const QuoteResponsePage = () => {
                   onDragOver={e => e.preventDefault()}
                   onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
                   sx={{
-                    border: `2px dashed ${fileUrl ? '#10B981' : 'rgba(255,139,90,0.35)'}`,
+                    border: `2px dashed ${fileUrl ? '#10B981' : 'rgba(255, 139, 90,0.35)'}`,
                     borderRadius: '12px', p: 2.5, cursor: 'pointer', textAlign: 'center',
                     bgcolor: fileUrl ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
                     transition: 'all 0.2s ease',
-                    '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.04)' },
+                    '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.04)' },
                   }}>
                   <input id="quote-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"
                     style={{ display: 'none' }}

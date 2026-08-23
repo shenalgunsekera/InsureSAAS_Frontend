@@ -92,7 +92,7 @@ function PendingCard({ client, onApprove, onReject }) {
               </Typography>
               <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap" sx={{ mt: 0.3 }}>
                 <Chip label={client.product || '—'} size="small"
-                  sx={{ bgcolor: 'rgba(255,90,90,0.08)', color: '#FF5A5A', fontWeight: 600, fontSize: 11 }} />
+                  sx={{ bgcolor: 'rgba(255, 90, 90,0.08)', color: '#FF5A5A', fontWeight: 600, fontSize: 11 }} />
                 <Typography sx={{ fontSize: 11.5, color: '#9CA3AF' }}>
                   by {client.submitted_by_name || 'Unknown'} · {submitted}
                 </Typography>
@@ -185,15 +185,15 @@ const PendingApprovals = () => {
 
   if (loading) return (
     <Stack spacing={1.5}>
-      {[1,2,3].map(i => <Skeleton key={i} height={72} sx={{ borderRadius: '12px', bgcolor: 'rgba(255,90,90,0.05)' }} />)}
+      {[1,2,3].map(i => <Skeleton key={i} height={72} sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 90, 90,0.05)' }} />)}
     </Stack>
   );
 
   if (pending.length === 0) return (
     <Box sx={{ textAlign: 'center', py: 6 }}>
-      <HourglassEmptyIcon sx={{ fontSize: 42, color: 'rgba(255,90,90,0.15)', mb: 1 }} />
+      <HourglassEmptyIcon sx={{ fontSize: 42, color: 'rgba(255, 90, 90,0.15)', mb: 1 }} />
       <Typography sx={{ color: '#9CA3AF', fontWeight: 600 }}>No pending submissions</Typography>
-      <Typography sx={{ fontSize: 12, color: '#C4B5B0' }}>All caught up!</Typography>
+      <Typography sx={{ fontSize: 12, color: '#A9B6C8' }}>All caught up!</Typography>
     </Box>
   );
 

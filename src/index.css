@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  --coral:   #2563EB;
-  --orange:  #3B82F6;
-  --amber:   #6366F1;
-  --gold:    #818CF8;
-  --grad:    linear-gradient(135deg, #2563EB 0%, #3B82F6 60%, #6366F1 100%);
-  --grad-h:  linear-gradient(135deg, #1D4ED8 0%, #1E40AF 60%, #4338CA 100%);
+  --coral:   #E04848;
+  --orange:  #FF7373;
+  --amber:   #E89A2A;
+  --gold:    #E8C42A;
+  --grad:    linear-gradient(135deg, #E04848 0%, #FF7373 60%, #FF8B5A 100%);
+  --grad-h:  linear-gradient(135deg, #163C77 0%, #164B8F 60%, #1D6DB8 100%);
   --bg:      #F9F9FB;
   --surface: #FFFFFF;
-  --border:  rgba(37, 99, 235, 0.14);
+  --border:  rgba(255, 90, 90, 0.14);
   --shadow:  0 2px 16px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
   --shadow-xl: 0 24px 56px rgba(0, 0, 0, 0.14);
@@ -38,8 +38,8 @@ body {
 /* ── Scrollbar ─────────────────────────────────────── */
 ::-webkit-scrollbar            { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track      { background: transparent; }
-::-webkit-scrollbar-thumb      { background: rgba(99, 102, 241, 0.35); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover{ background: rgba(59, 130, 246, 0.55); }
+::-webkit-scrollbar-thumb      { background: rgba(255, 139, 90, 0.35); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover{ background: rgba(255, 90, 90, 0.55); }
 
 /* ── Keyframes ─────────────────────────────────────── */
 @keyframes fadeSlideUp {
@@ -67,8 +67,8 @@ body {
   100% { background-position: 400px 0; }
 }
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
-  50%       { box-shadow: 0 0 0 8px rgba(59,130,246,0.12); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 90, 90,0); }
+  50%       { box-shadow: 0 0 0 8px rgba(255, 90, 90,0.12); }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -103,7 +103,7 @@ body {
 
 /* ── Skeleton loader ───────────────────────────────── */
 .skeleton {
-  background: linear-gradient(90deg, #EFF6FF 25%, #DBEAFE 50%, #EFF6FF 75%);
+  background: linear-gradient(90deg, #e9f0f7 25%, #f2f7fd 50%, #e9f0f7 75%);
   background-size: 400px 100%;
   animation: shimmer 1.4s infinite linear;
   border-radius: 8px;
@@ -126,11 +126,11 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all var(--dur) var(--ease);
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.30);
+  box-shadow: 0 4px 14px rgba(255, 90, 90, 0.30);
 }
 .btn-grad:hover {
   background: var(--grad-h);
-  box-shadow: 0 6px 22px rgba(59, 130, 246, 0.42);
+  box-shadow: 0 6px 22px rgba(255, 90, 90, 0.42);
   transform: translateY(-1px);
 }
 .btn-grad:active { transform: translateY(0); }
@@ -141,7 +141,7 @@ body {
 /* ── Upload progress bar ───────────────────────────── */
 .upload-progress {
   height: 4px;
-  background: rgba(59,130,246,0.15);
+  background: rgba(255, 90, 90,0.15);
   border-radius: 2px;
   overflow: hidden;
   margin-top: 6px;
@@ -167,7 +167,7 @@ body {
 .badge-warn    { background: rgba(245,158,11,0.12); color: #d97706; }
 .badge-danger  { background: rgba(239,68,68,0.12);  color: #dc2626; }
 .badge-info    { background: rgba(99,102,241,0.12);  color: #4f46e5; }
-.badge-orange  { background: rgba(37,99,235,0.12);   color: #2563EB; }
+.badge-orange  { background: rgba(255, 139, 90,0.15);  color: #E04848; }
 
 /* ── Card hover lift ───────────────────────────────── */
 .card-hover {
@@ -231,7 +231,7 @@ body {
 }
 
 /* ── Table row highlight (expiring policy) ─────────── */
-.row-expiring-soon td { background: rgba(99, 102, 241, 0.06) !important; }
+.row-expiring-soon td { background: rgba(107, 192, 236, 0.07) !important; }
 .row-expiring-soon td:first-child { border-left: 3px solid var(--amber); }
-.row-expired td { background: rgba(59, 130, 246, 0.06) !important; }
+.row-expired td { background: rgba(255, 90, 90, 0.06) !important; }
 .row-expired td:first-child { border-left: 3px solid var(--coral); }

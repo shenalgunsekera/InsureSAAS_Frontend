@@ -3,7 +3,8 @@ import {
   collection, addDoc, getDocs, doc, getDoc, setDoc, deleteDoc,
   query, orderBy, serverTimestamp,
 } from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { API_URL } from '../config';
 
@@ -41,13 +42,6 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HistoryIcon from '@mui/icons-material/History';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
-// Attach the signed-in user's Firebase ID token so the backend can verify the
-// caller (the WhatsApp proxy is authenticated — see backend/index.js).
-const authedHeaders = async () => {
-  const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
-};
-
 const ACCENT   = '#25D366'; // WhatsApp green
 const ACCENT2  = '#128C7E';
 
@@ -57,35 +51,35 @@ const PRESET_TEMPLATES = [
     name: 'Birthday Greeting',
     type: 'birthday',
     icon: '🎂',
-    content: 'Happy Birthday {{name}}! 🎂🎉\n\nWishing you a wonderful day filled with joy and happiness.\n\nWarm regards,\nInsureSAAS',
+    content: 'Happy Birthday {{name}}! 🎂🎉\n\nWishing you a wonderful day filled with joy and happiness.\n\nWarm regards,\nInsureSAAS Insurance Brokers',
   },
   {
     id: 'preset_christmas',
     name: 'Christmas Greeting',
     type: 'holiday',
     icon: '🎄',
-    content: 'Merry Christmas {{name}}! 🎄✨\n\nWishing you and your family a joyful Christmas and a prosperous New Year.\n\nWarm regards,\nInsureSAAS',
+    content: 'Merry Christmas {{name}}! 🎄✨\n\nWishing you and your family a joyful Christmas and a prosperous New Year.\n\nWarm regards,\nInsureSAAS Insurance Brokers',
   },
   {
     id: 'preset_new_year',
     name: 'New Year Greeting',
     type: 'holiday',
     icon: '🎆',
-    content: 'Happy New Year {{name}}! 🎆🥂\n\nMay this new year bring you health, happiness, and prosperity.\n\nWith best wishes,\nInsureSAAS',
+    content: 'Happy New Year {{name}}! 🎆🥂\n\nMay this new year bring you health, happiness, and prosperity.\n\nWith best wishes,\nInsureSAAS Insurance Brokers',
   },
   {
     id: 'preset_renewal',
     name: 'Policy Renewal Reminder',
     type: 'renewal',
     icon: '🔄',
-    content: 'Dear {{name}},\n\n⚠️ This is a friendly reminder that your insurance policy ({{policy_no}}) is due for renewal on {{renewal_date}}.\n\nPlease contact us to renew and continue your coverage without interruption.\n\nInsureSAAS',
+    content: 'Dear {{name}},\n\n⚠️ This is a friendly reminder that your insurance policy ({{policy_no}}) is due for renewal on {{renewal_date}}.\n\nPlease contact us to renew and continue your coverage without interruption.\n\nInsureSAAS Insurance Brokers',
   },
   {
     id: 'preset_anniversary',
     name: 'Policy Anniversary',
     type: 'anniversary',
     icon: '🏆',
-    content: 'Dear {{name}},\n\nThank you for trusting InsureSAAS with your insurance needs! 🏆\n\nWe value your continued partnership and look forward to serving you.\n\nWarm regards,\nInsureSAAS',
+    content: 'Dear {{name}},\n\nThank you for trusting InsureSAAS Insurance Brokers with your insurance needs! 🏆\n\nWe value your continued partnership and look forward to serving you.\n\nWarm regards,\nInsureSAAS Insurance Brokers',
   },
 ];
 
@@ -98,7 +92,7 @@ function replaceVars(template, client) {
 
 function TemplateCard({ tpl, onEdit, onDelete, isPreset }) {
   const typeColors = {
-    birthday:    { bg: 'rgba(59,130,246,0.08)',   color: '#3B82F6' },
+    birthday:    { bg: 'rgba(255, 90, 90,0.08)',   color: '#FF5A5A' },
     holiday:     { bg: 'rgba(16,185,129,0.08)',  color: '#059669' },
     renewal:     { bg: 'rgba(99,102,241,0.08)',  color: '#6366f1' },
     anniversary: { bg: 'rgba(245,158,11,0.08)',  color: '#d97706' },
@@ -167,8 +161,8 @@ const MarketingPage = () => {
     try {
       const res = await fetch(`${API_URL}/send-whatsapp`, {
         method: 'POST',
-        headers: await authedHeaders(),
-        body: JSON.stringify({ to: testPhone, message: 'Test message from InsureSAAS ✅' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testPhone, message: 'Test message from InsureSAAS Insurance Brokers ✅' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed');
@@ -209,6 +203,7 @@ const MarketingPage = () => {
   };
 
   const deleteTpl = async (id) => {
+    if (!confirmTypedDelete('Delete this marketing template?')) return;
     await deleteDoc(doc(db, 'marketing_templates', id));
     setTemplates(prev => prev.filter(t => t.id !== id));
     showToast('Template deleted.', 'info');
@@ -280,7 +275,7 @@ const MarketingPage = () => {
       try {
         const res = await fetch(`${API_URL}/send-whatsapp`, {
           method: 'POST',
-          headers: await authedHeaders(),
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to:      client.mobile_no,
             message: msg,

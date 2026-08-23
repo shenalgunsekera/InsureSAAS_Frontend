@@ -12,9 +12,11 @@
 //      clickable link, with a graceful link fallback when an image can't be
 //      embedded (CORS / fetch failure) — so clicking a quote always works.
 
+import { isInsurerFieldHidden, customInsurerRows, responseCustomValue, showInsurerTotal, formatCustomValue } from './insurerFields';
+
 const NAVY = [26, 26, 46];
-const RED = [48, 64, 193];
-const ORANGE = [88, 90, 248];
+const RED = [255, 90, 90];
+const ORANGE = [255, 139, 90];
 const GREY = [148, 163, 184];
 
 // Max insurer columns per table chunk. Landscape A4 keeps ~225mm after the
@@ -74,7 +76,7 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     pdf.setFillColor(...NAVY); pdf.rect(0, 0, pw, 20, 'F');
     pdf.setFillColor(...RED); pdf.rect(0, 20, pw, 3, 'F');
     pdf.setTextColor(...ORANGE); pdf.setFontSize(13); pdf.setFont('helvetica', 'bold');
-    pdf.text('InsureSAAS', pw / 2, 9, { align: 'center' });
+    pdf.text('INSURESAAS INSURANCE BROKERS (PVT) LTD', pw / 2, 9, { align: 'center' });
     pdf.setTextColor(...GREY); pdf.setFontSize(8); pdf.setFont('helvetica', 'normal');
     pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw / 2, 15, { align: 'center' });
   };
@@ -114,8 +116,8 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     const colCount = resps.length + 1;
     const mkSectionRow = (label) => [{ content: label, colSpan: colCount, styles: { fillColor: NAVY, textColor: ORANGE, fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }];
     const mkRow = (label, vals, isTotal = false, isInternal = false, i = 0) => [
-      { content: label, styles: { fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 248, 245], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : NAVY } },
-      ...vals.map(v => ({ content: v, styles: { halign: 'center', fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 248, 245], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : [55, 65, 81] } })),
+      { content: label, styles: { fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 245, 242], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : NAVY } },
+      ...vals.map(v => ({ content: v, styles: { halign: 'center', fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 245, 242], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : [55, 65, 81] } })),
     ];
 
     const premiumRows = isPlansProduct
@@ -129,11 +131,11 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
               ['Plan Total (LKR)', r => `LKR ${Number(r.plan_premiums?.[pi]?.total || 0).toLocaleString()}`],
             ].forEach(([label, getter], i) => rows.push(mkRow(label, resps.map(getter), label.startsWith('Plan Total'), false, i)));
           }
-          rows.push(mkRow('GRAND TOTAL (LKR)', resps.map(r => `LKR ${Number(r.premium || 0).toLocaleString()}`), true));
+          if (showInsurerTotal(product)) rows.push(mkRow('GRAND TOTAL (LKR)', resps.map(r => `LKR ${Number(r.premium || 0).toLocaleString()}`), true));
           return rows;
         })()
-      : [
-          ...[
+      : (() => {
+          const rows = [
             ['basic_premium', 'Basic Premium (LKR)'],
             ['srcc_premium', 'SRCC (LKR)'],
             ['tc_premium', 'TC (LKR)'],
@@ -146,9 +148,16 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
             ['admin_fee', 'Admin Fee (LKR)'],
             ['vat_amount', 'VAT (LKR)'],
             ['other_premium', 'Other (LKR)'],
-          ].map(([k, label], i) => mkRow(label, resps.map(r => r[k] ? `LKR ${Number(r[k]).toLocaleString()}` : '—'), false, false, i)),
-          mkRow('TOTAL PREMIUM (LKR)', resps.map(r => `LKR ${Number(r.premium || 0).toLocaleString()}`), true),
-        ];
+          ]
+            .filter(([k]) => !isInsurerFieldHidden(product, k))
+            .map(([k, label], i) => mkRow(label, resps.map(r => r[k] ? `LKR ${Number(r[k]).toLocaleString()}` : '—'), false, false, i));
+          customInsurerRows(product).forEach((cf, i) => rows.push(mkRow(
+            `${cf.label}${cf.type !== 'text' ? ' (LKR)' : ''}`,
+            resps.map(r => { const v = responseCustomValue(r, cf.key); return formatCustomValue(v, cf.type) === '—' ? '—' : (cf.type === 'text' ? String(v) : `LKR ${Number(v).toLocaleString()}`); }),
+            false, false, rows.length + i)));
+          if (showInsurerTotal(product)) rows.push(mkRow('TOTAL PREMIUM (LKR)', resps.map(r => `LKR ${Number(r.premium || 0).toLocaleString()}`), true));
+          return rows;
+        })();
 
     return [
       mkSectionRow('PREMIUM BREAKDOWN'),

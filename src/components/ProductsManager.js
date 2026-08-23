@@ -3,6 +3,7 @@ import {
   collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { PRODUCTS } from '../config/products';
 import { parseAutoCalc, buildAutoCalc, describeAutoCalc } from '../utils/autoCalc';
@@ -115,12 +116,35 @@ const EMPTY_PRODUCT = {
   customerNameField: 'proposer_name',
   comparisonRows: [...DEFAULT_COMPARISON_ROWS],
   fields: [],
+  hiddenInsurerFields: [],
+  customInsurerFields: [],
+  hideInsurerTotal: false,
 };
+
+// The premium / quote fields the insurer fills in on their response form. Any
+// listed in a product's `hiddenInsurerFields` are removed from that product's
+// insurer form (e.g. a product with no SRCC or annual premium).
+const INSURER_PREMIUM_FIELDS = [
+  { key: 'basic_premium',   label: 'Basic Premium' },
+  { key: 'srcc_premium',    label: 'SRCC Premium' },
+  { key: 'tc_premium',      label: 'Terrorism Cover (TC)' },
+  { key: 'policy_fees',     label: 'Policy Fees' },
+  { key: 'cess',            label: 'Cess' },
+  { key: 'road_safety_tax', label: 'Road Safety Tax' },
+  { key: 'stamp_fee',       label: 'Stamp Fee' },
+  { key: 'nbl',             label: 'NBL' },
+  { key: 'ssc_levy',        label: 'SSC Levy' },
+  { key: 'admin_fee',       label: 'Admin Fee' },
+  { key: 'vat_amount',      label: 'VAT' },
+  { key: 'other_premium',   label: 'Other' },
+  { key: 'deductible',      label: 'Deductibles' },
+  { key: 'excesses',        label: 'Excesses' },
+];
 
 const EMPTY_FIELD = {
   name: '', label: '', section: '', type: 'text',
   required: false, options: '', accept: '',
-  showIfField: '', showIfValue: '',
+  showIfField: '', showIfValue: '', hideFromInsurer: false,
 };
 
 function slugify(str) {
@@ -147,7 +171,7 @@ function ProductCard({ product, onView, onEdit, onDelete, onClone, isAdmin }) {
   const sectionCount = [...new Set((product.fields || []).map(f => f.section).filter(Boolean))].length;
   return (
     <Card sx={{
-      border: `1.5px solid ${product.isBuiltIn ? 'rgba(255,139,90,0.14)' : `${product.color}35`}`,
+      border: `1.5px solid ${product.isBuiltIn ? 'rgba(255, 139, 90,0.14)' : `${product.color}35`}`,
       transition: 'box-shadow 0.15s',
       '&:hover': { boxShadow: '0 4px 20px rgba(0,0,0,0.10)' },
     }}>
@@ -202,7 +226,7 @@ function ProductCard({ product, onView, onEdit, onDelete, onClone, isAdmin }) {
                     Edit
                   </Button>
                   <IconButton size="small" onClick={() => onDelete(product)}
-                    sx={{ color: '#FF5A5A', '&:hover': { bgcolor: 'rgba(255,90,90,0.08)' } }}>
+                    sx={{ color: '#FF5A5A', '&:hover': { bgcolor: 'rgba(255, 90, 90,0.08)' } }}>
                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </>
@@ -227,7 +251,7 @@ function FieldRow({ field, idx, onEdit, onRemove }) {
         <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A2E' }}>
           {field.label}
           {field.autoCalc && (
-            <Box component="span" sx={{ ml: 0.6, fontSize: 9.5, fontWeight: 700, color: '#FF5A5A', bgcolor: 'rgba(255,90,90,0.10)', px: 0.6, py: 0.1, borderRadius: '5px' }}>
+            <Box component="span" sx={{ ml: 0.6, fontSize: 9.5, fontWeight: 700, color: '#FF5A5A', bgcolor: 'rgba(255, 90, 90,0.10)', px: 0.6, py: 0.1, borderRadius: '5px' }}>
               ƒ auto
             </Box>
           )}
@@ -281,7 +305,7 @@ const ProductsManager = () => {
     return unsub;
   }, []);
 
-  const builtIn = Object.entries(PRODUCTS).map(([key, val]) => ({ key, ...val, isBuiltIn: true }));
+  const builtIn = Object.entries(PRODUCTS).filter(([, val]) => !val.hidden).map(([key, val]) => ({ key, ...val, isBuiltIn: true }));
   const custom  = customList.map(p => ({ ...p, isBuiltIn: false }));
   const all     = [...builtIn, ...custom];
 
@@ -304,6 +328,9 @@ const ProductsManager = () => {
       customerNameField: p.customerNameField || 'proposer_name',
       comparisonRows: [...(p.comparisonRows || [])],
       fields: (p.fields || []).map(f => ({ ...f })),
+      hiddenInsurerFields: [...(p.hiddenInsurerFields || [])],
+      customInsurerFields: (p.customInsurerFields || []).map(f => ({ ...f })),
+      hideInsurerTotal: !!p.hideInsurerTotal,
     });
     resetWizard();
     setEditOpen(true);
@@ -318,6 +345,9 @@ const ProductsManager = () => {
       customerNameField: p.customerNameField || 'proposer_name',
       comparisonRows: [...(p.comparisonRows || DEFAULT_COMPARISON_ROWS)],
       fields: (p.fields || []).map(f => ({ ...f })),
+      hiddenInsurerFields: [...(p.hiddenInsurerFields || [])],
+      customInsurerFields: (p.customInsurerFields || []).map(f => ({ ...f })),
+      hideInsurerTotal: !!p.hideInsurerTotal,
     });
     resetWizard();
     setEditOpen(true);
@@ -339,6 +369,9 @@ const ProductsManager = () => {
         customerNameField: form.customerNameField.trim() || 'proposer_name',
         comparisonRows:    form.comparisonRows.filter(r => r.trim()),
         fields:            form.fields,
+        hiddenInsurerFields: form.hiddenInsurerFields || [],
+        customInsurerFields: (form.customInsurerFields || []).filter(f => f.label?.trim()),
+        hideInsurerTotal:  !!form.hideInsurerTotal,
         isCustom:          true,
         updated_at:        serverTimestamp(),
         ...(!editKey ? { created_at: serverTimestamp() } : {}),
@@ -353,6 +386,7 @@ const ProductsManager = () => {
 
   const handleDelete = async () => {
     if (!deleteTgt) return;
+    if (!confirmTypedDelete(`Delete the product "${deleteTgt.label || deleteTgt.key}"?`)) { setDeleteTgt(null); return; }
     try {
       await deleteDoc(doc(db, 'products', deleteTgt.key));
       toast('Product deleted');
@@ -396,6 +430,7 @@ const ProductsManager = () => {
       type: f.type || 'text', required: !!f.required,
       options: (f.options || []).join(', '), accept: f.accept || '',
       showIfField: f.showIf?.field || '', showIfValue: f.showIf?.value || '',
+      hideFromInsurer: !!f.hideFromInsurer,
     });
     setFieldDlg(true);
   };
@@ -408,6 +443,7 @@ const ProductsManager = () => {
       section: fieldForm.section.trim() || 'General',
       type: fieldForm.type,
       ...(fieldForm.required ? { required: true } : {}),
+      ...(fieldForm.hideFromInsurer ? { hideFromInsurer: true } : {}),
       ...(['select', 'multiselect'].includes(fieldForm.type) && fieldForm.options
         ? { options: fieldForm.options.split(',').map(o => o.trim()).filter(Boolean) } : {}),
       ...(fieldForm.type === 'file' && fieldForm.accept ? { accept: fieldForm.accept.trim() } : {}),
@@ -420,13 +456,39 @@ const ProductsManager = () => {
         // preserve any auto-calc already configured for this field
         if (f.fields[editFldIdx]?.autoCalc && NUMERIC_TYPES.includes(newField.type)) newField.autoCalc = f.fields[editFldIdx].autoCalc;
         fields[editFldIdx] = newField;
-      } else fields.push(newField);
+      } else {
+        // Insert at the END of its section so it lands in the right group — the
+        // form renderers group consecutive same-section fields, so appending to
+        // the very bottom would spawn a duplicate section instead. New sections
+        // (no existing match) still append at the end.
+        const sec = newField.section;
+        let insertAt = -1;
+        fields.forEach((ff, i) => { if ((ff.section || 'General') === sec) insertAt = i; });
+        if (insertAt >= 0) fields.splice(insertAt + 1, 0, newField);
+        else fields.push(newField);
+      }
       return { ...f, fields };
     });
     setFieldDlg(false);
   };
 
   const removeField = (idx) => setForm(f => ({ ...f, fields: f.fields.filter((_, i) => i !== idx) }));
+
+  // ── Insurer response form (premium fields the insurer fills in) ─────────────
+  const toggleInsurerStd = (key) => setForm(f => {
+    const hidden = new Set(f.hiddenInsurerFields || []);
+    if (hidden.has(key)) hidden.delete(key); else hidden.add(key);
+    return { ...f, hiddenInsurerFields: [...hidden] };
+  });
+  const addCustomInsurerField = () => setForm(f => ({
+    ...f, customInsurerFields: [...(f.customInsurerFields || []), { key: `custom_${Date.now().toString(36)}`, label: '', type: 'currency' }],
+  }));
+  const updateCustomInsurerField = (i, patch) => setForm(f => {
+    const arr = [...(f.customInsurerFields || [])]; arr[i] = { ...arr[i], ...patch }; return { ...f, customInsurerFields: arr };
+  });
+  const removeCustomInsurerField = (i) => setForm(f => ({
+    ...f, customInsurerFields: (f.customInsurerFields || []).filter((_, j) => j !== i),
+  }));
 
   // ── Shortcuts ──────────────────────────────────────────────────────────────
   const addStarterSection = (tpl) => {
@@ -522,7 +584,7 @@ const ProductsManager = () => {
         </Box>
         {isAdmin && (
           <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}
-            sx={{ fontSize: 13, background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', boxShadow: '0 4px 12px rgba(255,90,90,0.25)' }}>
+            sx={{ fontSize: 13, background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', boxShadow: '0 4px 12px rgba(255, 90, 90,0.25)' }}>
             Add Product
           </Button>
         )}
@@ -704,7 +766,7 @@ const ProductsManager = () => {
           {wizStep === 1 && (
             <Box sx={{ p: 3 }}>
               {/* Shortcuts */}
-              <Box sx={{ mb: 2, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255,139,90,0.05)', border: '1px solid rgba(255,139,90,0.18)' }}>
+              <Box sx={{ mb: 2, p: 1.5, borderRadius: '12px', bgcolor: 'rgba(255, 139, 90,0.05)', border: '1px solid rgba(255, 139, 90,0.18)' }}>
                 <Stack direction="row" alignItems="center" spacing={0.8} sx={{ mb: 1 }}>
                   <BoltOutlinedIcon sx={{ fontSize: 16, color: '#FF8B5A' }} />
                   <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>Quick add — starter sections</Typography>
@@ -712,7 +774,7 @@ const ProductsManager = () => {
                 <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
                   {STARTER_SECTIONS.map(tpl => (
                     <Chip key={tpl.name} label={`${tpl.icon} ${tpl.name}`} size="small" onClick={() => addStarterSection(tpl)}
-                      sx={{ fontSize: 11.5, cursor: 'pointer', bgcolor: '#fff', border: '1px solid rgba(255,139,90,0.4)', color: '#b45309', '&:hover': { bgcolor: 'rgba(255,139,90,0.12)' } }} />
+                      sx={{ fontSize: 11.5, cursor: 'pointer', bgcolor: '#fff', border: '1px solid rgba(255, 139, 90,0.4)', color: '#b45309', '&:hover': { bgcolor: 'rgba(255, 139, 90,0.12)' } }} />
                   ))}
                 </Stack>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#b45309', mb: 0.8 }}>Quick add — common fields</Typography>
@@ -730,7 +792,7 @@ const ProductsManager = () => {
                 </Typography>
                 <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 15 }} />}
                   onClick={() => openAddField()}
-                  sx={{ fontSize: 12, borderColor: 'rgba(255,90,90,0.35)', color: '#FF5A5A' }}>
+                  sx={{ fontSize: 12, borderColor: 'rgba(255, 90, 90,0.35)', color: '#FF5A5A' }}>
                   Add Custom Field
                 </Button>
               </Stack>
@@ -739,14 +801,14 @@ const ProductsManager = () => {
                 <Box key={section} sx={{ mb: 2 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between"
                     onClick={() => setOpenSections(s => ({ ...s, [section]: !s[section] }))}
-                    sx={{ cursor: 'pointer', p: 1, borderRadius: '8px', bgcolor: 'rgba(26,26,46,0.06)', mb: 0.5 }}>
+                    sx={{ cursor: 'pointer', p: 1, borderRadius: '8px', bgcolor: 'rgba(26, 26, 46,0.06)', mb: 0.5 }}>
                     <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#1A1A2E' }}>
                       {section} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>({fields.length})</span>
                     </Typography>
                     <Stack direction="row" spacing={0.5} alignItems="center">
                       <Tooltip title="Add field to this section">
                         <IconButton size="small" onClick={e => { e.stopPropagation(); openAddField(section); }}
-                          sx={{ color: '#FF5A5A', '&:hover': { bgcolor: 'rgba(255,90,90,0.08)' } }}>
+                          sx={{ color: '#FF5A5A', '&:hover': { bgcolor: 'rgba(255, 90, 90,0.08)' } }}>
                           <AddIcon sx={{ fontSize: 15 }} />
                         </IconButton>
                       </Tooltip>
@@ -769,6 +831,56 @@ const ProductsManager = () => {
                   <Typography sx={{ fontSize: 13 }}>No fields yet. Use a starter section above, or "Add Custom Field".</Typography>
                 </Box>
               )}
+
+              {/* ── Insurer response form ── */}
+              <Box sx={{ mt: 3, p: 2, borderRadius: '12px', border: '1px solid rgba(99,102,241,0.25)', bgcolor: 'rgba(99,102,241,0.03)' }}>
+                <Typography sx={{ fontSize: 13, fontWeight: 800, color: '#4f46e5', mb: 0.4 }}>Insurer Response Form</Typography>
+                <Typography sx={{ fontSize: 12, color: '#6B7280', mb: 1.5 }}>
+                  Choose which premium/quote fields the insurance company fills in for this product, and add your own.
+                </Typography>
+                <FormControlLabel sx={{ mb: 1 }} control={
+                  <Switch size="small" checked={!form.hideInsurerTotal}
+                    onChange={e => setForm(f => ({ ...f, hideInsurerTotal: !e.target.checked }))} />
+                } label={<Typography sx={{ fontSize: 12.5 }}>Show the <strong>Total Premium</strong> on the insurer's form</Typography>} />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: '1fr 1fr 1fr' }, gap: 0.2, mb: 1.5 }}>
+                  {INSURER_PREMIUM_FIELDS.map(pf => {
+                    const on = !(form.hiddenInsurerFields || []).includes(pf.key);
+                    return (
+                      <FormControlLabel key={pf.key} control={
+                        <Checkbox size="small" checked={on} onChange={() => toggleInsurerStd(pf.key)} />
+                      } label={<Typography sx={{ fontSize: 12.5 }}>{pf.label}</Typography>} />
+                    );
+                  })}
+                </Box>
+
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#4f46e5' }}>Custom insurer fields</Typography>
+                  <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 15 }} />}
+                    onClick={addCustomInsurerField}
+                    sx={{ fontSize: 11.5, borderColor: 'rgba(99,102,241,0.4)', color: '#4f46e5' }}>
+                    Add field
+                  </Button>
+                </Stack>
+                <Stack spacing={1}>
+                  {(form.customInsurerFields || []).map((cf, i) => (
+                    <Stack key={cf.key || i} direction="row" spacing={1} alignItems="center">
+                      <TextField size="small" placeholder="Field label (e.g. Loading, Discount)" value={cf.label}
+                        onChange={e => updateCustomInsurerField(i, { label: e.target.value })}
+                        sx={{ flex: 1, '& input': { fontSize: 12.5 } }} />
+                      <FormControl size="small" sx={{ width: 150 }}>
+                        <Select value={cf.type || 'currency'} onChange={e => updateCustomInsurerField(i, { type: e.target.value })} sx={{ fontSize: 12.5 }}>
+                          <MenuItem value="currency" sx={{ fontSize: 12.5 }}>Amount (LKR)</MenuItem>
+                          <MenuItem value="text" sx={{ fontSize: 12.5 }}>Text / note</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <Button size="small" color="error" onClick={() => removeCustomInsurerField(i)} sx={{ fontSize: 11, minWidth: 0 }}>Remove</Button>
+                    </Stack>
+                  ))}
+                  {(form.customInsurerFields || []).length === 0 && (
+                    <Typography sx={{ fontSize: 11.5, color: '#9CA3AF' }}>No custom insurer fields. Amount fields are added into the insurer's total premium.</Typography>
+                  )}
+                </Stack>
+              </Box>
             </Box>
           )}
 
@@ -800,7 +912,7 @@ const ProductsManager = () => {
                     const others = numericFields.filter(o => o.name !== f.name);
                     const labelFor = (n) => numericFields.find(x => x.name === n)?.label || n;
                     return (
-                      <Box key={f.name} sx={{ p: 1.5, borderRadius: '12px', border: `1px solid ${on ? 'rgba(255,90,90,0.30)' : 'rgba(0,0,0,0.08)'}`, bgcolor: on ? 'rgba(255,90,90,0.03)' : '#fff' }}>
+                      <Box key={f.name} sx={{ p: 1.5, borderRadius: '12px', border: `1px solid ${on ? 'rgba(255, 90, 90,0.30)' : 'rgba(0,0,0,0.08)'}`, bgcolor: on ? 'rgba(255, 90, 90,0.03)' : '#fff' }}>
                         <Stack direction="row" alignItems="center" justifyContent="space-between">
                           <Box>
                             <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>{f.label}</Typography>
@@ -821,7 +933,7 @@ const ProductsManager = () => {
                                 {[['sum', 'Add up'], ['pct', 'Percentage']].map(([m, lbl]) => (
                                   <Chip key={m} label={lbl} size="small" onClick={() => updateAuto(f.name, { on: true, mode: m })}
                                     sx={{ fontSize: 11.5, cursor: 'pointer', fontWeight: 600,
-                                          ...(cfg.mode === m ? { bgcolor: 'rgba(255,90,90,0.12)', color: '#FF5A5A', border: '1px solid rgba(255,90,90,0.4)' }
+                                          ...(cfg.mode === m ? { bgcolor: 'rgba(255, 90, 90,0.12)', color: '#FF5A5A', border: '1px solid rgba(255, 90, 90,0.4)' }
                                                              : { bgcolor: '#fff', color: '#6B7280', border: '1px solid rgba(0,0,0,0.15)' }) }} />
                                 ))}
                                 {isPct && (
@@ -917,14 +1029,14 @@ const ProductsManager = () => {
               </Stack>
               <Button size="small" variant="outlined" startIcon={<AddIcon sx={{ fontSize: 15 }} />}
                 onClick={addRow}
-                sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A' }}>
+                sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A' }}>
                 Add Row
               </Button>
             </Box>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255,139,90,0.10)' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255, 139, 90,0.10)' }}>
           <Button onClick={() => setEditOpen(false)} disabled={saving} sx={{ color: '#6B7280' }}>Cancel</Button>
           <Box sx={{ flex: 1 }} />
           {wizStep > 0 && (
@@ -989,6 +1101,10 @@ const ProductsManager = () => {
               <Switch checked={fieldForm.required}
                 onChange={e => setFieldForm(f => ({ ...f, required: e.target.checked }))} size="small" />
             } label={<Typography sx={{ fontSize: 13 }}>Required field</Typography>} />
+            <FormControlLabel control={
+              <Switch checked={fieldForm.hideFromInsurer}
+                onChange={e => setFieldForm(f => ({ ...f, hideFromInsurer: e.target.checked }))} size="small" />
+            } label={<Typography sx={{ fontSize: 13 }}>Hide from insurer — don't show this field on the insurance company's quote form</Typography>} />
             {['select', 'multiselect'].includes(fieldForm.type) && (
               <TextField fullWidth label="Options (comma-separated)" size="small" value={fieldForm.options}
                 onChange={e => setFieldForm(f => ({ ...f, options: e.target.value }))}

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { viewUrl } from '../storage';
+import { openFile } from '../storage';
+import { liveOsDays } from '../utils/osDays';
+import { liveCommission } from '../utils/commission';
 import { PRODUCTS } from '../config/products';
 import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
@@ -55,6 +57,29 @@ const ENDORSEMENT_TYPES = [
 const endoNum = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
 const fmtSigned = (n) => `${n < 0 ? '-' : '+'}LKR ${Math.abs(n).toLocaleString()}`;
 
+// Robustly read a stored money value: a number, a comma-separated string
+// ("32,017.27"), currency text, or Excel scientific notation all parse cleanly
+// so premiums never render as "LKR NaN".
+const parseMoney = (v) => {
+  if (typeof v === 'number') return v;
+  if (v === null || v === undefined || v === '') return NaN;
+  return Number(String(v).replace(/,/g, '').replace(/[^0-9.eE+-]/g, ''));
+};
+const fmtLKRv = (v) => {
+  const n = parseMoney(v);
+  return Number.isFinite(n) ? `LKR ${n.toLocaleString()}` : '—';
+};
+// Expand Excel scientific notation ("2.00E+11") in ID-type fields (NIC, BR, VAT)
+// back to a plain digit string so long numbers read correctly instead of "2.00E+11".
+const plainId = (v) => {
+  const s = String(v ?? '').trim();
+  if (/^[+-]?\d+(\.\d+)?[eE][+-]?\d+$/.test(s)) {
+    const n = Number(s);
+    if (Number.isFinite(n)) return n.toLocaleString('fullwide', { useGrouping: false });
+  }
+  return v;
+};
+
 function Field({ label, value }) {
   const empty = value === null || value === undefined || value === '';
   return (
@@ -81,15 +106,15 @@ function SubHeader({ title }) {
       <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, mb: -0.5, mt: 0.5 }}>
         {title}
       </Typography>
-      <Divider sx={{ mb: 1, borderColor: 'rgba(255,139,90,0.15)' }} />
+      <Divider sx={{ mb: 1, borderColor: 'rgba(255, 139, 90,0.15)' }} />
     </Grid>
   );
 }
 
 function FinancialRow({ label, value }) {
-  const fmt = v => v ? `LKR ${Number(v).toLocaleString()}` : '—';
+  const fmt = v => fmtLKRv(v);
   return (
-    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(255,139,90,0.08)' }}>
+    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(255, 139, 90,0.08)' }}>
       <Typography sx={{ fontSize:13, color:'#6B7280' }}>{label}</Typography>
       <Typography sx={{ fontSize:13, fontWeight:700, color:'#1A1A2E' }}>{fmt(value)}</Typography>
     </Box>
@@ -100,22 +125,22 @@ function DocCard({ label, url, description }) {
   return (
     <Box sx={{
       p:1.5, borderRadius:'12px',
-      border:`1px solid ${url ? 'rgba(255,139,90,0.25)' : 'rgba(0,0,0,0.06)'}`,
-      bgcolor: url ? 'rgba(255,248,245,0.8)' : '#FAFAFA',
+      border:`1px solid ${url ? 'rgba(255, 139, 90,0.25)' : 'rgba(0,0,0,0.06)'}`,
+      bgcolor: url ? 'rgba(255, 245, 242,0.8)' : '#FAFAFA',
       transition:'all 0.2s ease',
-      '&:hover': url ? { boxShadow:'0 4px 16px rgba(255,90,90,0.10)', transform:'translateY(-1px)' } : {},
+      '&:hover': url ? { boxShadow:'0 4px 16px rgba(255, 90, 90,0.10)', transform:'translateY(-1px)' } : {},
     }}>
       <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', mb:0.5 }}>
         <Typography sx={{ fontSize:12, fontWeight:700, color:'#374151' }}>{label}</Typography>
         {url && (
-          <Link href={viewUrl(url)} target="_blank" rel="noopener noreferrer"
+          <Link component="button" type="button" onClick={() => openFile(url)}
             sx={{ display:'flex', alignItems:'center', gap:0.3, fontSize:11, fontWeight:700, color:'#FF5A5A', textDecoration:'none',
-                  '&:hover':{ textDecoration:'underline' } }}>
+                  background:'none', border:'none', cursor:'pointer', '&:hover':{ textDecoration:'underline' } }}>
             View <OpenInNewIcon sx={{ fontSize:11 }} />
           </Link>
         )}
       </Box>
-      <Typography sx={{ fontSize:11, color: url ? '#FF8B5A' : '#C4B5B0', fontWeight: url ? 500 : 400 }}>
+      <Typography sx={{ fontSize:11, color: url ? '#FF8B5A' : '#A9B6C8', fontWeight: url ? 500 : 400 }}>
         {url ? 'Document uploaded' : 'No document'}
       </Typography>
       {description && (
@@ -175,7 +200,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
   // Sum-insured currency (per policy) — format SI values with it.
   const siCur = client.sum_insured_currency || 'LKR';
-  const fmtSI = v => (v || v === 0) && v !== '' ? `${siCur} ${Number(v).toLocaleString()}` : '—';
+  const fmtSI = v => { const n = parseMoney(v); return Number.isFinite(n) ? `${siCur} ${n.toLocaleString()}` : '—'; };
 
   // Revised totals = original policy value + cumulative endorsement deltas
   const sumDelta  = endorsements.reduce((a, e) => a + endoNum(e.sum_insured_change), 0);
@@ -269,7 +294,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const pw    = pdf.internal.pageSize.getWidth();
       const ph    = pdf.internal.pageSize.getHeight();
       const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
-      const fmtLKR = v => v ? `LKR ${Number(v).toLocaleString()}` : '—';
+      const fmtLKR = v => fmtLKRv(v);
 
       const PDF_TABS = [
         { key:'overview',   label:'Overview'   },
@@ -296,10 +321,10 @@ const ClientDetailsModal = ({ client, onClose }) => {
       };
 
       const drawHeader = () => {
-        pdf.setFillColor(26,26,46);  pdf.rect(0,0,pw,20,'F');
-        pdf.setFillColor(232,71,42); pdf.rect(0,20,pw,2.5,'F');
-        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
-        pdf.text(' InsureSAAS', pw/2, 9, {align:'center'});
+        pdf.setFillColor(26, 26, 46);  pdf.rect(0,0,pw,20,'F');
+        pdf.setFillColor(224, 72, 72); pdf.rect(0,20,pw,2.5,'F');
+        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
+        pdf.text('INSURESAAS INSURANCE BROKERS (PVT) LTD', pw/2, 9, {align:'center'});
         pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
         pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2, 15.5, {align:'center'});
       };
@@ -307,9 +332,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const drawFooter = () => {
         const pn = pdf.internal.getCurrentPageInfo().pageNumber;
         const tp = pdf.internal.getNumberOfPages();
-        pdf.setFillColor(26,26,46);  pdf.rect(0, ph-14, pw, 14, 'F');
-        pdf.setFillColor(232,71,42); pdf.rect(0, ph-14, pw, 1,  'F');
-        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(255,139,90);
+        pdf.setFillColor(26, 26, 46);  pdf.rect(0, ph-14, pw, 14, 'F');
+        pdf.setFillColor(224, 72, 72); pdf.rect(0, ph-14, pw, 1,  'F');
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(255, 139, 90);
         pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph-8);
         pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(107,114,128);
         pdf.text(`Page ${pn} / ${tp}`, pw-12, ph-8, {align:'right'});
@@ -319,13 +344,13 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       drawHeader();
       pdf.setFillColor(249,250,251); pdf.rect(0, 22.5+TAB_H, pw, 13, 'F');
-      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,26,46);
+      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(26, 26, 46);
       pdf.text('UNDERWRITING RECORD', 14, 30.5+TAB_H);
       pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128);
       const fileRef = [client.insuresaas_ib_file_no && `File: ${client.insuresaas_ib_file_no}`, client.policy_no && `Policy: ${client.policy_no}`].filter(Boolean).join('   ·   ');
       if (fileRef) pdf.text(fileRef, pw-14, 30.5+TAB_H, {align:'right'});
 
-      pdf.setFillColor(232,71,42); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
+      pdf.setFillColor(224, 72, 72); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
       pdf.setFontSize(13); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,255,255);
       pdf.text(client.client_name || '—', 14, 44.5+TAB_H);
       const tags = [client.main_class, client.product, client.customer_type].filter(Boolean);
@@ -343,7 +368,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       let y = 55 + TAB_H;
       const tableOpts = (startY) => ({
         startY,
-        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[255,248,245], textColor:[55,65,81]}, 1:{textColor:[26,26,46]} },
+        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[255, 245, 242], textColor:[55,65,81]}, 1:{textColor:[26, 26, 46]} },
         styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
         bodyStyles: { fillColor:[255,255,255] },
         alternateRowStyles: { fillColor:[255,252,250] },
@@ -357,14 +382,14 @@ const ClientDetailsModal = ({ client, onClose }) => {
         startSec(sectionKey);
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:title, colSpan:2, styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:title, colSpan:2, styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: filtered,
         });
         y = pdf.lastAutoTable.finalY + 5;
       };
 
       addSection('overview', 'INTRODUCER', [
-        ['InsureSAAS File No.', client.insuresaas_ib_file_no],
+        ['InsureSAAS IB File No.', client.insuresaas_ib_file_no],
         ['Manager',            client.manager],
         ['Introducer Code',    client.introducer_code],
       ]);
@@ -402,7 +427,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Policy Period From',    client.policy_period_from],
         ['Policy Period To',      client.policy_period_to],
         ['Policy Days',           client.policy_days],
-        ['O/S Days',              client.os_days],
+        ['O/S Days',              liveOsDays(client)],
         ['Credit Period',         client.credit_period],
         ['Quote Validity (days)', client.validity_days],
       ]);
@@ -454,12 +479,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
       if (finRows.length || client.total_invoice) {
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: [...finRows, [
-            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[232,71,42],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
-            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[232,71,42],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[224, 72, 72],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[224, 72, 72],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
           ]],
-          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[255,248,245],textColor:[55,65,81]}, 1:{halign:'right',textColor:[26,26,46]} },
+          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[255, 245, 242],textColor:[55,65,81]}, 1:{halign:'right',textColor:[26, 26, 46]} },
           styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
           bodyStyles: { fillColor:[255,255,255] },
           alternateRowStyles: { fillColor:[255,252,250] },
@@ -516,7 +541,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         autoTable(pdf, {
           startY: y,
           head: [[
-            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [26,26,46], textColor: [255,139,90], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
+            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [26, 26, 46], textColor: [255, 139, 90], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
           ], [
             { content: '#' }, { content: 'Effective' }, { content: 'Type' }, { content: 'Description' },
             { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' },
@@ -554,8 +579,8 @@ const ClientDetailsModal = ({ client, onClose }) => {
         let docY = 22.5 + TAB_H + 6, docCol = 0;
 
         const addDocPageHdr = (title) => {
-          pdf.setFillColor(26,26,46); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
+          pdf.setFillColor(26, 26, 46); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
           pdf.text(title, pw/2, docY+6, {align:'center'});
           docY += 13;
         };
@@ -564,7 +589,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         for (const df of allPdfDocs) {
           if (docY + cellH > ph - 18) { pdf.addPage(); drawHeader(); docY = 28; docCol = 0; addDocPageHdr('UPLOADED DOCUMENTS (cont.)'); }
           const cx = margL + docCol*(colW+gap);
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,26,46);
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(26, 26, 46);
           pdf.text(df.label, cx, docY+5);
           const note = df.text ? client[df.text] : null;
           if (note) { pdf.setFontSize(7); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128); pdf.text(note, cx, docY+10, {maxWidth:colW}); }
@@ -613,7 +638,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         pdf.setFillColor(22,26,48); pdf.rect(0, 22.5, pw, TAB_H, 'F');
         PDF_TABS.forEach((t, idx) => {
           const tabX = idx * tabW, isAct = t.key === active;
-          if (isAct) { pdf.setFillColor(232,71,42); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
+          if (isAct) { pdf.setFillColor(224, 72, 72); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
           pdf.setFontSize(5.5); pdf.setFont('helvetica', isAct ? 'bold' : 'normal');
           const [r,g,b] = isAct ? [255,255,255] : [148,163,184];
           pdf.setTextColor(r,g,b);
@@ -646,7 +671,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const titleRow = ws.addRow([`${client.client_name || 'Client'} — Underwriting Record`, '']);
       ws.mergeCells(titleRow.number, 1, titleRow.number, 2);
       titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
-      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
+      titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A1A3E' } };
       titleRow.getCell(1).alignment = { vertical: 'middle' };
       titleRow.height = 24;
       ws.addRow([]);
@@ -656,12 +681,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
         if (!filtered.length) return;
         const hr = ws.addRow([title, '']);
         ws.mergeCells(hr.number, 1, hr.number, 2);
-        hr.getCell(1).font = { bold: true, size: 11, color: { argb: 'FFFF8B5A' } };
-        hr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
+        hr.getCell(1).font = { bold: true, size: 11, color: { argb: 'FF38A3E0' } };
+        hr.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A1A3E' } };
         filtered.forEach(([label, value]) => {
           const r = ws.addRow([label, xfmt(value)]);
           r.getCell(1).font = { bold: true, color: { argb: 'FF374151' } };
-          r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF8F5' } };
+          r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F7FC' } };
           r.getCell(2).alignment = { wrapText: true };
         });
         ws.addRow([]);
@@ -674,7 +699,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       };
 
       addSheetSection('INTRODUCER', [
-        ['InsureSAAS File No.', client.insuresaas_ib_file_no], ['Manager', client.manager], ['Introducer Code', client.introducer_code],
+        ['InsureSAAS IB File No.', client.insuresaas_ib_file_no], ['Manager', client.manager], ['Introducer Code', client.introducer_code],
       ]);
       addSheetSection('INSURANCE COMPANY', [
         ['Insurance Type', client.insurance_type], ['Main Class', client.main_class], ['Product', client.product],
@@ -691,7 +716,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       addSheetSection('PERIOD OF INSURANCE', [
         ['Policy No', client.policy_no], ['Policy Type', client.policy_type], ['Coverage', client.coverage],
         ['Policy Period From', client.policy_period_from], ['Policy Period To', client.policy_period_to],
-        ['Policy Days', client.policy_days], ['O/S Days', client.os_days], ['Credit Period', client.credit_period],
+        ['Policy Days', client.policy_days], ['O/S Days', liveOsDays(client)], ['Credit Period', client.credit_period],
         ['Quote Validity (days)', client.validity_days],
       ]);
       if (fiItems.length) addSheetSection('FINANCIAL INTEREST', fiItems.map(([k, v]) => [fieldNameToLabel(k), v]));
@@ -769,14 +794,14 @@ const ClientDetailsModal = ({ client, onClose }) => {
     setExportingXlsx(false);
   };
 
-  const fmtLKR = v => v ? `LKR ${Number(v).toLocaleString()}` : null;
+  const fmtLKR = v => { const n = parseMoney(v); return Number.isFinite(n) ? `LKR ${n.toLocaleString()}` : null; };
 
   const renderSection = (sec) => {
     switch (sec) {
       case 0: /* Introducer */
         return (
           <Grid container spacing={2.5}>
-            <Grid item xs={12} sm={6} md={4}><Field label="InsureSAAS File No." value={client.insuresaas_ib_file_no} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="InsureSAAS IB File No." value={client.insuresaas_ib_file_no} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Manager"            value={client.manager} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Introducer Code"    value={client.introducer_code} /></Grid>
           </Grid>
@@ -796,9 +821,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
           <Grid container spacing={2.5}>
             <Grid item xs={12} sm={6} md={4}><Field label="Customer Type"         value={client.customer_type} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Client Name"           value={client.client_name} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="NIC / Passport No."    value={client.nic_proof} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Business Registration" value={client.business_registration} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="SVAT / VAT No."        value={client.svat_proof} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="NIC / Passport No."    value={plainId(client.nic_proof)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Business Registration" value={plainId(client.business_registration)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="SVAT / VAT No."        value={plainId(client.svat_proof)} /></Grid>
             <Grid item xs={12} sm={6}       ><Field label="Street 1"              value={client.street1} /></Grid>
             <Grid item xs={12} sm={6}       ><Field label="Street 2"              value={client.street2} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="City"                  value={client.city} /></Grid>
@@ -821,7 +846,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
             <Grid item xs={12} sm={6} md={4}><Field label="Policy Period From"    value={client.policy_period_from} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Policy Period To"      value={client.policy_period_to} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Policy Days"           value={client.policy_days} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="O/S Days"              value={client.os_days} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="O/S Days"              value={liveOsDays(client)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Credit Period"         value={client.credit_period} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Quote Validity (days)" value={client.validity_days} /></Grid>
           </Grid>
@@ -963,7 +988,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
                 <FinancialRow label="VAT"             value={client.vat_fee} />
               </Box>
             </Box>
-            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(255,90,90,0.08),rgba(255,139,90,0.06))', border:'1px solid rgba(255,90,90,0.15)', mb:2 }}>
+            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(255, 90, 90,0.08),rgba(255, 139, 90,0.06))', border:'1px solid rgba(255, 90, 90,0.15)', mb:2 }}>
               <Typography sx={{ fontSize:12, color:'#9CA3AF', mb:0.5 }}>Total Premium</Typography>
               <Typography sx={{ fontSize:24, fontWeight:800, color:'#FF5A5A' }}>
                 LKR {Number(client.total_invoice || 0).toLocaleString()}
@@ -980,23 +1005,25 @@ const ClientDetailsModal = ({ client, onClose }) => {
             )}
           </Box>
         );
-      case 6: /* Commission */
+      case 6: { /* Commission */
+        const lc = liveCommission(client);
         return (
           <Grid container spacing={2.5}>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Type"         value={client.commission_type} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Basic Commission %"      value={client.commission_pct} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Basic Commission %"      value={lc.commission_pct} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Special Rate (+/- %)"    value={client.commission_special_rate} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Commission Basic"        value={fmtLKR(client.commission_basic)} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Commission SRCC"         value={fmtLKR(client.commission_srcc)} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Commission TC"           value={fmtLKR(client.commission_tc)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Commission Basic"        value={fmtLKR(lc.commission_basic)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Commission SRCC"         value={fmtLKR(lc.commission_srcc)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Commission TC"           value={fmtLKR(lc.commission_tc)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Special Adjustment"      value={fmtLKR(client.commission_special_amount)} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Total Commission"        value={fmtLKR(client.commission_total)} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Total Commission"        value={fmtLKR(lc.commission_total)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Method"       value={client.commission_paid_method} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Receive Date"            value={client.commission_receive_date} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Amount Received"  value={fmtLKR(client.commission_amount_paid)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission VAT"          value={fmtLKR(client.commission_vat)} /></Grid>
           </Grid>
         );
+      }
       case 12: /* Payment */
         return (
           <Grid container spacing={2.5}>
@@ -1193,7 +1220,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       <DialogContent sx={{ p:0, overflowY:'auto' }} ref={contentRef}>
         {/* Each form section is its own clickable tab — click to see just its data. */}
-        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(255,139,90,0.15)' }}>
+        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(255, 139, 90,0.15)' }}>
           <Tabs
             value={tab}
             onChange={(e, v) => { setTab(v); if (contentRef.current) contentRef.current.scrollTop = 0; }}
@@ -1210,7 +1237,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255,139,90,0.10)', flexWrap:'wrap', gap:1 }}>
+      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255, 139, 90,0.10)', flexWrap:'wrap', gap:1 }}>
         <Button onClick={onClose} variant="outlined"
           sx={{ borderColor:'#e0e0e0', color:'#6B7280', '&:hover':{ borderColor:'#aaa' } }}>
           Close

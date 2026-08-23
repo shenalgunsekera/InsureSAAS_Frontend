@@ -5,11 +5,13 @@ import {
   doc, updateDoc, deleteDoc, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { PRODUCTS as STATIC_PRODUCTS } from '../config/products';
 import { COUNTRIES } from '../config/countries';
 import emailjs from '@emailjs/browser';
 import { uploadFile as uploadToCloudinary, openFile } from '../storage';
+import { logActivity } from '../utils/workSession';
 import { generateComparisonPdf } from '../utils/comparisonPdf';
 import { evaluateAutoCalc, describeAutoCalc } from '../utils/autoCalc';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -66,6 +68,9 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 
 const EMAILJS_SERVICE           = process.env.REACT_APP_EMAILJS_SERVICE_ID           || '';
 const EMAILJS_TEMPLATE          = process.env.REACT_APP_EMAILJS_TEMPLATE_ID          || '';
@@ -76,6 +81,17 @@ const EMAILJS_KEY               = process.env.REACT_APP_EMAILJS_PUBLIC_KEY      
 if (EMAILJS_KEY) emailjs.init({ publicKey: EMAILJS_KEY });
 
 const DRAFT_KEY = 'insuresaas_draft_quote';
+
+// The "Inhouse" customer types behave exactly like their base type for the
+// purpose of showIf visibility (Individual Inhouse → Individual shows NIC etc.;
+// Corporate Inhouse → Corporate shows VAT/BR). Normalise before comparing.
+function showIfValue(field, value) {
+  if (field === 'customer_type') {
+    if (value === 'Individual Inhouse') return 'Individual';
+    if (value === 'Corporate Inhouse') return 'Corporate';
+  }
+  return value;
+}
 
 /* ── form validation ─────────────────────────────────────────────────────── */
 function validateForm(product, values, allProducts = STATIC_PRODUCTS) {
@@ -91,7 +107,7 @@ function validateForm(product, values, allProducts = STATIC_PRODUCTS) {
     if (f.type === 'file') return;
     if (f.type === 'plantable') return;
     // skip fields hidden by showIf
-    if (f.showIf && values[f.showIf.field] !== f.showIf.value) return;
+    if (f.showIf && showIfValue(f.showIf.field, values[f.showIf.field]) !== f.showIf.value) return;
 
     const raw = values[f.name];
     const val = raw?.toString().trim() ?? '';
@@ -129,24 +145,58 @@ function genRef(productKey, customerName, allProducts = STATIC_PRODUCTS) {
 }
 
 /* ── dynamic product form ─────────────────────────────────────────────────── */
-function ProductForm({ product, values, onChange, errors = {}, allProducts = STATIC_PRODUCTS }) {
+function ProductForm({ product, values, onChange, errors = {}, allProducts = STATIC_PRODUCTS, clients = [] }) {
   const [fileUploading, setFileUploading] = useState({});
   const [fileErrors,    setFileErrors]    = useState({});
   const def = allProducts[product];
   if (!def) return null;
 
-  // Group fields by section
-  const sections = [];
-  let currentSection = { name: null, fields: [] };
-  def.fields.forEach(f => {
-    if (f.section !== currentSection.name) {
-      if (currentSection.fields.length) sections.push({ ...currentSection });
-      currentSection = { name: f.section, fields: [f] };
-    } else {
-      currentSection.fields.push(f);
+  const nameField = def.customerNameField || 'proposer_name';
+
+  // Expand Excel scientific notation ("2.00E+11") back to a plain digit string so
+  // NIC / BR / VAT / phone numbers copy across correctly instead of "2.00E+11".
+  const plainId = (v) => {
+    const s = String(v ?? '').trim();
+    if (/^[+-]?\d+(\.\d+)?[eE][+-]?\d+$/.test(s)) {
+      const n = Number(s);
+      if (Number.isFinite(n)) return n.toLocaleString('fullwide', { useGrouping: false });
     }
+    return v ?? '';
+  };
+
+  // Fill the proposer details from a matched existing client (from the
+  // `clients` collection). Only fields that exist on this product are set.
+  const fillFromClient = (c) => {
+    if (!c) return;
+    const address = [c.street1, c.street2, c.city, c.district, c.province].filter(Boolean).join(', ');
+    const mapped = {
+      [nameField]:    c.client_name || '',
+      address,
+      postal_code:    c.postal_code || '',
+      telephone:      plainId(c.telephone),
+      mobile:         plainId(c.mobile_no),
+      email:          c.email || '',
+      nic_no:         plainId(c.nic_proof),
+      business_reg:   plainId(c.business_registration),
+      vat_no:         plainId(c.svat_proof),
+      customer_type:  c.customer_type === 'Company' ? 'Corporate' : (c.customer_type || ''),
+    };
+    const known = new Set(def.fields.map(x => x.name));
+    Object.entries(mapped).forEach(([k, v]) => {
+      if (v && (k === nameField || known.has(k))) onChange(k, v);
+    });
+  };
+
+  // Group fields by section, keyed by section name so all fields of a section
+  // stay together even if they aren't contiguous in the array (e.g. a field
+  // added later). Section order follows where each section first appears.
+  const sections = [];
+  const secIndex = {};
+  def.fields.forEach(f => {
+    const name = f.section;
+    if (secIndex[name] === undefined) { secIndex[name] = sections.length; sections.push({ name, fields: [] }); }
+    sections[secIndex[name]].fields.push(f);
   });
-  if (currentSection.fields.length) sections.push(currentSection);
 
   const isVisible = (f) => {
     if (!f.showIf) return true;
@@ -154,7 +204,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
       const v = values[f.showIf.field];
       return !!v && v !== '0' && Number(v) > 0;
     }
-    return values[f.showIf.field] === f.showIf.value;
+    return showIfValue(f.showIf.field, values[f.showIf.field]) === f.showIf.value;
   };
 
   const renderField = (f) => {
@@ -163,6 +213,45 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
     const gridStyle = isFullWidth ? { gridColumn: '1 / -1' } : {};
     const hasErr  = !!errors[f.name];
     const errMsg  = errors[f.name];
+
+    // Name of Insured — suggest existing clients as you type; pick one to
+    // auto-fill all proposer details from the client record.
+    if (f.name === nameField && clients.length > 0) {
+      return (
+        <Box key={f.name} sx={gridStyle}>
+          <Autocomplete
+            freeSolo
+            options={clients}
+            getOptionLabel={(o) => (typeof o === 'string' ? o : (o.client_name || ''))}
+            filterOptions={(opts, state) => {
+              const q = (state.inputValue || '').trim().toLowerCase();
+              if (!q) return [];
+              return opts.filter(o => (o.client_name || '').toLowerCase().includes(q)).slice(0, 8);
+            }}
+            inputValue={values[f.name] || ''}
+            onInputChange={(_, val, reason) => { if (reason !== 'reset') onChange(f.name, val); }}
+            onChange={(_, val) => { if (val && typeof val === 'object') fillFromClient(val); }}
+            isOptionEqualToValue={(o, v) => o.id === v.id}
+            renderOption={(props, o) => (
+              <li {...props} key={o.id}>
+                <Box>
+                  <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{o.client_name}</Typography>
+                  <Typography sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                    {[o.nic_proof || o.business_registration, o.mobile_no || o.telephone].filter(Boolean).join(' · ') || 'Existing client'}
+                  </Typography>
+                </Box>
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} size="small" fullWidth
+                label={f.label + (f.required ? ' *' : '')}
+                error={hasErr}
+                helperText={errMsg || 'Type to match an existing client and auto-fill their details'} />
+            )}
+          />
+        </Box>
+      );
+    }
 
     // Multi-select (chips)
     if (f.multiSelect || f.type === 'multiselect') {
@@ -181,9 +270,9 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
                   onChange(f.name, next.join(', '));
                 }}
                 sx={{
-                  bgcolor: selected.includes(opt) ? 'rgba(255,90,90,0.12)' : 'rgba(0,0,0,0.05)',
+                  bgcolor: selected.includes(opt) ? 'rgba(255, 90, 90,0.12)' : 'rgba(0,0,0,0.05)',
                   color: selected.includes(opt) ? '#FF5A5A' : '#6B7280',
-                  border: selected.includes(opt) ? '1px solid rgba(255,90,90,0.3)' : '1px solid transparent',
+                  border: selected.includes(opt) ? '1px solid rgba(255, 90, 90,0.3)' : '1px solid transparent',
                   fontWeight: selected.includes(opt) ? 700 : 400,
                 }} />
             ))}
@@ -327,9 +416,9 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
       const busy  = fileUploading[f.name];
       const accept = (f.accept || 'pdf,jpg,jpeg,png').split(',').map(e => `.${e}`).join(',');
       return (
-        <Box key={f.name} sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: '8px', border: '1px dashed rgba(255,90,90,0.25)', bgcolor: 'rgba(255,90,90,0.02)' }}>
+        <Box key={f.name} sx={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 2, p: 1.5, borderRadius: '8px', border: '1px dashed rgba(255, 90, 90,0.25)', bgcolor: 'rgba(255, 90, 90,0.02)' }}>
           <Button component="label" variant="outlined" size="small" disabled={busy}
-            sx={{ flexShrink: 0, borderColor: url ? '#22c55e' : 'rgba(255,90,90,0.5)', color: url ? '#22c55e' : '#FF5A5A', textTransform: 'none', fontSize: 12, minWidth: 110 }}>
+            sx={{ flexShrink: 0, borderColor: url ? '#22c55e' : 'rgba(255, 90, 90,0.5)', color: url ? '#22c55e' : '#FF5A5A', textTransform: 'none', fontSize: 12, minWidth: 110 }}>
             {busy ? 'Uploading…' : url ? 'Replace' : 'Upload'}
             <input type="file" hidden accept={accept}
               onChange={async (e) => {
@@ -355,8 +444,8 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
             {url ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3 }}>
                 <CheckCircleIcon sx={{ color: '#22c55e', fontSize: 14 }} />
-                <Typography component="a" href={url} target="_blank" rel="noopener noreferrer"
-                  sx={{ fontSize: 11, color: '#22c55e', textDecoration: 'none', '&:hover': { textDecoration: 'underline' }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
+                <Typography component="a" href={url} onClick={e => { e.preventDefault(); openFile(url); }} rel="noopener noreferrer"
+                  sx={{ fontSize: 11, color: '#22c55e', textDecoration: 'none', cursor: 'pointer', '&:hover': { textDecoration: 'underline' }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
                   {fname || 'View document'}
                 </Typography>
               </Box>
@@ -387,10 +476,10 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
       };
       return (
         <Box key={f.name} sx={{ gridColumn: '1 / -1' }}>
-          <Box sx={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid rgba(255,90,90,0.15)' }}>
+          <Box sx={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid rgba(255, 90, 90,0.15)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
               <thead>
-                <tr style={{ background: 'rgba(255,90,90,0.07)' }}>
+                <tr style={{ background: 'rgba(255, 90, 90,0.07)' }}>
                   <th style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 70 }}>Plan</th>
                   {f.planFields.map(pf => (
                     <th key={pf.name} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 800, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.4, minWidth: 160 }}>{pf.label}</th>
@@ -447,7 +536,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
               fontSize: 11, fontWeight: 800,
               color: sectionHasError ? '#ef4444' : '#FF5A5A',
               textTransform: 'uppercase', letterSpacing: 1, mb: 1.5, pb: 0.5,
-              borderBottom: `1px solid ${sectionHasError ? 'rgba(239,68,68,0.3)' : 'rgba(255,90,90,0.12)'}`,
+              borderBottom: `1px solid ${sectionHasError ? 'rgba(239,68,68,0.3)' : 'rgba(255, 90, 90,0.12)'}`,
               display: 'flex', alignItems: 'center', gap: 0.8,
             }}>
               {sectionHasError && <WarningAmberRoundedIcon sx={{ fontSize: 13 }} />}
@@ -463,7 +552,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
             let extras = [];
             try { extras = JSON.parse(values[storeKey] || '[]'); } catch {}
             return (
-              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(255,139,90,0.2)' }}>
+              <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed rgba(255, 139, 90,0.2)' }}>
                 {extras.map((item, idx) => (
                   <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
                     <TextField size="small" placeholder={sec.name === 'Additional Clauses' ? 'Clause name…' : 'Cover name…'}
@@ -480,7 +569,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
                       }} sx={{
                         px: 1.5, py: 0.7, borderRadius: '8px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, flexShrink: 0,
                         border: `1.5px solid ${item.value === opt ? '#FF5A5A' : 'rgba(0,0,0,0.12)'}`,
-                        bgcolor: item.value === opt ? 'rgba(255,90,90,0.08)' : 'transparent',
+                        bgcolor: item.value === opt ? 'rgba(255, 90, 90,0.08)' : 'transparent',
                         color: item.value === opt ? '#FF5A5A' : '#9CA3AF', transition: 'all 0.15s',
                       }}>{opt}</Box>
                     ))}
@@ -506,14 +595,158 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
 }
 
 /* ── quote row ─────────────────────────────────────────────────────────────── */
-function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProducts = STATIC_PRODUCTS }) {
+/* ── Quote details dialog — every field and every document on one screen ──── */
+function QuoteDetailsDialog({ quote, onClose, allProducts = STATIC_PRODUCTS }) {
+  const product = allProducts[quote.product_key];
+  const fd = quote.form_data || {};
+
+  // Group all filled, non-file fields by their form section (definition order)
+  const sections = [];
+  let current = { name: 'Details', fields: [] };
+  (product?.fields || []).forEach(f => {
+    if (f.section && f.section !== current.name) {
+      if (current.fields.length) sections.push(current);
+      current = { name: f.section, fields: [] };
+    }
+    if (f.type === 'file' || f.type === 'plantable') return;
+    const v = fd[f.name];
+    if (v === undefined || v === null || v === '' || typeof v === 'object') return;
+    if (typeof v === 'string' && v.startsWith('http')) return;
+    current.fields.push({ name: f.name, label: f.label, value: String(v) });
+  });
+  if (current.fields.length) sections.push(current);
+
+  // Documents uploaded with the quote request (file-type fields)
+  const defDocs = (product?.fields || [])
+    .filter(f => f.type === 'file' && typeof fd[f.name] === 'string' && fd[f.name].startsWith('http'))
+    .map(f => ({ label: f.label, url: fd[f.name], filename: fd[f.name + '_filename'] || '' }));
+
+  // Safety net — any other stored URL not covered by the product definition
+  // (e.g. quotes created from the website or older product versions)
+  const knownUrls = new Set(defDocs.map(d => d.url));
+  const extraDocs = Object.entries(fd)
+    .filter(([k, v]) => typeof v === 'string' && v.startsWith('http') && !knownUrls.has(v) && !k.endsWith('_filename'))
+    .map(([k, v]) => ({
+      label: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      url: v,
+      filename: fd[k + '_filename'] || '',
+    }));
+
+  const requestDocs = [...defDocs, ...extraDocs];
+
+  // Documents uploaded by insurers with their responses
+  const responseDocs = (quote.responses || [])
+    .filter(r => r.quote_file_url)
+    .map(r => ({ label: r.company_name || 'Insurer', url: r.quote_file_url }));
+
+  const DocRow = ({ label, filename, url }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.2, borderRadius: '10px',
+                border: '1px solid rgba(99,102,241,0.15)', bgcolor: 'rgba(99,102,241,0.03)' }}>
+      <DescriptionOutlinedIcon sx={{ color: '#6366f1', fontSize: 20, flexShrink: 0 }} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#374151',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {label}
+        </Typography>
+        {filename && (
+          <Typography sx={{ fontSize: 11, color: '#9CA3AF',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {filename}
+          </Typography>
+        )}
+      </Box>
+      <Button size="small" variant="outlined" onClick={() => openFile(url)}
+        sx={{ fontSize: 11, py: 0.3, flexShrink: 0, borderColor: 'rgba(99,102,241,0.4)', color: '#6366f1' }}>
+        View ↗
+      </Button>
+    </Box>
+  );
+
+  return (
+    <Dialog open onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.2, pr: 6 }}>
+        <Box sx={{ fontSize: 20 }}>{product?.icon || '📋'}</Box>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 800, fontSize: 16 }}>{quote.reference}</Typography>
+          <Typography sx={{ fontSize: 12, color: '#9CA3AF' }}>
+            {product?.label || quote.product_key} · {quote.status || 'draft'}
+            {quote.created_at?.toDate?.() &&
+              ` · ${quote.created_at.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+            {quote.created_by_name && ` · By ${quote.created_by_name}`}
+          </Typography>
+        </Box>
+        <IconButton onClick={onClose} sx={{ position: 'absolute', right: 12, top: 12 }}>
+          <CloseIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ pt: 2 }}>
+        {/* ── Documents first — the reason this dialog exists ── */}
+        <Typography sx={{ fontSize: 11, fontWeight: 800, color: '#6366f1', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
+          📎 Documents ({requestDocs.length + responseDocs.length})
+        </Typography>
+        {requestDocs.length === 0 && responseDocs.length === 0 ? (
+          <Typography sx={{ fontSize: 12.5, color: '#9CA3AF', mb: 2.5 }}>
+            No documents uploaded for this quotation.
+          </Typography>
+        ) : (
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.2, mb: 2.5 }}>
+            {requestDocs.map((d, i) => <DocRow key={`req-${i}`} {...d} />)}
+            {responseDocs.map((d, i) => (
+              <DocRow key={`resp-${i}`} label={`${d.label} — Quotation Document`} url={d.url} />
+            ))}
+          </Box>
+        )}
+
+        {/* ── Every filled field, grouped by form section ── */}
+        {sections.map(sec => (
+          <Box key={sec.name} sx={{ mb: 2.5 }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
+              {sec.name}
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 1.5 }}>
+              {sec.fields.map(f => (
+                <Box key={f.name}>
+                  <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {f.label}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12.5, color: '#374151', fontWeight: 500, wordBreak: 'break-word' }}>
+                    {f.value}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        ))}
+        {sections.length === 0 && (
+          <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>No form details recorded.</Typography>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 1.5 }}>
+        <Button onClick={onClose} variant="outlined" sx={{ borderColor: '#e0e0e0', color: '#6B7280' }}>
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function QuoteRow({ quote, onSelect, onEdit, tab, onDelete, onResend, isManager, allProducts = STATIC_PRODUCTS }) {
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const product = allProducts[quote.product_key];
   const sentCount = quote.sent_to?.length || 0;
   const respondedCount = quote.responses?.length || 0;
 
+  const isIncoming = tab === 'incoming';
+  // Where this incoming request came from (shown as a banner on the Incoming tab).
+  const origin = quote.marketer_id
+    ? { icon: '👤', text: `From marketer: ${quote.marketer_name || quote.marketer_id}${quote.source === 'marketer' ? '' : ' (affiliate link)'}`, grad: 'linear-gradient(90deg,#7c3aed,#a855f7)' }
+    : quote.source === 'website'
+      ? { icon: '🌐', text: 'From website — direct customer request', grad: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' }
+      : { icon: '📝', text: 'Draft — created in-house, not yet sent', grad: 'linear-gradient(90deg,#6B7280,#9CA3AF)' };
+
   const created = quote.created_at?.toDate?.()
-    ? quote.created_at.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    ? quote.created_at.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—';
 
   const hasCustomerSel = !!quote.customer_selection;            // customer picked (green)
@@ -522,7 +755,18 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
   const brokerCompany  = quote.selected_company || quote.customer_selection?.company_name || '';
 
   return (
-    <Card sx={{ mb: 1.5, border: `1px solid ${hasSelection ? 'rgba(16,185,129,0.35)' : 'rgba(255,139,90,0.12)'}`, boxShadow: hasSelection ? '0 0 0 2px rgba(16,185,129,0.08)' : 'none' }}>
+    <Card sx={{ mb: 1.5, border: `1px solid ${hasSelection ? 'rgba(16,185,129,0.35)' : isIncoming ? 'rgba(255, 90, 90,0.30)' : 'rgba(255, 139, 90,0.12)'}`, boxShadow: hasSelection ? '0 0 0 2px rgba(16,185,129,0.08)' : 'none' }}>
+      {isIncoming && (
+        <Box sx={{ background: origin.grad, px: 2.5, py: 0.9, display: 'flex', alignItems: 'center', gap: 1.2 }}>
+          <Box sx={{ fontSize: 15 }}>{origin.icon}</Box>
+          <Typography sx={{ fontWeight: 700, fontSize: 12.5, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {origin.text}
+          </Typography>
+          <Typography sx={{ fontSize: 10.5, color: 'rgba(255,255,255,0.85)', ml: 'auto', flexShrink: 0, whiteSpace: 'nowrap', pl: 1 }}>
+            needs review before sending
+          </Typography>
+        </Box>
+      )}
       {hasSelection && (
         // When both the broker has confirmed AND the customer has selected, the two
         // banners sit side-by-side (half each); otherwise the single banner is full width.
@@ -550,11 +794,11 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
       )}
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         <Box sx={{ px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5,
-                    cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255,90,90,0.02)' } }}
+                    cursor: 'pointer', '&:hover': { bgcolor: 'rgba(255, 90, 90,0.02)' } }}
              onClick={() => setOpen(o => !o)}>
           <Box sx={{ width: 38, height: 38, borderRadius: '10px', flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: product?.color ? `${product.color}18` : 'rgba(255,90,90,0.08)',
+                      background: product?.color ? `${product.color}18` : 'rgba(255, 90, 90,0.08)',
                       fontSize: 18 }}>
             {product?.icon || '📋'}
           </Box>
@@ -564,11 +808,14 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
                 {quote.reference}
               </Typography>
               <Chip label={product?.label || quote.product_key} size="small"
-                sx={{ bgcolor: 'rgba(255,90,90,0.08)', color: '#FF5A5A', fontWeight: 600, fontSize: 10 }} />
-              {quote.source === 'website' && (
-                <Chip label="🌐 From Website" size="small"
-                  sx={{ bgcolor: 'rgba(255,106,26,0.12)', color: '#E8431E', fontWeight: 700, fontSize: 10 }} />
-              )}
+                sx={{ bgcolor: 'rgba(255, 90, 90,0.08)', color: '#FF5A5A', fontWeight: 600, fontSize: 10 }} />
+              {quote.marketer_id ? (
+                <Chip label={`👤 ${quote.marketer_name || quote.marketer_id}${quote.source === 'marketer' ? '' : ' (link)'}`} size="small"
+                  sx={{ bgcolor: 'rgba(139,92,246,0.12)', color: '#7c3aed', fontWeight: 700, fontSize: 10 }} />
+              ) : quote.source === 'website' ? (
+                <Chip label="🌐 Direct Website" size="small"
+                  sx={{ bgcolor: 'rgba(255, 90, 90,0.12)', color: '#E04848', fontWeight: 700, fontSize: 10 }} />
+              ) : null}
               {hasCustomerSel && (
                 <Chip label={`🏆 ${quote.customer_selection.company_name}`} size="small"
                   sx={{ bgcolor: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 700, fontSize: 10 }} />
@@ -584,6 +831,18 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} alignItems="center">
+            <Button size="small" variant="outlined" startIcon={<VisibilityOutlinedIcon sx={{ fontSize: 15 }} />}
+              onClick={e => { e.stopPropagation(); setDetailsOpen(true); }}
+              sx={{ fontSize: 11, py: 0.4, borderColor: 'rgba(99,102,241,0.35)', color: '#6366f1', flexShrink: 0 }}>
+              View
+            </Button>
+            {isIncoming && onEdit && (
+              <Button size="small" variant="contained" startIcon={<EditOutlinedIcon sx={{ fontSize: 15 }} />}
+                onClick={e => { e.stopPropagation(); onEdit(quote); }}
+                sx={{ fontSize: 11, py: 0.4, flexShrink: 0, background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)', boxShadow: 'none' }}>
+                Edit &amp; Send
+              </Button>
+            )}
             {(tab === 'received' || tab === 'sent') && sentCount > 0 && (
               <Chip
                 label={`${respondedCount}/${sentCount} received`}
@@ -598,7 +857,7 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
             {(tab === 'compare' || (tab === 'sent' && respondedCount > 0)) && (
               <Button size="small" variant="outlined" startIcon={<CompareArrowsIcon />}
                 onClick={e => { e.stopPropagation(); onSelect(quote); }}
-                sx={{ fontSize: 11, py: 0.4, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A', flexShrink: 0 }}>
+                sx={{ fontSize: 11, py: 0.4, borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A', flexShrink: 0 }}>
                 Compare
               </Button>
             )}
@@ -607,7 +866,7 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
         </Box>
 
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px: 2.5, pb: 2, pt: 0.5, borderTop: '1px solid rgba(255,139,90,0.08)' }}>
+          <Box sx={{ px: 2.5, pb: 2, pt: 0.5, borderTop: '1px solid rgba(255, 139, 90,0.08)' }}>
             {/* Form data summary — only show labelled, non-file, non-URL fields */}
             <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1.5, mb: 2 }}>
               {(product?.fields || [])
@@ -704,6 +963,9 @@ function QuoteRow({ quote, onSelect, tab, onDelete, onResend, isManager, allProd
           </Box>
         </Collapse>
       </CardContent>
+      {detailsOpen && (
+        <QuoteDetailsDialog quote={quote} onClose={() => setDetailsOpen(false)} allProducts={allProducts} />
+      )}
     </Card>
   );
 }
@@ -722,7 +984,7 @@ function parseDynamicExtras(formData, storeKey) {
 }
 
 /* ── comparison view ──────────────────────────────────────────────────────── */
-function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCTS }) {
+function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCTS, broker = {} }) {
   const product   = allProducts[quote?.product_key];
   // Locally removed responses (deleted by the broker) — filtered out immediately
   // while the Firestore write propagates.
@@ -751,6 +1013,21 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
   const isPlansProduct = !!product?.hasPlans;
   const planCount = isPlansProduct ? Math.max(parseInt(quote?.form_data?.no_of_plans) || 1, 1) : 0;
 
+  // Insurer premium fields to compare, tailored to this product: standard fields
+  // the admin kept (not in hiddenInsurerFields) plus any custom fields they added.
+  const hiddenPrem = new Set(product?.hiddenInsurerFields || []);
+  const customPrem = product?.customInsurerFields || [];
+  const STD_PREM_ROWS = [
+    { key: 'basic_premium', label: 'Basic Premium (LKR)' },
+    { key: 'srcc_premium',  label: 'SRCC (LKR)' },
+    { key: 'tc_premium',    label: 'TC (LKR)' },
+    { key: 'admin_fee',     label: 'Admin Fee (LKR)' },
+    { key: 'vat_amount',    label: 'VAT (LKR)' },
+    { key: 'other_premium', label: 'Other (LKR)' },
+  ];
+  const premRows = STD_PREM_ROWS.filter(r => !hiddenPrem.has(r.key));
+  const respCustom = (r, key) => { const cf = (r.custom_fields || []).find(c => c.key === key); return cf ? cf.value : ''; };
+
   // ── Broker response-edit state ──────────────────────────────────────────────
   const [editTarget,       setEditTarget]       = useState(null);
   const [editForm,         setEditForm]         = useState({});
@@ -775,6 +1052,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
       commission_type: r.commission_type || '',
       validity_days:   r.validity_days?.toString()  || '',
       notes:           r.notes          || '',
+      ...Object.fromEntries((r.custom_fields || []).map(cf => [cf.key, (cf.value ?? '').toString()])),
     });
     setEditCoverResp(r.cover_responses   ? JSON.parse(JSON.stringify(r.cover_responses))  : {});
     setEditClauseResp(r.clause_responses ? JSON.parse(JSON.stringify(r.clause_responses)) : {});
@@ -802,11 +1080,16 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 const af = Number(editForm.admin_fee)     || 0;
                 const vt = Number(editForm.vat_amount)    || 0;
                 const op = Number(editForm.other_premium) || 0;
-                return { basic_premium: bp, srcc_premium: sp, tc_premium: tc, admin_fee: af, vat_amount: vt, other_premium: op, premium: bp + sp + tc + af + vt + op };
+                const customSum = customPrem.filter(cf => cf.type !== 'text').reduce((s, cf) => s + (Number(editForm[cf.key]) || 0), 0);
+                return { basic_premium: bp, srcc_premium: sp, tc_premium: tc, admin_fee: af, vat_amount: vt, other_premium: op, premium: bp + sp + tc + af + vt + op + customSum };
               })();
+          const custom_fields = customPrem
+            .filter(cf => editForm[cf.key] !== undefined && editForm[cf.key] !== '')
+            .map(cf => ({ key: cf.key, label: cf.label, type: cf.type || 'currency', value: editForm[cf.key] }));
           return {
             ...r,
             ...premiumFields,
+            ...(custom_fields.length ? { custom_fields } : {}),
             deductible:       editForm.deductible,
             excesses:         editForm.excesses,
             commission_type:  editForm.commission_type,
@@ -828,6 +1111,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
   // Remove a single insurer's response from this comparison (persisted).
   const deleteResponse = async () => {
     if (!deleteResp) return;
+    if (!confirmTypedDelete(`Remove ${deleteResp.company_name || 'this insurer'}'s quote response?`)) { setDeleteResp(null); return; }
     setDeletingResp(true);
     try {
       const snap = await getDoc(doc(db, 'quotes', quote.id));
@@ -884,21 +1168,26 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
               `<tr style="background:${i%2===0?'#F0F9FF':'#fff'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;">${label}</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;">${getter(r)}</td>`).join('')}</tr>`
             )),
           ].join('')).join('') +
-          `<tr style="background:#E0F2FE"><td style="padding:8px 14px;font-weight:800;color:#0891b2;">Grand Total (LKR)</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;"><strong style="color:#0891b2">${fmt(r.premium)}</strong></td>`).join('')}</tr>`
-        : [
-            ['Basic Premium (LKR)', r => fmt(r.basic_premium)],
-            ['SRCC (LKR)',          r => fmt(r.srcc_premium)],
-            ['TC (LKR)',            r => fmt(r.tc_premium)],
-            ['Admin Fee (LKR)',     r => fmt(r.admin_fee)],
-            ['VAT (LKR)',           r => fmt(r.vat_amount)],
-            ['Other (LKR)',         r => fmt(r.other_premium)],
-            ['Total Premium (LKR)', r => `<strong style="color:#FF5A5A">${fmt(r.premium)}</strong>`],
-          ].map(([label, getter], i) =>
-            `<tr style="background:${i%2===0?'#FFF8F5':'#fff'}"><td style="padding:8px 14px;font-weight:600;color:#374151;">${label}</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;">${getter(r)}</td>`).join('')}</tr>`
-          ).join('');
-      const deductiblesRow = `<tr style="background:#FFF8F5"><td style="padding:8px 14px;font-weight:600;color:#374151;">Deductibles</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.deductible||'—'}</td>`).join('')}</tr>`;
-      const excessRow      = `<tr><td style="padding:8px 14px;font-weight:600;color:#374151;">Excesses</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.excesses||'—'}</td>`).join('')}</tr>`;
-      const validityRow    = `<tr style="background:#FFF8F5"><td style="padding:8px 14px;font-weight:600;color:#374151;">Validity (days)</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;text-align:center;">${r.validity_days||'—'}</td>`).join('')}</tr>`;
+          (product?.hideInsurerTotal ? '' : `<tr style="background:#E0F2FE"><td style="padding:8px 14px;font-weight:800;color:#0891b2;">Grand Total (LKR)</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;"><strong style="color:#0891b2">${fmt(r.premium)}</strong></td>`).join('')}</tr>`)
+        : (() => {
+            const rows = [
+              ['basic_premium', 'Basic Premium (LKR)'],
+              ['srcc_premium',  'SRCC (LKR)'],
+              ['tc_premium',    'TC (LKR)'],
+              ['admin_fee',     'Admin Fee (LKR)'],
+              ['vat_amount',    'VAT (LKR)'],
+              ['other_premium', 'Other (LKR)'],
+            ].filter(([k]) => !hiddenPrem.has(k)).map(([k, label]) => [label, r => fmt(r[k])]);
+            customPrem.forEach(cf => rows.push([`${cf.label}${cf.type !== 'text' ? ' (LKR)' : ''}`,
+              r => { const v = respCustom(r, cf.key); return (v === '' || v == null) ? '—' : (cf.type === 'text' ? String(v) : fmt(v)); }]));
+            if (!product?.hideInsurerTotal) rows.push(['Total Premium (LKR)', r => `<strong style="color:#FF5A5A">${fmt(r.premium)}</strong>`]);
+            return rows.map(([label, getter], i) =>
+              `<tr style="background:${i%2===0?'#FFF5F2':'#fff'}"><td style="padding:8px 14px;font-weight:600;color:#374151;">${label}</td>${responses.map(r => `<td style="padding:8px 14px;text-align:right;">${getter(r)}</td>`).join('')}</tr>`
+            ).join('');
+          })();
+      const deductiblesRow = hiddenPrem.has('deductible') ? '' : `<tr style="background:#FFF5F2"><td style="padding:8px 14px;font-weight:600;color:#374151;">Deductibles</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.deductible||'—'}</td>`).join('')}</tr>`;
+      const excessRow      = hiddenPrem.has('excesses') ? '' : `<tr><td style="padding:8px 14px;font-weight:600;color:#374151;">Excesses</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;">${r.excesses||'—'}</td>`).join('')}</tr>`;
+      const validityRow    = `<tr style="background:#FFF5F2"><td style="padding:8px 14px;font-weight:600;color:#374151;">Validity (days)</td>${responses.map(r => `<td style="padding:8px 14px;color:#4B5563;text-align:center;">${r.validity_days||'—'}</td>`).join('')}</tr>`;
       // Covers section (static + dynamic custom covers)
       const cvFields = [
         ...(product?.fields || []).filter(f => ['Covers Required','Cover Required'].includes(f.section) && f.type === 'yesno' && quote.form_data?.[f.name] === 'Yes'),
@@ -917,7 +1206,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           const t = cr?.terms ? `<br/><span style="font-size:10px;color:#9CA3AF;">${cr.terms}</span>` : '';
           return `<td style="padding:8px 14px;text-align:center;"><span style="font-weight:700;color:${c};">${p}</span>${t}</td>`;
         }).join('');
-        return `<tr style="background:${i%2===0?'#fff':'#FFF8F5'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
+        return `<tr style="background:${i%2===0?'#fff':'#FFF5F2'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
       }).join('') : '';
       const clauseRows = clFields.length > 0 ? sectionHeader('Additional Clauses') + clFields.map((f,i) => {
         const cells = responses.map(r => {
@@ -927,7 +1216,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           const t = cr?.terms ? `<br/><span style="font-size:10px;color:#9CA3AF;">${cr.terms}</span>` : '';
           return `<td style="padding:8px 14px;text-align:center;"><span style="font-weight:700;color:${c};">${p}</span>${t}</td>`;
         }).join('');
-        return `<tr style="background:${i%2===0?'#fff':'#FFF8F5'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
+        return `<tr style="background:${i%2===0?'#fff':'#FFF5F2'}"><td style="padding:8px 14px 8px 22px;font-weight:600;color:#374151;font-size:12px;">${f.label}</td>${cells}</tr>`;
       }).join('') : '';
       const isImg = (url) => url && /\.(jpe?g|png|gif|webp|avif)(\?|$)/i.test(url);
       const docRow = `<tr style="background:#F9F9FB"><td style="padding:10px 14px;font-weight:600;color:#374151;">Uploaded Quote</td>${
@@ -944,7 +1233,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
       // Selection buttons + PDF download link for email (table-based for Outlook/Gmail compatibility)
       const baseUrl = window.location.origin;
       const selectionSection = `
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:2px solid #ffe0d4;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:2px solid #D6E6F5;">
           <tr><td style="padding:20px 0;text-align:center;">
             <p style="margin:0 0 10px;color:#1A1A2E;font-size:15px;font-weight:700;font-family:Arial,sans-serif;">Select Your Preferred Insurer</p>
             <p style="margin:0 0 18px;color:#6B7280;font-size:13px;font-family:Arial,sans-serif;">Click the company you would like to proceed with:</p>
@@ -987,6 +1276,9 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           product:       product?.label || quote.product_key,
           table_html:    tableHtml + selectionSection,
           company_count: responses.length,
+          broker_name:   broker.broker_name  || 'Your Broker',
+          broker_email:  broker.broker_email || '',
+          broker_phone:  broker.broker_phone || '',
         },
         { publicKey: EMAILJS_KEY }
       );
@@ -1017,11 +1309,11 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     const ws = wb.addWorksheet('Quote Comparison', { pageSetup: { orientation: 'landscape', fitToPage: true } });
     ws.columns = [{ width: 34 }, ...responses.map(() => ({ width: 24 }))];
 
-    const DARK  = 'FF1A1A2E';
-    const RED   = 'FFFF5A5A';
-    const AMBER = 'FFFF8B5A';
+    const DARK  = 'FF0A1A3E';
+    const RED   = 'FF255EAB';
+    const AMBER = 'FF38A3E0';
     const WHITE = 'FFFFFFFF';
-    const LIGHT = 'FFFFF8F5';
+    const LIGHT = 'FFF2F7FC';
     const GREY  = 'FFF9FAFB';
 
     const mergedRow = (text, bg, fg, sz, h = 20, align = 'center') => {
@@ -1062,7 +1354,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     };
 
     // ── Title block ──
-    mergedRow('InsureSAAS', RED, WHITE, 15, 30, 'center');
+    mergedRow('INSURESAAS INSURANCE BROKERS (PVT) LTD', RED, WHITE, 15, 30, 'center');
     mergedRow('INSURANCE BROKING & RISK MANAGEMENT  ·  Sri Lanka', DARK, AMBER, 9, 18, 'center');
 
     // ── Reference info block ──
@@ -1094,8 +1386,9 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           ['Plan Total (LKR)',    r => Number(r.plan_premiums?.[pi]?.total || 0).toLocaleString()],
         ].forEach(([label, getter], i) => addDataRow(label, responses.map(getter), label.startsWith('Plan Total'), false, i));
       }
-      addDataRow('GRAND TOTAL (LKR)', responses.map(r => Number(r.premium || 0).toLocaleString()), true);
+      if (!product?.hideInsurerTotal) addDataRow('GRAND TOTAL (LKR)', responses.map(r => Number(r.premium || 0).toLocaleString()), true);
     } else {
+      let ri = 0;
       [
         ['Basic Premium (LKR)',  'basic_premium'],
         ['SRCC (LKR)',           'srcc_premium'],
@@ -1103,14 +1396,15 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
         ['Admin Fee (LKR)',      'admin_fee'],
         ['VAT (LKR)',            'vat_amount'],
         ['Other (LKR)',          'other_premium'],
-      ].forEach(([label, key], i) => addDataRow(label, responses.map(r => r[key] ? Number(r[key]).toLocaleString() : '—'), false, false, i));
-      addDataRow('TOTAL PREMIUM (LKR)', responses.map(r => Number(r.premium || 0).toLocaleString()), true);
+      ].filter(([, key]) => !hiddenPrem.has(key)).forEach(([label, key]) => addDataRow(label, responses.map(r => r[key] ? Number(r[key]).toLocaleString() : '—'), false, false, ri++));
+      customPrem.forEach(cf => addDataRow(`${cf.label}${cf.type !== 'text' ? ' (LKR)' : ''}`, responses.map(r => { const v = respCustom(r, cf.key); return (v === '' || v == null) ? '—' : (cf.type === 'text' ? String(v) : Number(v).toLocaleString()); }), false, false, ri++));
+      if (!product?.hideInsurerTotal) addDataRow('TOTAL PREMIUM (LKR)', responses.map(r => Number(r.premium || 0).toLocaleString()), true);
     }
 
     // ── Deductibles & Validity ──
     addSection('DEDUCTIBLES, EXCESSES & VALIDITY');
-    addDataRow('Deductibles',    responses.map(r => r.deductible    || '—'), false, false, 0);
-    addDataRow('Excesses',       responses.map(r => r.excesses      || '—'), false, false, 1);
+    if (!hiddenPrem.has('deductible')) addDataRow('Deductibles', responses.map(r => r.deductible || '—'), false, false, 0);
+    if (!hiddenPrem.has('excesses'))   addDataRow('Excesses',    responses.map(r => r.excesses   || '—'), false, false, 1);
     addDataRow('Validity (days)',responses.map(r => r.validity_days  || '—'), false, false, 2);
 
     // ── Commission (broker only) ──
@@ -1211,18 +1505,18 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
     <Box>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
         <Button startIcon={<ArrowBackIcon />} onClick={onBack} variant="outlined"
-          sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A' }}>
+          sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A' }}>
           Back
         </Button>
         <Typography sx={{ fontWeight: 800, fontSize: 18 }}>
           Quote Comparison — {quote.reference}
         </Typography>
-        <Chip label={product?.label} sx={{ bgcolor: 'rgba(255,90,90,0.08)', color: '#FF5A5A', fontWeight: 700 }} />
+        <Chip label={product?.label} sx={{ bgcolor: 'rgba(255, 90, 90,0.08)', color: '#FF5A5A', fontWeight: 700 }} />
         <Box sx={{ flex: 1 }} />
         <Button variant="outlined" size="small"
           startIcon={exportingExcel ? <CircularProgress size={12} color="inherit" /> : <FileDownloadOutlinedIcon />}
           onClick={exportExcel} disabled={exportingExcel}
-          sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A' }}>
+          sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A' }}>
           {exportingExcel ? 'Exporting…' : 'Export Excel'}
         </Button>
         <Button variant="outlined" size="small"
@@ -1290,7 +1584,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
           <Typography sx={{ color: '#9CA3AF' }}>No responses received yet for this quote.</Typography>
         </Box>
       ) : (
-        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(255,139,90,0.12)', borderRadius: '14px', mb: 3 }}>
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid rgba(255, 139, 90,0.12)', borderRadius: '14px', mb: 3 }}>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -1358,6 +1652,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                       ))}
                     </React.Fragment>
                   ))}
+                  {!product?.hideInsurerTotal && (
                   <TableRow sx={{ bgcolor: 'rgba(8,145,178,0.10)' }}>
                     <TableCell sx={{ fontWeight: 800, color: '#0891b2' }}>Grand Total (LKR)</TableCell>
                     {responses.map(r => (
@@ -1365,19 +1660,12 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                         {Number(r.premium || 0).toLocaleString()}
                       </TableCell>
                     ))}
-                  </TableRow>
+                  </TableRow>)}
                 </>
               ) : (
                 <>
-                  {[
-                    { key: 'basic_premium', label: 'Basic Premium (LKR)' },
-                    { key: 'srcc_premium',  label: 'SRCC (LKR)' },
-                    { key: 'tc_premium',    label: 'TC (LKR)' },
-                    { key: 'admin_fee',     label: 'Admin Fee (LKR)' },
-                    { key: 'vat_amount',    label: 'VAT (LKR)' },
-                    { key: 'other_premium', label: 'Other (LKR)' },
-                  ].map((row, i) => (
-                    <TableRow key={row.key} sx={{ bgcolor: i % 2 === 0 ? 'rgba(255,248,245,0.4)' : '#fff' }}>
+                  {premRows.map((row, i) => (
+                    <TableRow key={row.key} sx={{ bgcolor: i % 2 === 0 ? 'rgba(255, 245, 242,0.4)' : '#fff' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5 }}>{row.label}</TableCell>
                       {responses.map(r => (
                         <TableCell key={r.id} align="center" sx={{ fontSize: 12.5 }}>
@@ -1386,14 +1674,28 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                       ))}
                     </TableRow>
                   ))}
-                  <TableRow sx={{ bgcolor: 'rgba(255,90,90,0.06)' }}>
+                  {customPrem.map((cf, i) => (
+                    <TableRow key={cf.key} sx={{ bgcolor: (premRows.length + i) % 2 === 0 ? 'rgba(255, 245, 242,0.4)' : '#fff' }}>
+                      <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5 }}>{cf.label}{cf.type !== 'text' ? ' (LKR)' : ''}</TableCell>
+                      {responses.map(r => {
+                        const v = respCustom(r, cf.key);
+                        return (
+                          <TableCell key={r.id} align="center" sx={{ fontSize: 12.5 }}>
+                            {v === '' || v == null ? '—' : (cf.type === 'text' ? v : Number(v).toLocaleString())}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                  {!product?.hideInsurerTotal && (
+                  <TableRow sx={{ bgcolor: 'rgba(255, 90, 90,0.06)' }}>
                     <TableCell sx={{ fontWeight: 800, color: '#FF5A5A' }}>Total Premium (LKR)</TableCell>
                     {responses.map(r => (
                       <TableCell key={r.id} align="center" sx={{ fontWeight: 800, color: '#FF5A5A', fontSize: 15 }}>
                         {Number(r.premium || 0).toLocaleString()}
                       </TableCell>
                     ))}
-                  </TableRow>
+                  </TableRow>)}
                 </>
               )}
               {/* Commission — broker internal only */}
@@ -1416,7 +1718,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 { key: 'deductible',   label: 'Deductibles' },
                 { key: 'excesses',     label: 'Excesses' },
                 { key: 'validity_days', label: 'Validity (days)' },
-              ].map((row, i) => (
+              ].filter(row => row.key === 'validity_days' || !hiddenPrem.has(row.key)).map((row, i) => (
                 <TableRow key={row.key} sx={{ bgcolor: i % 2 === 0 ? 'rgba(107,114,128,0.04)' : '#fff' }}>
                   <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5 }}>{row.label}</TableCell>
                   {responses.map(r => (
@@ -1437,7 +1739,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                     </TableCell>
                   </TableRow>
                   {coverFields.map((f, i) => (
-                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)' }}>
+                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255, 245, 242,0.5)' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5, pl: 3 }}>{f.label}</TableCell>
                       {responses.map(r => {
                         const cr = r.cover_responses?.[f.name];
@@ -1472,7 +1774,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                     </TableCell>
                   </TableRow>
                   {clauseFields.map((f, i) => (
-                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)' }}>
+                    <TableRow key={f.name} sx={{ bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255, 245, 242,0.5)' }}>
                       <TableCell sx={{ fontWeight: 600, color: '#374151', fontSize: 12.5, pl: 3 }}>{f.label}</TableCell>
                       {responses.map(r => {
                         const cr = r.clause_responses?.[f.name];
@@ -1630,17 +1932,16 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
             Premium Breakdown
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 2.5 }}>
-            {[
-              { key: 'basic_premium', label: 'Basic Premium (LKR)' },
-              { key: 'srcc_premium',  label: 'SRCC (LKR)'          },
-              { key: 'tc_premium',    label: 'TC (LKR)'             },
-              { key: 'admin_fee',     label: 'Admin Fee (LKR)'      },
-              { key: 'vat_amount',    label: 'VAT (LKR)'            },
-              { key: 'other_premium', label: 'Other (LKR)'          },
-            ].map(({ key, label }) => (
+            {premRows.map(({ key, label }) => (
               <TextField key={key} size="small" fullWidth label={label} type="number"
                 value={editForm[key] || ''}
                 onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))} />
+            ))}
+            {customPrem.map(cf => (
+              <TextField key={cf.key} size="small" fullWidth label={`${cf.label}${cf.type !== 'text' ? ' (LKR)' : ''}`}
+                type={cf.type === 'text' ? 'text' : 'number'}
+                value={editForm[cf.key] || ''}
+                onChange={e => setEditForm(f => ({ ...f, [cf.key]: e.target.value }))} />
             ))}
           </Box>
 
@@ -1687,7 +1988,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 {coverFields.map((f, i) => {
                   const cr = editCoverResp[f.name] || { provided: '', terms: '' };
                   return (
-                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)', borderBottom: i < coverFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255, 245, 242,0.5)', borderBottom: i < coverFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{f.label}</Typography>
                       <Select size="small" value={cr.provided} displayEmpty fullWidth
                         onChange={e => setECover(f.name, 'provided', e.target.value)}>
@@ -1716,7 +2017,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                 {clauseFields.map((f, i) => {
                   const cr = editClauseResp[f.name] || { provided: '', terms: '' };
                   return (
-                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.5)', borderBottom: i < clauseFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                    <Box key={f.name} sx={{ display: 'grid', gridTemplateColumns: '1fr 110px 1fr', gap: 1.5, alignItems: 'center', p: 1.2, bgcolor: i % 2 === 0 ? '#fff' : 'rgba(255, 245, 242,0.5)', borderBottom: i < clauseFields.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{f.label}</Typography>
                       <Select size="small" value={cr.provided} displayEmpty fullWidth
                         onChange={e => setEClause(f.name, 'provided', e.target.value)}>
@@ -1760,8 +2061,15 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
 const QuotationsPage = () => {
   const { user, userProfile, allProducts: ctxProducts } = useAuth();
   const allP = ctxProducts || STATIC_PRODUCTS;
+  // The staff member sending — shown to insurers & customers so they know who
+  // to reach. Falls back gracefully when a field isn't set on the profile.
+  const brokerInfo = useMemo(() => ({
+    broker_name:  userProfile?.full_name || user?.displayName || user?.email?.split('@')[0] || 'Your Broker',
+    broker_email: userProfile?.email || user?.email || '',
+    broker_phone: userProfile?.phone || '',
+  }), [userProfile, user]);
   const productList = useMemo(
-    () => Object.entries(allP).map(([key, val]) => ({ key, ...val })),
+    () => Object.entries(allP).filter(([, val]) => !val.hidden).map(([key, val]) => ({ key, ...val })),
     [allP],
   );
   const [tab,           setTab]           = useState(0);
@@ -1787,6 +2095,7 @@ const QuotationsPage = () => {
   const [unfinalisedOnly, setUnfinalisedOnly] = useState(false);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
   const [deleting,       setDeleting]       = useState(false);
+  const [editingQuoteId, setEditingQuoteId] = useState(null); // editing an incoming/website draft before sending
   const [fieldErrors,    setFieldErrors]    = useState({});
   const [valIssues,      setValIssues]      = useState({ missing: [], invalid: [] });
   const [valOpen,        setValOpen]        = useState(false);
@@ -1818,6 +2127,7 @@ const QuotationsPage = () => {
   // Auto-save draft to localStorage while form is open
   useEffect(() => {
     if (!newQuoteOpen) return;
+    if (editingQuoteId) return; // editing an existing quote — don't treat it as a new-quote draft
     if (Object.keys(formValues).length === 0) return;
     clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(() => {
@@ -1827,12 +2137,20 @@ const QuotationsPage = () => {
       } catch (_) {}
     }, 800);
     return () => clearTimeout(draftTimerRef.current);
-  }, [formValues, product, newQuoteOpen]);
+  }, [formValues, product, newQuoteOpen, editingQuoteId]);
 
   // Load companies
   useEffect(() => {
     getDocs(collection(db, 'insurance_companies'))
       .then(snap => setCompanies(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+      .catch(() => {});
+  }, []);
+
+  // Existing clients — used to auto-suggest & auto-fill the proposer details.
+  const [clients, setClients] = useState([]);
+  useEffect(() => {
+    getDocs(collection(db, 'clients'))
+      .then(snap => setClients(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.client_name)))
       .catch(() => {});
   }, []);
 
@@ -1897,6 +2215,9 @@ const QuotationsPage = () => {
     () => quotes.filter(q => q.not_finalised === true).length,
     [quotes]);
 
+  // Incoming = not yet sent to any insurer. This is where website & marketer
+  // submissions land so staff can review, edit, and forward them to insurers.
+  const incomingQuotes = filteredQuotes.filter(q => (q.sent_to?.length || 0) === 0);
   const sentQuotes     = filteredQuotes.filter(q => (q.sent_to?.length || 0) > 0);
   const receivedQuotes = filteredQuotes.filter(q => (q.responses?.length || 0) > 0);
   const compareQuotes  = receivedQuotes; // only quotes with at least 1 response can be compared
@@ -1905,6 +2226,30 @@ const QuotationsPage = () => {
     setFormValues(v => ({ ...v, [name]: val }));
     setFieldErrors(e => { const n = { ...e }; delete n[name]; return n; });
   }, []);
+
+  // Open the New/Edit Quote dialog pre-filled with an incoming quote's details
+  // (from the website or a marketer) so staff can review/edit before sending it
+  // on to the insurers.
+  const openEditQuote = (quote) => {
+    setEditingQuoteId(quote.id);
+    setProduct(quote.product_key || 'fire');
+    setFormValues({ ...(quote.form_data || {}) });
+    setFieldErrors({});
+    setDraftBanner(null);
+    setNewQuoteOpen(true);
+  };
+
+  const closeQuoteDialog = () => {
+    if (editingQuoteId) {
+      // Editing an existing quote — discard nothing to the draft store, just close.
+      setEditingQuoteId(null);
+      setFormValues({});
+      setFieldErrors({});
+    } else {
+      flushDraftSave();
+    }
+    setNewQuoteOpen(false);
+  };
 
   const handleCreateQuote = async () => {
     const { errors, missing, invalid } = validateForm(product, formValues, allP);
@@ -1919,6 +2264,32 @@ const QuotationsPage = () => {
     setSaving(true);
     try {
       const customerName = formValues[allP[product]?.customerNameField || ''] || '';
+
+      // Editing an incoming/website draft: update its details in place, keep its
+      // reference and origin, then jump straight to insurer selection to send it.
+      if (editingQuoteId) {
+        const existing = quotes.find(q => q.id === editingQuoteId);
+        const reference = existing?.reference || formValues.ceilao_ib_file_no || genRef(product, customerName, allP);
+        const form_data = { ...formValues, ceilao_ib_file_no: formValues.ceilao_ib_file_no || reference };
+        await updateDoc(doc(db, 'quotes', editingQuoteId), {
+          product_key:   product,
+          product_label: allP[product]?.label || product,
+          form_data,
+          updated_at:    serverTimestamp(),
+        });
+        logActivity(`Edited quote ${reference}${customerName ? ` for ${customerName}` : ''}`);
+        setQuotes(prev => prev.map(q => q.id === editingQuoteId
+          ? { ...q, product_key: product, product_label: allP[product]?.label || product, form_data }
+          : q));
+        setPendingQuote({ id: editingQuoteId, reference, form_data, product_key: product });
+        setEditingQuoteId(null);
+        setNewQuoteOpen(false);
+        setSendOpen(true);
+        setFormValues({});
+        setSaving(false);
+        return;
+      }
+
       const reference = genRef(product, customerName, allP);
       const ref = await addDoc(collection(db, 'quotes'), {
         reference,
@@ -1933,6 +2304,7 @@ const QuotationsPage = () => {
         created_at:      serverTimestamp(),
         updated_at:      serverTimestamp(),
       });
+      logActivity(`Created quote ${reference}${customerName ? ` for ${customerName}` : ''}`);
       // Optimistic update — add draft to local state immediately
       setQuotes(prev => [{
         id: ref.id, reference, product_key: product,
@@ -1982,6 +2354,7 @@ const QuotationsPage = () => {
               if (k === 'insuresaas_ib_file_no') return false;
               const fd = productFields.find(f => f.name === k);
               if (!fd) return false;
+              if (fd.hideFromInsurer) return false; // admin hid this from the insurer
               if (fd.section === 'Introducer') return false;
               if (fd.section === 'Document Uploads') return false;
               if (fd.type === 'file') return false;
@@ -2004,6 +2377,9 @@ const QuotationsPage = () => {
                 product:       productLabel,
                 response_link: responseUrl,
                 details,
+                broker_name:   brokerInfo.broker_name,
+                broker_email:  brokerInfo.broker_email,
+                broker_phone:  brokerInfo.broker_phone,
               }, { publicKey: EMAILJS_KEY });
             } catch (emailErr) {
               const msg = emailErr?.text || emailErr?.message || 'Unknown error';
@@ -2016,6 +2392,7 @@ const QuotationsPage = () => {
       await updateDoc(doc(db, 'quotes', pendingQuote.id), {
         sent_to: sentTo, status: 'sent', updated_at: serverTimestamp(),
       });
+      logActivity(`Sent quote ${pendingQuote.reference} to ${sentTo.length} insurer${sentTo.length > 1 ? 's' : ''}`);
 
       // Optimistic update — mark as sent in local state immediately
       setQuotes(prev => prev.map(q =>
@@ -2030,7 +2407,7 @@ const QuotationsPage = () => {
       } else {
         setToast({ open: true, msg: `Quote request sent to ${sentTo.length} insurer${sentTo.length > 1 ? 's' : ''}!`, severity: 'success' });
       }
-      setTab(0);
+      setTab(1); // jump to the Sent tab
     } catch (err) {
       setToast({ open: true, msg: err.message, severity: 'error' });
     }
@@ -2062,6 +2439,9 @@ const QuotationsPage = () => {
           product:       productLabel,
           response_link: responseUrl,
           details:       'This is a resent quote request. Please use the link above to submit your quotation.',
+          broker_name:   brokerInfo.broker_name,
+          broker_email:  brokerInfo.broker_email,
+          broker_phone:  brokerInfo.broker_phone,
         }, { publicKey: EMAILJS_KEY });
         sent++;
       } catch (err) {
@@ -2120,7 +2500,7 @@ const QuotationsPage = () => {
 
         // ── Overrides: remap field names that differ between quotation + underwriting forms ──
 
-        // Reference — use the quotation's auto-generated reference as the InsureSAAS File No.
+        // Reference — use the quotation's auto-generated reference as the InsureSAAS IB File No.
         insuresaas_ib_file_no:  quote.reference || fd.insuresaas_ib_file_no || '',
         introducer_code:    fd.introducer         || '',
         manager:            fd.manager            || '',
@@ -2133,7 +2513,7 @@ const QuotationsPage = () => {
 
         // Proposer Details (quotation uses different field names)
         client_name:        fd.proposer_name || fd.company_name || fd.full_name || '',
-        customer_type:      fd.customer_type === 'Corporate' ? 'Company' : (fd.customer_type || ''),
+        customer_type:      fd.customer_type || '',
         nic_proof:          fd.nic_no      || '',
         business_registration: fd.business_reg || '',
         svat_proof:         fd.vat_no      || '',
@@ -2184,6 +2564,7 @@ const QuotationsPage = () => {
 
         // Insurer fee/tax fields
         other_premium:     String(response.other_premium     || ''),
+        policy_fee:        String(response.policy_fees        || ''),
         policy_fees:       String(response.policy_fees       || ''),
         cess:              String(response.cess              || ''),
         road_safety_fee:   String(response.road_safety_tax   || ''),
@@ -2208,6 +2589,7 @@ const QuotationsPage = () => {
 
   const handleDeleteQuote = async () => {
     if (!deleteTarget) return;
+    if (!confirmTypedDelete(`Delete quote ${deleteTarget.reference || ''}? All its responses will be lost.`)) return;
     setDeleting(true);
     try {
       await deleteDoc(doc(db, 'quotes', deleteTarget.id));
@@ -2349,7 +2731,7 @@ const QuotationsPage = () => {
     });
   };
 
-  const tabQuotes = [sentQuotes, receivedQuotes, compareQuotes];
+  const tabQuotes = [incomingQuotes, sentQuotes, receivedQuotes, compareQuotes];
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -2498,15 +2880,16 @@ const QuotationsPage = () => {
 
         {/* Compare view */}
         {compareQuote ? (
-          <ComparisonView quote={compareQuote} onBack={() => setCompareQuote(null)} onConfirm={handleConfirmQuote} allProducts={allP} />
+          <ComparisonView quote={compareQuote} onBack={() => setCompareQuote(null)} onConfirm={handleConfirmQuote} allProducts={allP} broker={brokerInfo} />
         ) : (
           <>
             <Tabs value={tab} onChange={(_, v) => { setTab(v); setQPage(1); }} sx={{
-              mb: 2.5, borderBottom: '1px solid rgba(255,139,90,0.12)',
+              mb: 2.5, borderBottom: '1px solid rgba(255, 139, 90,0.12)',
               '& .MuiTab-root': { fontSize: 13, fontWeight: 600, textTransform: 'none', color: '#9CA3AF' },
               '& .Mui-selected': { color: '#FF5A5A' },
               '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)', height: 2.5 },
             }}>
+              <Tab label={`🌐 Incoming (${incomingQuotes.length})`} />
               <Tab label={`Sent (${sentQuotes.length})`} />
               <Tab label={`Received (${receivedQuotes.length})`} />
               <Tab label={`Compare (${compareQuotes.length})`} />
@@ -2515,18 +2898,19 @@ const QuotationsPage = () => {
             {tabQuotes[tab].length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 6 }}>
                 <Typography sx={{ color: '#9CA3AF', fontWeight: 600 }}>
-                  {tab === 0 ? 'No sent quote requests yet.' : tab === 1 ? 'No responses received yet.' : 'No quotes with responses to compare yet.'}
+                  {tab === 0 ? 'No incoming quotes waiting.' : tab === 1 ? 'No sent quote requests yet.' : tab === 2 ? 'No responses received yet.' : 'No quotes with responses to compare yet.'}
                 </Typography>
-                <Typography sx={{ fontSize: 12.5, color: '#C4B5B0', mt: 0.5 }}>
-                  {tab === 0 ? 'Click "New Quote Request" to get started.' : tab === 1 ? 'Responses appear here once insurers submit their quotes.' : 'Quotes move here once at least one insurer responds.'}
+                <Typography sx={{ fontSize: 12.5, color: '#A9B6C8', mt: 0.5 }}>
+                  {tab === 0 ? 'Website & marketer submissions and unsent drafts appear here to review and send.' : tab === 1 ? 'Click "New Quote Request" to get started.' : tab === 2 ? 'Responses appear here once insurers submit their quotes.' : 'Quotes move here once at least one insurer responds.'}
                 </Typography>
               </Box>
             ) : (
               <>
                 {tabQuotes[tab].slice((qPage-1)*Q_PER_PAGE, qPage*Q_PER_PAGE).map(q => (
                   <QuoteRow key={q.id} quote={q}
-                    tab={tab === 0 ? 'sent' : tab === 1 ? 'received' : 'compare'}
+                    tab={tab === 0 ? 'incoming' : tab === 1 ? 'sent' : tab === 2 ? 'received' : 'compare'}
                     onSelect={setCompareQuote}
+                    onEdit={openEditQuote}
                     onDelete={q => setDeleteTarget(q)}
                     onResend={handleResendEmails}
                     isManager={userProfile?.role === 'manager' || userProfile?.role === 'admin'}
@@ -2548,11 +2932,16 @@ const QuotationsPage = () => {
         )}
 
         {/* ── New Quote Dialog ── */}
-        <Dialog open={newQuoteOpen} onClose={() => { flushDraftSave(); setNewQuoteOpen(false); }} maxWidth="md" fullWidth>
+        <Dialog open={newQuoteOpen} onClose={closeQuoteDialog} maxWidth="md" fullWidth>
           <DialogTitle>
-            New Quote Request
+            {editingQuoteId ? 'Edit Quote — review & send to insurers' : 'New Quote Request'}
           </DialogTitle>
           <DialogContent sx={{ pt: 2.5 }}>
+            {editingQuoteId && (
+              <Alert severity="info" sx={{ mb: 2.5, fontSize: 12.5 }}>
+                Editing an incoming request. Update any details as needed, then continue to pick the insurers to send it to.
+              </Alert>
+            )}
             {/* Draft restore banner */}
             {draftBanner && (
               <Alert
@@ -2608,10 +2997,10 @@ const QuotationsPage = () => {
               ))}
             </Box>
 
-            <ProductForm product={product} values={formValues} onChange={setField} errors={fieldErrors} allProducts={allP} />
+            <ProductForm product={product} values={formValues} onChange={setField} errors={fieldErrors} allProducts={allP} clients={clients} />
           </DialogContent>
-          <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255,139,90,0.10)' }}>
-            <Button onClick={() => { flushDraftSave(); setNewQuoteOpen(false); }} variant="outlined"
+          <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255, 139, 90,0.10)' }}>
+            <Button onClick={closeQuoteDialog} variant="outlined"
               sx={{ borderColor: '#e0e0e0', color: '#6B7280' }}>Cancel</Button>
             <Button variant="contained" onClick={handleCreateQuote} disabled={saving}>
               {saving ? 'Saving…' : 'Save & Select Insurers →'}
@@ -2660,7 +3049,7 @@ const QuotationsPage = () => {
                   {/* Category tabs — auto-generated from actual data */}
                   <Stack direction="row" spacing={0.8} sx={{ mb:1.5, flexWrap:'wrap', gap:0.8 }}>
                     {['all', ...dialogCats].map(c => {
-                      const cc  = c === 'all' ? { bg:'rgba(232,71,42,0.10)',color:'#E8472A' } : (CAT_COLORS[c] || { bg:'rgba(107,114,128,0.10)', color:'#6B7280' });
+                      const cc  = c === 'all' ? { bg:'rgba(224, 72, 72,0.10)',color:'#E04848' } : (CAT_COLORS[c] || { bg:'rgba(107,114,128,0.10)', color:'#6B7280' });
                       const cnt = c === 'all' ? companies.length : companies.filter(co => (co.category||'') === c).length;
                       return (
                         <Chip key={c} label={`${c === 'all' ? 'All' : c} (${cnt})`} size="small" clickable
@@ -2693,7 +3082,7 @@ const QuotationsPage = () => {
                   </Stack>
 
                   {/* Company list */}
-                  <Box sx={{ maxHeight:320, overflowY:'auto', border:'1px solid rgba(255,139,90,0.12)', borderRadius:'12px' }}>
+                  <Box sx={{ maxHeight:320, overflowY:'auto', border:'1px solid rgba(255, 139, 90,0.12)', borderRadius:'12px' }}>
                     {visible.length === 0 ? (
                       <Box sx={{ textAlign:'center', py:3 }}>
                         <Typography sx={{ fontSize:13, color:'#9CA3AF' }}>No companies match this filter.</Typography>
@@ -2706,13 +3095,13 @@ const QuotationsPage = () => {
                           sx={{
                             display:'flex', alignItems:'center', gap:1.5,
                             px:2, py:1.2, cursor:'pointer',
-                            bgcolor: sel ? 'rgba(232,71,42,0.04)' : i%2===0 ? '#fff' : 'rgba(255,248,245,0.5)',
-                            borderBottom: i < visible.length-1 ? '1px solid rgba(255,139,90,0.06)' : 'none',
+                            bgcolor: sel ? 'rgba(224, 72, 72,0.04)' : i%2===0 ? '#fff' : 'rgba(255, 245, 242,0.5)',
+                            borderBottom: i < visible.length-1 ? '1px solid rgba(255, 139, 90,0.06)' : 'none',
                             transition:'background 0.1s',
-                            '&:hover': { bgcolor:'rgba(232,71,42,0.06)' },
+                            '&:hover': { bgcolor:'rgba(224, 72, 72,0.06)' },
                           }}>
                           <Checkbox size="small" checked={sel}
-                            sx={{ p:0.3, color: sel ? '#E8472A' : '#D1D5DB', '&.Mui-checked':{ color:'#E8472A' } }} />
+                            sx={{ p:0.3, color: sel ? '#E04848' : '#D1D5DB', '&.Mui-checked':{ color:'#E04848' } }} />
                           <Box sx={{ flex:1, minWidth:0 }}>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <Typography sx={{ fontWeight:600, fontSize:13 }}>{co.name}</Typography>
@@ -2738,7 +3127,7 @@ const QuotationsPage = () => {
               </Alert>
             )}
           </DialogContent>
-          <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255,139,90,0.10)' }}>
+          <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255, 139, 90,0.10)' }}>
             <Button onClick={() => setSendOpen(false)} variant="outlined"
               sx={{ borderColor:'#e0e0e0', color:'#6B7280' }}>Cancel</Button>
             <Button variant="contained" startIcon={sending ? <CircularProgress size={14} color="inherit" /> : <SendIcon />}

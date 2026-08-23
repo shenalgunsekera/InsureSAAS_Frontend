@@ -1,14 +1,16 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  collection, getDocs, deleteDoc, doc, query, orderBy, writeBatch, updateDoc
+  collection, getDocs, deleteDoc, doc, writeBatch, updateDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { uploadFile as uploadToCloudinary } from '../storage';
 import AddClientForm, { textFields as UW_FIELDS } from './AddClientForm';
 import ClientDetailsModal from './ClientDetailsModal';
 import { exportHeader, normaliseImportRow } from '../utils/csvHeaders';
+import { liveOsDays } from '../utils/osDays';
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -63,6 +65,24 @@ function fmtDateUW(v) {
   const d = new Date(v); return isNaN(d) ? String(v) : d.toLocaleDateString('en-GB');
 }
 
+// Normalise a client's "added" time to millis for newest-first sorting, tolerant
+// of Firestore Timestamps, JS Dates, ISO strings, and missing values — legacy and
+// imported records store created_at inconsistently, which breaks Firestore's own
+// orderBy (it groups by type and drops docs missing the field).
+function clientAddedMillis(c) {
+  const v = c.created_at ?? c.submitted_at;
+  if (!v) return 0;
+  if (v.toDate) return v.toDate().getTime();
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'object' && typeof v.seconds === 'number') return v.seconds * 1000;
+  const t = new Date(v).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+// Fold the legacy 'Company' customer type into 'Corporate' so the underwriting
+// list, its filter chips, and reports all use one consistent vocabulary.
+const normCustType = (t) => (t === 'Company' ? 'Corporate' : (t || ''));
+
 function deriveYear(client) {
   const v = client.policy_period_from;
   if (!v) return '';
@@ -93,16 +113,16 @@ async function exportUnderwritingExcel(clients) {
     views: [{ state: 'frozen', xSplit: 1, ySplit: 4 }],
   });
 
-  const RED    = 'FFFF5A5A';
-  const AMBER  = 'FFFF8B5A';
-  const DARK   = 'FF1A1A2E';
+  const RED    = 'FF255EAB';
+  const AMBER  = 'FF38A3E0';
+  const DARK   = 'FF0A1A3E';
   const WHITE  = 'FFFFFFFF';
   const LTGRAY = 'FFF9FAFB';
 
   /* Column definitions */
   const cols = [
     // Reference
-    { key: 'insuresaas_ib_file_no',  header: 'InsureSAAS File No.',     w: 22 },
+    { key: 'insuresaas_ib_file_no',  header: 'InsureSAAS IB File No.',     w: 22 },
     { key: '_year',              header: 'Year',                   w: 8,  derived: deriveYear },
     { key: '_month',             header: 'Month',                  w: 12, derived: deriveMonth },
     { key: 'policy_no',          header: 'Policy No.',             w: 20 },
@@ -124,7 +144,7 @@ async function exportUnderwritingExcel(clients) {
     { key: 'product',            header: 'Policy Class',           w: 20 },
     { key: 'policy_period_to',   header: 'Policy Expiry',          w: 14, isDate: true },
     { key: '_policy_days',       header: 'Policy Days',            w: 10, derived: derivePolicyDays },
-    { key: 'os_days',            header: 'O/S Days',               w: 10 },
+    { key: 'os_days',            header: 'O/S Days',               w: 10, derived: liveOsDays },
     { key: 'credit_period',      header: 'Credit Period (days)',    w: 16 },
     // Premium
     { key: 'basic_premium',      header: 'Basic Premium (Rs)',      w: 16, isNum: true },
@@ -167,7 +187,7 @@ async function exportUnderwritingExcel(clients) {
   /* Title rows */
   ws.mergeCells(1, 1, 1, cols.length);
   const t1 = ws.getCell(1, 1);
-  t1.value = 'InsureSAAS — UNDERWRITING REGISTER';
+  t1.value = 'INSURESAAS INSURANCE BROKERS (PVT) LTD — UNDERWRITING REGISTER';
   t1.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
   t1.font  = { name: 'Calibri', bold: true, size: 14, color: { argb: WHITE } };
   t1.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -188,7 +208,7 @@ async function exportUnderwritingExcel(clients) {
   cols.forEach((c, i) => {
     const cell = ws.getCell(4, i + 1);
     cell.value = c.header;
-    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
+    cell.fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A1A3E' } };
     cell.font  = { name: 'Calibri', bold: true, size: 9.5, color: { argb: AMBER } };
     cell.alignment = { horizontal: c.isNum ? 'right' : 'center', vertical: 'middle', wrapText: true };
     cell.border = { bottom: { style: 'medium', color: { argb: RED } } };
@@ -309,7 +329,7 @@ function SkeletonRow() {
     <TableRow>
       {[180, 120, 120, 120, 90, 100].map((w, i) => (
         <TableCell key={i}>
-          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(255,90,90,0.06)' }} />
+          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(255, 90, 90,0.06)' }} />
         </TableCell>
       ))}
     </TableRow>
@@ -410,9 +430,11 @@ const TableSection = () => {
       setLoading(true);
     }
     try {
-      const q = query(collection(db, 'clients'), orderBy('created_at', 'desc'));
-      const snap = await getDocs(q);
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(collection(db, 'clients'));
+      const all = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => clientAddedMillis(b) - clientAddedMillis(a)); // newest added first
+
       // Employees only see approved clients + their own pending/rejected
       const data = isPrivileged
         ? all
@@ -477,10 +499,15 @@ const TableSection = () => {
     return [...years].sort((a, b) => b - a);
   }, [clients]);
 
+  /* Customer types actually present in the data (Company folded into Corporate) */
+  const typeOptions = useMemo(
+    () => ['all', ...[...new Set(clients.map(c => normCustType(c.customer_type)).filter(Boolean))].sort()],
+    [clients]);
+
   /* filter + search */
   const filtered = useMemo(() => {
     let list = clients;
-    if (filterType !== 'all') list = list.filter(c => c.customer_type === filterType);
+    if (filterType !== 'all') list = list.filter(c => normCustType(c.customer_type) === filterType);
 
     // Date Added filters
     if (filterYear !== 'all' || filterMonth !== 'all') {
@@ -515,6 +542,7 @@ const TableSection = () => {
   /* delete single */
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    if (!confirmTypedDelete('Delete this client and their records?')) return;
     try {
       await deleteDoc(doc(db, 'clients', deleteTarget.id));
       toast('Client deleted');
@@ -603,6 +631,15 @@ const TableSection = () => {
             // Auto-calculations the form normally derives — computed on import so the
             // record shows complete totals without anyone re-saving it.
             const n = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
+            // Auto-calculate commission the same way the underwriting form does when the
+            // CSV doesn't supply it: basic × class rate, SRCC/TC × 5% (Motor) or 7.5%.
+            const BASIC_RATES = { Motor:20, Fire:20, Marine:15, Health:20, Miscellaneous:20, Individual:20, Group:20, Other:20 };
+            const basicRate = BASIC_RATES[clean.main_class] != null ? BASIC_RATES[clean.main_class] : 20;
+            const stRate = clean.main_class === 'Motor' ? 5 : 7.5;
+            if (!clean.commission_pct)                             clean.commission_pct   = String(basicRate);
+            if (!clean.commission_basic && n(clean.basic_premium)) clean.commission_basic = String(Math.round(n(clean.basic_premium) * basicRate) / 100);
+            if (!clean.commission_srcc  && n(clean.srcc_premium))  clean.commission_srcc  = String(Math.round(n(clean.srcc_premium)  * stRate)   / 100);
+            if (!clean.commission_tc    && n(clean.tc_premium))    clean.commission_tc    = String(Math.round(n(clean.tc_premium)    * stRate)   / 100);
             const commTotal = n(clean.commission_basic) + n(clean.commission_srcc) + n(clean.commission_tc) + n(clean.commission_special_amount);
             if (commTotal !== 0) clean.commission_total = String(Math.round(commTotal * 100) / 100);
             if (clean.policy_period_from && clean.policy_period_to && !clean.policy_days) {
@@ -641,7 +678,7 @@ const TableSection = () => {
         {/* filter chips + date filters */}
         <Stack spacing={1}>
           <Stack direction="row" spacing={1} flexWrap="wrap">
-            {['all','Individual','Company'].map(t => (
+            {typeOptions.map(t => (
               <Chip
                 key={t}
                 label={t === 'all' ? 'All' : t}
@@ -651,9 +688,9 @@ const TableSection = () => {
                   fontWeight: 600, fontSize: 12,
                   background: filterType === t
                     ? 'linear-gradient(135deg,#FF5A5A,#FF8B5A)'
-                    : 'rgba(255,90,90,0.07)',
+                    : 'rgba(255, 90, 90,0.07)',
                   color: filterType === t ? '#fff' : '#FF5A5A',
-                  border: filterType === t ? 'none' : '1px solid rgba(255,90,90,0.20)',
+                  border: filterType === t ? 'none' : '1px solid rgba(255, 90, 90,0.20)',
                   transition: 'all 0.2s ease',
                   '&:hover': { opacity: 0.88 },
                 }}
@@ -665,12 +702,12 @@ const TableSection = () => {
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>Date Added:</Typography>
             <Select size="small" value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,139,90,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 139, 90,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Years</MenuItem>
               {availableYears.map(y => <MenuItem key={y} value={y} sx={{ fontSize: 12 }}>{y}</MenuItem>)}
             </Select>
             <Select size="small" value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,139,90,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 139, 90,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Months</MenuItem>
               {['January','February','March','April','May','June','July','August','September','October','November','December']
                 .map((m, i) => <MenuItem key={i} value={i} sx={{ fontSize: 12 }}>{m}</MenuItem>)}
@@ -693,8 +730,8 @@ const TableSection = () => {
             size="small" variant="outlined"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={handleDownloadTemplate}
-            sx={{ borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A', fontSize: 12,
-                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.07)' } }}
+            sx={{ borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A', fontSize: 12,
+                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.07)' } }}
           >
             CSV Template
           </Button>
@@ -712,8 +749,8 @@ const TableSection = () => {
             startIcon={<FileUploadOutlinedIcon />}
             onClick={() => document.getElementById('csv-input').click()}
             disabled={csvImporting}
-            sx={{ borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A', fontSize: 12,
-                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.07)' } }}
+            sx={{ borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A', fontSize: 12,
+                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.07)' } }}
           >
             {csvImporting ? 'Importing…' : 'Import CSV'}
           </Button>
@@ -753,7 +790,7 @@ const TableSection = () => {
       </Box>
 
       {/* ── table ────────────────────────────────────────────── */}
-      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(255,139,90,0.10)' }}>
+      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(255, 139, 90,0.10)' }}>
         <TableContainer>
           <Table sx={{ minWidth: 680 }}>
             <TableHead>
@@ -774,7 +811,7 @@ const TableSection = () => {
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(255,90,90,0.25)' }} />
+                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(255, 90, 90,0.25)' }} />
                           <Typography sx={{ color: '#9CA3AF', fontWeight: 500 }}>
                             {searchQuery ? 'No clients match your search' : 'No clients yet — add your first client!'}
                           </Typography>
@@ -793,7 +830,7 @@ const TableSection = () => {
                         key={client.id}
                         className={rowClass}
                         sx={{
-                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(255,248,245,0.7)',
+                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(255, 245, 242,0.7)',
                           animation: `stagger 0.3s ease both`,
                           animationDelay: `${Math.min(idx * 0.04, 0.4)}s`,
                         }}
@@ -822,7 +859,7 @@ const TableSection = () => {
                             label={client.product || '—'}
                             size="small"
                             sx={{ fontSize: 11, fontWeight: 600,
-                                  bgcolor: 'rgba(255,139,90,0.10)', color: '#c05010' }}
+                                  bgcolor: 'rgba(255, 139, 90,0.10)', color: '#E04848' }}
                           />
                         </TableCell>
                         <TableCell sx={{ fontSize: 13, fontFamily: 'monospace', letterSpacing: 0.3 }}>
@@ -851,7 +888,7 @@ const TableSection = () => {
                               <>
                                 <Tooltip title="Edit">
                                   <IconButton size="small" onClick={() => setEditClient(client)}
-                                    sx={{ color: '#FF8B5A', '&:hover': { bgcolor: 'rgba(255,139,90,0.10)' } }}>
+                                    sx={{ color: '#FF8B5A', '&:hover': { bgcolor: 'rgba(255, 139, 90,0.10)' } }}>
                                     <EditOutlinedIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
@@ -878,7 +915,7 @@ const TableSection = () => {
           <Box sx={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             px: 2.5, py: 1.5, flexWrap: 'wrap', gap: 1,
-            borderTop: '1px solid rgba(255,139,90,0.08)',
+            borderTop: '1px solid rgba(255, 139, 90,0.08)',
           }}>
             <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>
               Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, filtered.length)} of {filtered.length} clients

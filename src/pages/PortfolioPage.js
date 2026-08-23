@@ -4,6 +4,7 @@ import {
   doc, updateDoc, deleteDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import emailjs from '@emailjs/browser';
 
@@ -83,7 +84,7 @@ const STEPS = [
 ];
 
 const sectionHdr = (label, icon) => (
-  <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2, pb:1, borderBottom:'2px solid rgba(255,139,90,0.12)' }}>
+  <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2, pb:1, borderBottom:'2px solid rgba(255, 139, 90,0.12)' }}>
     <Box sx={{ color:'#FF5A5A', display:'flex' }}>{icon}</Box>
     <Typography sx={{ fontWeight:800, fontSize:15, color:'#1A1A2E', textTransform:'uppercase', letterSpacing:0.8 }}>
       {label}
@@ -154,17 +155,17 @@ function StepPortfolios({ industryCode, selected, onToggle }) {
             <Box key={p.code} onClick={() => onToggle(p.code)}
               sx={{
                 p:2, borderRadius:'12px', cursor:'pointer', transition:'all 0.15s',
-                border: active ? '2px solid #E8472A' : '1.5px solid rgba(255,139,90,0.18)',
-                bgcolor: active ? 'rgba(232,71,42,0.04)' : '#fff',
-                '&:hover': { borderColor:'#E8712A', bgcolor:'rgba(232,113,42,0.03)' },
+                border: active ? '2px solid #E04848' : '1.5px solid rgba(255, 139, 90,0.18)',
+                bgcolor: active ? 'rgba(224, 72, 72,0.04)' : '#fff',
+                '&:hover': { borderColor:'#FF7373', bgcolor:'rgba(46,118,196,0.03)' },
               }}>
               <Stack direction="row" spacing={1.5} alignItems="flex-start">
                 <Box sx={{
                   width:32, height:32, borderRadius:'8px', flexShrink:0,
-                  bgcolor: active ? 'rgba(232,71,42,0.12)' : 'rgba(107,114,128,0.08)',
+                  bgcolor: active ? 'rgba(224, 72, 72,0.12)' : 'rgba(107,114,128,0.08)',
                   display:'flex', alignItems:'center', justifyContent:'center',
                 }}>
-                  {active ? <CheckCircleIcon sx={{ fontSize:18, color:'#E8472A' }} /> : <FolderOpenIcon sx={{ fontSize:18, color:'#9CA3AF' }} />}
+                  {active ? <CheckCircleIcon sx={{ fontSize:18, color:'#E04848' }} /> : <FolderOpenIcon sx={{ fontSize:18, color:'#9CA3AF' }} />}
                 </Box>
                 <Box sx={{ flex:1 }}>
                   <Typography sx={{ fontWeight:700, fontSize:13, color: active ? '#1A1A2E' : '#374151' }}>
@@ -201,13 +202,13 @@ function StepAssets({ industryCode, selectedPortfolios, assetData, onAssetToggle
           const isOpen  = openPf === pfCode;
           const confirmed = assets.filter(a => assetData[a.assetCode]?.present).length;
           return (
-            <Card key={pfCode} elevation={0} sx={{ border:'1.5px solid rgba(255,139,90,0.15)', borderRadius:'12px' }}>
+            <Card key={pfCode} elevation={0} sx={{ border:'1.5px solid rgba(255, 139, 90,0.15)', borderRadius:'12px' }}>
               <Box sx={{ p:2, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}
                 onClick={() => setOpenPf(isOpen ? null : pfCode)}>
                 <Stack direction="row" spacing={1.5} alignItems="center">
-                  <Box sx={{ width:36, height:36, borderRadius:'10px', bgcolor:'rgba(232,71,42,0.08)',
+                  <Box sx={{ width:36, height:36, borderRadius:'10px', bgcolor:'rgba(224, 72, 72,0.08)',
                              display:'flex', alignItems:'center', justifyContent:'center' }}>
-                    <FolderOpenIcon sx={{ fontSize:18, color:'#E8472A' }} />
+                    <FolderOpenIcon sx={{ fontSize:18, color:'#E04848' }} />
                   </Box>
                   <Box>
                     <Typography sx={{ fontWeight:700, fontSize:13.5 }}>{pf?.name || pfCode}</Typography>
@@ -246,7 +247,7 @@ function StepAssets({ industryCode, selectedPortfolios, assetData, onAssetToggle
                                     <Typography sx={{ fontWeight:600, fontSize:13 }}>{asset.name}</Typography>
                                     {mandatory === 'Yes' && (
                                       <Chip label="Core" size="small"
-                                        sx={{ fontSize:9.5, height:16, bgcolor:'rgba(232,71,42,0.10)', color:'#E8472A', fontWeight:700 }} />
+                                        sx={{ fontSize:9.5, height:16, bgcolor:'rgba(224, 72, 72,0.10)', color:'#E04848', fontWeight:700 }} />
                                     )}
                                   </Stack>
                                   <Typography sx={{ fontSize:11, color:'#9CA3AF' }}>{asset.desc}</Typography>
@@ -312,7 +313,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
   if (relevantRules.length === 0) return (
     <Box sx={{ textAlign:'center', py:6 }}>
       <Typography sx={{ color:'#9CA3AF', fontWeight:600 }}>No risk questions applicable.</Typography>
-      <Typography sx={{ fontSize:12.5, color:'#C4B5B0', mt:0.5 }}>Please confirm assets in the previous step first.</Typography>
+      <Typography sx={{ fontSize:12.5, color:'#A9B6C8', mt:0.5 }}>Please confirm assets in the previous step first.</Typography>
     </Box>
   );
 
@@ -346,7 +347,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
                     bgcolor:  isAdverse ? 'rgba(239,68,68,0.04)' : isSafe ? 'rgba(16,185,129,0.03)' : '#fff',
                     border:   isAdverse ? '1.5px solid rgba(239,68,68,0.25)'
                             : isSafe    ? '1.5px solid rgba(16,185,129,0.20)'
-                            :             '1px solid rgba(255,139,90,0.12)',
+                            :             '1px solid rgba(255, 139, 90,0.12)',
                   }}>
                     <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ mb:1.2 }}>
                       <Typography sx={{ fontWeight:600, fontSize:13.5, color:'#1A1A2E', flex:1, lineHeight:1.5 }}>
@@ -372,7 +373,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
                                 ...(selAdv  ? { background:'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow:'none', color:'#fff' }
                                   : selSafe ? { background:'linear-gradient(135deg,#10B981,#059669)', boxShadow:'none', color:'#fff' }
                                   :           { borderColor:'rgba(107,114,128,0.3)', color:'#374151', bgcolor:'#fff',
-                                                '&:hover':{ borderColor:'#FF5A5A', bgcolor:'rgba(255,90,90,0.03)' } }),
+                                                '&:hover':{ borderColor:'#FF5A5A', bgcolor:'rgba(255, 90, 90,0.03)' } }),
                               }}>
                               {opt}
                             </Button>
@@ -395,7 +396,7 @@ function StepRisk({ confirmedAssets, riskAnswers, onAnswer }) {
                                 ...(selAdv  ? { background:'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow:'none', color:'#fff' }
                                   : selSafe ? { background:'linear-gradient(135deg,#10B981,#059669)', boxShadow:'none', color:'#fff' }
                                   :           { borderColor:'rgba(107,114,128,0.3)', color:'#374151',
-                                                '&:hover':{ borderColor:'#FF5A5A', bgcolor:'rgba(255,90,90,0.03)' } }),
+                                                '&:hover':{ borderColor:'#FF5A5A', bgcolor:'rgba(255, 90, 90,0.03)' } }),
                               }}>
                               {opt}
                             </Button>
@@ -452,24 +453,24 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
     const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
 
     // Header
-    pdf.setFillColor(26,26,46); pdf.rect(0,0,pw,22,'F');
-    pdf.setFillColor(232,71,42); pdf.rect(0,22,pw,2.5,'F');
-    pdf.setFontSize(12); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
-    pdf.text('InsureSAAS', pw/2, 10, {align:'center'});
+    pdf.setFillColor(26, 26, 46); pdf.rect(0,0,pw,22,'F');
+    pdf.setFillColor(224, 72, 72); pdf.rect(0,22,pw,2.5,'F');
+    pdf.setFontSize(12); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
+    pdf.text('INSURESAAS INSURANCE BROKERS (PVT) LTD', pw/2, 10, {align:'center'});
     pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
     pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2,17,{align:'center'});
 
     // Title block
     pdf.setFillColor(249,250,251); pdf.rect(0,24.5,pw,14,'F');
-    pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(26,26,46);
+    pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(26, 26, 46);
     pdf.text('PORTFOLIO REVIEW & INSURANCE RECOMMENDATION REPORT', pw/2, 31, {align:'center'});
     pdf.setFontSize(8); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128);
     pdf.text(`${customer.name || 'Client'}   ·   ${industry?.name || industryCode}   ·   ${today}`, pw/2, 36.5, {align:'center'});
 
     let y = 44;
     const addSection = (title) => {
-      pdf.setFillColor(26,26,46); pdf.rect(10, y, pw-20, 8,'F');
-      pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
+      pdf.setFillColor(26, 26, 46); pdf.rect(10, y, pw-20, 8,'F');
+      pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
       pdf.text(title, 14, y+5.5);
       y += 11;
     };
@@ -491,7 +492,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
       columnStyles: { 0:{ fontStyle:'bold', cellWidth:50 } },
       styles: { fontSize:8.5, cellPadding:{top:3,bottom:3,left:5,right:5} },
       margin: { left:10, right:10 },
-      didParseCell: d => { if(d.row.index%2===0) d.cell.styles.fillColor=[255,255,255]; else d.cell.styles.fillColor=[255,248,245]; },
+      didParseCell: d => { if(d.row.index%2===0) d.cell.styles.fillColor=[255,255,255]; else d.cell.styles.fillColor=[255, 245, 242]; },
     });
     y = pdf.lastAutoTable.finalY + 8;
 
@@ -500,10 +501,10 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
     autoTable(pdf, {
       startY: y,
       head: [[
-        {content:'#', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
-        {content:'Product', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
-        {content:'Recommendation', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
-        {content:'Reason', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
+        {content:'#', styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8}},
+        {content:'Product', styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8}},
+        {content:'Recommendation', styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8}},
+        {content:'Reason', styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8}},
       ]],
       body: recs.products.map((p,i) => [
         i+1, p.product.name, p.strength, p.reason,
@@ -522,8 +523,8 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
       autoTable(pdf, {
         startY: y,
         head: [[
-          {content:'Area', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
-          {content:'Risk Control Recommendation', styles:{fillColor:[26,26,46],textColor:[255,139,90],fontStyle:'bold',fontSize:8}},
+          {content:'Area', styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8}},
+          {content:'Risk Control Recommendation', styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8}},
         ]],
         body: recs.ruleAdvice.map(r => [r.rule.portfolioCode?.replace('PF-',''), r.advice]),
         styles: { fontSize:8, cellPadding:{top:3,bottom:3,left:4,right:4}, overflow:'linebreak' },
@@ -534,10 +535,10 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
 
     // Footer — 18mm tall, two lines
     const ph = pdf.internal.pageSize.getHeight();
-    pdf.setFillColor(26,26,46);  pdf.rect(0, ph-18, pw, 18, 'F');
-    pdf.setFillColor(232,71,42); pdf.rect(0, ph-18, pw, 1.5, 'F');
+    pdf.setFillColor(26, 26, 46);  pdf.rect(0, ph-18, pw, 18, 'F');
+    pdf.setFillColor(224, 72, 72); pdf.rect(0, ph-18, pw, 1.5, 'F');
     // Line 1: company name (left) + date (right)
-    pdf.setFontSize(8); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,139,90);
+    pdf.setFontSize(8); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
     pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph-11);
     pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(107,114,128);
     pdf.text(`Generated: ${today}`, pw-12, ph-11, {align:'right'});
@@ -572,7 +573,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
             </Box>
             <Stack spacing={0.8}>
               <Button variant="contained" startIcon={<FileDownloadOutlinedIcon />} onClick={exportPdf}
-                sx={{ background:'linear-gradient(135deg,#E8472A,#E8712A)', fontSize:12 }}>
+                sx={{ background:'linear-gradient(135deg,#E04848,#FF7373)', fontSize:12 }}>
                 Export PDF
               </Button>
               <Button variant="contained"
@@ -582,7 +583,7 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
                 {saving ? 'Saving…' : isSaved ? 'Saved ✓' : savedId ? 'Save Changes' : 'Save Review'}
               </Button>
               <Button variant="outlined" startIcon={<SendIcon />} onClick={onSend}
-                sx={{ fontSize:12, borderColor:'rgba(255,139,90,0.4)', color:'#FF8B5A' }}>
+                sx={{ fontSize:12, borderColor:'rgba(255, 139, 90,0.4)', color:'#FF8B5A' }}>
                 Send to Client
               </Button>
             </Stack>
@@ -620,13 +621,13 @@ function StepReport({ customer, industryCode, selectedPortfolios, confirmedAsset
             const open = openProduct === p.product.code;
             return (
               <Card key={p.product.code} elevation={0}
-                sx={{ border:`1.5px solid ${open ? '#E8472A' : 'rgba(255,139,90,0.15)'}`, borderRadius:'12px' }}>
+                sx={{ border:`1.5px solid ${open ? '#E04848' : 'rgba(255, 139, 90,0.15)'}`, borderRadius:'12px' }}>
                 <Box sx={{ p:2, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between' }}
                   onClick={() => setOpenProduct(open ? null : p.product.code)}>
                   <Stack direction="row" spacing={2} alignItems="center">
-                    <Box sx={{ width:32, height:32, borderRadius:'8px', bgcolor:'rgba(232,71,42,0.08)',
+                    <Box sx={{ width:32, height:32, borderRadius:'8px', bgcolor:'rgba(224, 72, 72,0.08)',
                                display:'flex', alignItems:'center', justifyContent:'center',
-                               fontWeight:800, fontSize:13, color:'#E8472A' }}>
+                               fontWeight:800, fontSize:13, color:'#E04848' }}>
                       {idx+1}
                     </Box>
                     <Box>
@@ -711,7 +712,7 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
   const gradeBg    = { Low:'#D1FAE5', Medium:'#FEF3C7', High:'#FEE2E2', Critical:'#FEE2E2' }[riskGrade.label] || '#F3F4F6';
 
   const productRows = products.map((p, i) => `
-    <tr style="background:${i%2===0?'#fff':'#FFF8F5'};">
+    <tr style="background:${i%2===0?'#fff':'#FFF5F2'};">
       <td style="padding:9px 12px;font-weight:600;font-size:13px;color:#1A1A2E;">${i+1}. ${p.product.name}</td>
       <td style="padding:9px 12px;font-size:12px;color:#6B7280;">${p.product.family}</td>
       <td style="padding:9px 12px;">
@@ -735,10 +736,10 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
 
   <!-- HEADER -->
   <tr><td style="background:#1A1A2E;padding:28px 32px;text-align:center;">
-    <div style="color:#FF8B5A;font-size:20px;font-weight:bold;letter-spacing:0.5px;">InsureSAAS</div>
+    <div style="color:#FF8B5A;font-size:20px;font-weight:bold;letter-spacing:0.5px;">INSURESAAS INSURANCE BROKERS</div>
     <div style="color:#9CA3AF;font-size:11px;margin-top:5px;letter-spacing:1px;">INSURANCE BROKING &amp; RISK MANAGEMENT &nbsp;·&nbsp; SRI LANKA</div>
   </td></tr>
-  <tr><td style="background:linear-gradient(90deg,#E8472A,#E8712A);height:4px;"></td></tr>
+  <tr><td style="background:linear-gradient(90deg,#E04848,#FF7373);height:4px;"></td></tr>
 
   <!-- BODY -->
   <tr><td style="padding:32px;">
@@ -747,7 +748,7 @@ function buildEmailHtml({ customer, industryName, riskGrade, recs, riskScore, cu
       Please find below your personalised <strong>Portfolio Insurance Review</strong> prepared by InsureSAAS Insurance Brokers.
       This report outlines the key risks identified for your business and our professional insurance recommendations.
     </p>
-    ${customMessage ? `<p style="font-size:13.5px;color:#374151;background:#FFF8F5;border-left:3px solid #E8472A;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 24px;">${customMessage}</p>` : ''}
+    ${customMessage ? `<p style="font-size:13.5px;color:#374151;background:#FFF5F2;border-left:3px solid #E04848;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 24px;">${customMessage}</p>` : ''}
 
     <!-- RISK GRADE -->
     <div style="background:#F9FAFB;border-radius:10px;padding:20px;margin-bottom:24px;text-align:center;">
@@ -864,9 +865,9 @@ function SendDialog({ open, onClose, customer, industryCode, recs, riskGrade, ri
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ pb:0 }}>Send Portfolio Review to Client</DialogTitle>
       <DialogContent sx={{ pt:2 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb:2.5, borderBottom:'1px solid rgba(255,139,90,0.12)',
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb:2.5, borderBottom:'1px solid rgba(255, 139, 90,0.12)',
           '& .MuiTab-root': { fontSize:13, fontWeight:600, textTransform:'none' },
-          '& .Mui-selected': { color:'#E8472A' }, '& .MuiTabs-indicator': { background:'#E8472A' } }}>
+          '& .Mui-selected': { color:'#E04848' }, '& .MuiTabs-indicator': { background:'#E04848' } }}>
           <Tab icon={<EmailOutlinedIcon sx={{ fontSize:16 }} />} iconPosition="start" label="Email" />
           <Tab icon={<span style={{ fontSize:15 }}>💬</span>} iconPosition="start" label="WhatsApp" />
         </Tabs>
@@ -968,6 +969,7 @@ function SavedReviews({ onEdit }) {
   });
 
   const handleDelete = async (id) => {
+    if (!confirmTypedDelete('Delete this saved portfolio review?')) return;
     setDeleting(id);
     try { await deleteDoc(doc(db, 'portfolio_assessments', id)); }
     catch { setToast({ open:true, msg:'Delete failed', sev:'error' }); }
@@ -1019,14 +1021,14 @@ function SavedReviews({ onEdit }) {
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign:'center', py:6 }}>
           <Typography sx={{ color:'#9CA3AF', fontWeight:600 }}>No saved reviews yet.</Typography>
-          <Typography sx={{ fontSize:12.5, color:'#C4B5B0', mt:0.5 }}>Complete an assessment and click "Save Review" to store it here.</Typography>
+          <Typography sx={{ fontSize:12.5, color:'#A9B6C8', mt:0.5 }}>Complete an assessment and click "Save Review" to store it here.</Typography>
         </Box>
       ) : (
         <Stack spacing={1.5}>
           {filtered.slice((pPage-1)*P_PER_PAGE, pPage*P_PER_PAGE).map(r => {
             const gs = gradeStyle[r.risk_grade] || gradeStyle.Medium;
             return (
-              <Card key={r.id} elevation={0} sx={{ border:'1.5px solid rgba(255,139,90,0.12)', borderRadius:'12px', '&:hover': { boxShadow:'0 4px 16px rgba(255,90,90,0.08)' } }}>
+              <Card key={r.id} elevation={0} sx={{ border:'1.5px solid rgba(255, 139, 90,0.12)', borderRadius:'12px', '&:hover': { boxShadow:'0 4px 16px rgba(255, 90, 90,0.08)' } }}>
                 <CardContent sx={{ p:2, '&:last-child': { pb:2 } }}>
                   <Stack direction={{ xs:'column', sm:'row' }} justifyContent="space-between" alignItems={{ sm:'center' }} spacing={1.5}>
                     <Stack direction="row" spacing={1.5} alignItems="center">
@@ -1255,17 +1257,17 @@ export default function PortfolioPage() {
         </Box>
         {activeTab === 0 && step > 0 && (
           <Button variant="outlined" startIcon={<RestartAltIcon />} onClick={() => reset()}
-            sx={{ mt:{ xs:1.5, sm:0 }, borderColor:'rgba(255,139,90,0.3)', color:'#FF8B5A', fontSize:12 }}>
+            sx={{ mt:{ xs:1.5, sm:0 }, borderColor:'rgba(255, 139, 90,0.3)', color:'#FF8B5A', fontSize:12 }}>
             New Assessment
           </Button>
         )}
       </Stack>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb:3, borderBottom:'1px solid rgba(255,139,90,0.12)',
+      <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb:3, borderBottom:'1px solid rgba(255, 139, 90,0.12)',
         '& .MuiTab-root': { fontSize:13, fontWeight:600, textTransform:'none', color:'#9CA3AF' },
-        '& .Mui-selected': { color:'#E8472A' },
-        '& .MuiTabs-indicator': { background:'linear-gradient(90deg,#E8472A,#E8712A)', height:2.5 } }}>
+        '& .Mui-selected': { color:'#E04848' },
+        '& .MuiTabs-indicator': { background:'linear-gradient(90deg,#E04848,#FF7373)', height:2.5 } }}>
         <Tab icon={<AddCircleOutlineIcon sx={{ fontSize:17 }} />} iconPosition="start" label="New Assessment" />
         <Tab icon={<HistoryIcon sx={{ fontSize:17 }} />} iconPosition="start" label="Saved Reviews" />
       </Tabs>
@@ -1275,13 +1277,13 @@ export default function PortfolioPage() {
         <>
           <Stepper activeStep={step} alternativeLabel sx={{ mb:4,
             '& .MuiStepLabel-label': { fontSize:12, fontWeight:600 },
-            '& .MuiStepIcon-root.Mui-active': { color:'#E8472A' },
+            '& .MuiStepIcon-root.Mui-active': { color:'#E04848' },
             '& .MuiStepIcon-root.Mui-completed': { color:'#10B981' },
           }}>
             {STEPS.map(s => <Step key={s.label}><StepLabel>{s.label}</StepLabel></Step>)}
           </Stepper>
 
-          <Card elevation={0} sx={{ border:'1.5px solid rgba(255,139,90,0.12)', borderRadius:'16px', mb:3 }}>
+          <Card elevation={0} sx={{ border:'1.5px solid rgba(255, 139, 90,0.12)', borderRadius:'16px', mb:3 }}>
             <CardContent sx={{ p:3 }}>
               {step === 0 && <StepCustomer data={customer} onChange={setCustomerField} />}
               {step === 1 && <StepPortfolios industryCode={customer.industry} selected={selectedPortfolios} onToggle={togglePortfolio} />}
@@ -1302,7 +1304,7 @@ export default function PortfolioPage() {
           <Stack direction="row" justifyContent="space-between">
             <Button variant="outlined" startIcon={<ArrowBackIcon />}
               onClick={() => setStep(s => s - 1)} disabled={step === 0}
-              sx={{ borderColor:'rgba(255,139,90,0.3)', color:'#FF8B5A', fontSize:13 }}>
+              sx={{ borderColor:'rgba(255, 139, 90,0.3)', color:'#FF8B5A', fontSize:13 }}>
               Back
             </Button>
             {step < STEPS.length - 1 ? (

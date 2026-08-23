@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { collection, doc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -26,6 +28,9 @@ import Pagination from '@mui/material/Pagination';
 
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import LockResetOutlinedIcon from '@mui/icons-material/LockResetOutlined';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import AdminPanelSettingsOutlinedIcon from '@mui/icons-material/AdminPanelSettingsOutlined';
 import SupervisorAccountOutlinedIcon from '@mui/icons-material/SupervisorAccountOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -47,7 +52,21 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
 
   const [confirmDlg, setConfirmDlg] = useState({ open: false, userId: null, userName: '', newRole: '' });
   const [deleteDlg,  setDeleteDlg]  = useState({ open: false, userId: null, userName: '' });
+  const [editDlg,    setEditDlg]    = useState({ open: false, userId: null, fullName: '', phone: '', email: '' });
   const [saving,     setSaving]     = useState(false);
+  const [resetting,  setResetting]  = useState(false);
+
+  const sendReset = async () => {
+    if (!editDlg.email) return;
+    setResetting(true);
+    try {
+      await sendPasswordResetEmail(getAuth(), editDlg.email);
+      setToast({ open: true, msg: `Reset link sent to ${editDlg.email}. It comes from a firebaseapp.com address — check the Spam/Junk folder if it doesn't arrive within a minute.`, severity: 'success' });
+    } catch (err) {
+      setToast({ open: true, msg: err.message, severity: 'error' });
+    }
+    setResetting(false);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -79,6 +98,29 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
     setConfirmDlg({ open: true, userId, userName, newRole });
   };
 
+  const openEdit = (u) => {
+    setEditDlg({ open: true, userId: u.id, fullName: u.full_name || '', phone: u.phone || '', email: u.email || '' });
+  };
+
+  const saveEdit = async () => {
+    if (!editDlg.fullName.trim()) { setToast({ open: true, msg: 'Name cannot be empty.', severity: 'error' }); return; }
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, 'users', editDlg.userId), {
+        full_name: editDlg.fullName.trim(),
+        phone:     editDlg.phone.trim(),
+      });
+      setUsers(prev => prev.map(u => u.id === editDlg.userId
+        ? { ...u, full_name: editDlg.fullName.trim(), phone: editDlg.phone.trim() }
+        : u));
+      setToast({ open: true, msg: 'Profile updated.', severity: 'success' });
+    } catch (err) {
+      setToast({ open: true, msg: err.message, severity: 'error' });
+    }
+    setSaving(false);
+    setEditDlg({ open: false, userId: null, fullName: '', phone: '', email: '' });
+  };
+
   const confirmRoleChange = async () => {
     setSaving(true);
     try {
@@ -93,6 +135,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
   };
 
   const confirmDelete = async () => {
+    if (!confirmTypedDelete(`Remove the staff account "${deleteDlg.userName}"?`)) return;
     setSaving(true);
     try {
       await deleteDoc(doc(db, 'users', deleteDlg.userId));
@@ -126,7 +169,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
         <Stack spacing={1}>{[1,2,3].map(i => <Skeleton key={i} height={64} sx={{ borderRadius: '12px' }} />)}</Stack>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 5 }}>
-          <PersonOutlinedIcon sx={{ fontSize: 40, color: 'rgba(59,130,246,0.2)', mb: 1 }} />
+          <PersonOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255, 90, 90,0.2)', mb: 1 }} />
           <Typography sx={{ color: '#9CA3AF' }}>No users found.</Typography>
         </Box>
       ) : (
@@ -138,7 +181,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
               const isSelf = u.id === currentUserId;
 
               return (
-                <Card key={u.id} sx={{ border: '1px solid rgba(99,102,241,0.12)' }}>
+                <Card key={u.id} sx={{ border: '1px solid rgba(255, 139, 90,0.12)' }}>
                   <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
                     <Box sx={{ px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box sx={{ width: 38, height: 38, borderRadius: '10px', bgcolor: rc.bg,
@@ -159,6 +202,10 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
                           )}
                         </Stack>
                         <Typography sx={{ fontSize: 12, color: '#9CA3AF' }}>{u.email}</Typography>
+                        <Typography sx={{ fontSize: 12, color: u.phone ? '#6B7280' : '#C9CDD4', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.2 }}>
+                          <PhoneOutlinedIcon sx={{ fontSize: 12 }} />
+                          {u.phone || 'No phone — add one'}
+                        </Typography>
                       </Box>
 
                       {/* Role selector — admins can change any role except their own */}
@@ -187,6 +234,15 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
                                 border: `1px solid ${rc.border}` }} />
                       )}
 
+                      {(isAdmin || isSelf) && (
+                        <Tooltip title="Edit account & password">
+                          <IconButton size="small" onClick={() => openEdit(u)}
+                            sx={{ color: '#9CA3AF', '&:hover': { color: '#FF5A5A' } }}>
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+
                       {isAdmin && !isSelf && (
                         <Tooltip title="Remove user">
                           <IconButton size="small"
@@ -207,11 +263,46 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2.5 }}>
               <Pagination count={totalPages} page={page} onChange={(_, v) => setPage(v)} size="small"
                 sx={{ '& .MuiPaginationItem-root': { fontSize: 12 },
-                      '& .Mui-selected': { bgcolor: 'rgba(59,130,246,0.12) !important', color: '#3B82F6', fontWeight: 700 } }} />
+                      '& .Mui-selected': { bgcolor: 'rgba(255, 90, 90,0.12) !important', color: '#FF5A5A', fontWeight: 700 } }} />
             </Box>
           )}
         </>
       )}
+
+      {/* Edit account dialog */}
+      <Dialog open={editDlg.open} onClose={() => setEditDlg(d => ({ ...d, open: false }))} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: 16 }}>Edit Account</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 12, color: '#9CA3AF', mb: 2 }}>{editDlg.email}</Typography>
+          <Stack spacing={2}>
+            <TextField label="Full Name" size="small" fullWidth value={editDlg.fullName}
+              onChange={e => setEditDlg(d => ({ ...d, fullName: e.target.value }))} />
+            <TextField label="Phone Number" size="small" fullWidth value={editDlg.phone}
+              onChange={e => setEditDlg(d => ({ ...d, phone: e.target.value }))}
+              helperText="Shown to insurers & customers on quotes this person sends" />
+          </Stack>
+          {isAdmin && (
+            <Box sx={{ mt: 2.5, pt: 1.5, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: '#374151', mb: 0.4 }}>Password</Typography>
+              <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', mb: 1.2 }}>
+                For security, another user's password can't be typed in here. Send them a secure reset link and they choose a new password.
+              </Typography>
+              <Button size="small" variant="outlined" startIcon={<LockResetOutlinedIcon sx={{ fontSize: 17 }} />}
+                onClick={sendReset} disabled={resetting}
+                sx={{ borderColor: 'rgba(255, 90, 90,0.35)', color: '#FF5A5A' }}>
+                {resetting ? 'Sending…' : 'Send password reset email'}
+              </Button>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditDlg(d => ({ ...d, open: false }))} variant="outlined"
+            sx={{ borderColor: '#e0e0e0', color: '#6B7280' }}>Cancel</Button>
+          <Button variant="contained" onClick={saveEdit} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Role change confirm dialog */}
       <Dialog open={confirmDlg.open} onClose={() => setConfirmDlg(d => ({ ...d, open: false }))} maxWidth="xs" fullWidth>

@@ -4,6 +4,7 @@ import {
   query, orderBy, serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { useNavigate } from 'react-router-dom';
 import ExcelJS from 'exceljs';
@@ -19,6 +20,8 @@ import ModuleAccessManager from './ModuleAccessManager';
 import DevicesManager from './DevicesManager';
 import UsersManager from './UsersManager';
 import ProductsManager from './ProductsManager';
+import CustomersManager from './CustomersManager';
+import MarketersManager from './MarketersManager';
 
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -47,6 +50,8 @@ import ConfirmationNumberOutlinedIcon from '@mui/icons-material/ConfirmationNumb
 import BackupOutlinedIcon from '@mui/icons-material/BackupOutlined';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import GroupAddOutlinedIcon from '@mui/icons-material/GroupAddOutlined';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -68,7 +73,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 const PRIORITY_COLORS = {
   Low:      { bg: 'rgba(16,185,129,0.10)', color: '#059669' },
   Medium:   { bg: 'rgba(245,158,11,0.12)', color: '#d97706' },
-  High:     { bg: 'rgba(255,90,90,0.12)',  color: '#FF5A5A' },
+  High:     { bg: 'rgba(255, 90, 90,0.12)',  color: '#FF5A5A' },
   Critical: { bg: 'rgba(139,0,0,0.12)',    color: '#8B0000' },
 };
 const STATUS_COLORS = {
@@ -80,8 +85,8 @@ const STATUS_COLORS = {
 
 /* ── ExcelJS ARGB palette ────────────────────────────────────────────────── */
 const XL = {
-  coral: 'FFFF5A5A', orange: 'FFFF8B5A', dark: 'FF1A1A2E',
-  grey: 'FF6B7280', peach: 'FFFFF8F5', border: 'FFFFD4C0',
+  coral: 'FF255EAB', orange: 'FF38A3E0', dark: 'FF0A1A3E',
+  grey: 'FF6B7280', peach: 'FFF2F7FC', border: 'FFD6E6F5',
   white: 'FFFFFFFF', gold: 'FFFFD45A',
 };
 
@@ -118,7 +123,7 @@ async function buildClientWorkbook(client, logoBase64, ExcelJS) {
 
   ws.mergeCells('A5:B5');
   const cCell = ws.getCell('A5');
-  cCell.value = 'InsureSAAS';
+  cCell.value = 'INSURESAAS INSURANCE BROKERS (PVT) LTD';
   cCell.fill = xlFill(XL.dark);
   cCell.font = { bold: true, size: 12, color: { argb: XL.white }, name: 'Calibri' };
   cCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -154,7 +159,7 @@ async function buildClientWorkbook(client, logoBase64, ExcelJS) {
       ['Branch',             client.branch],
       ['Main Class',         client.main_class],
       ['Vehicle Number',     client.vehicle_number],
-      ['InsureSAAS File No.', client.insuresaas_ib_file_no],
+      ['InsureSAAS IB File No.', client.insuresaas_ib_file_no],
       ['Introducer Code',    client.introducer_code],
       ['NIC Proof',          client.nic_proof],
       ['DOB Proof',          client.dob_proof],
@@ -419,7 +424,7 @@ async function buildQuotationsWorkbook(quotes, ExcelJS) {
     { header: 'Insurer Count',      key: 'insurer_count',     width: 14 },
   ];
   ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1A2E' } };
+  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0A1A3E' } };
   quotes.forEach(q => {
     ws.addRow({
       reference:          q.reference || '',
@@ -444,7 +449,7 @@ async function buildQuotationsWorkbook(quotes, ExcelJS) {
     { header: 'Document URL',  key: 'doc_url',       width: 60 },
   ];
   ws2.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF5A5A' } };
+  ws2.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF255EAB' } };
   quotes.forEach(q => {
     (q.responses || []).forEach(r => {
       ws2.addRow({
@@ -488,13 +493,13 @@ function TicketCard({ ticket, onSave, onDelete }) {
     : '—';
 
   return (
-    <Card sx={{ mb: 1.5, border: '1px solid rgba(255,139,90,0.12)' }}>
+    <Card sx={{ mb: 1.5, border: '1px solid rgba(255, 139, 90,0.12)' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         {/* collapsed header */}
         <Box
           onClick={() => setOpen(o => !o)}
           sx={{ px: 2.5, py: 1.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1.5,
-                '&:hover': { bgcolor: 'rgba(255,90,90,0.02)' } }}
+                '&:hover': { bgcolor: 'rgba(255, 90, 90,0.02)' } }}
         >
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E', mb: 0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -518,7 +523,7 @@ function TicketCard({ ticket, onSave, onDelete }) {
 
         {/* expanded body */}
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5, borderTop: '1px solid rgba(255,139,90,0.08)' }}>
+          <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5, borderTop: '1px solid rgba(255, 139, 90,0.08)' }}>
             <Typography sx={{ fontSize: 13, color: '#374151', mb: 2, whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
               {ticket.description}
             </Typography>
@@ -612,20 +617,20 @@ const AdminPanel = () => {
     // Header
     ws.mergeCells('A1:G1');
     const h1 = ws.getCell('A1');
-    h1.value = 'InsureSAAS'; h1.font = { bold:true, size:14, color:{argb:'FFFFFFFF'}, name:'Calibri' };
-    h1.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A1A2E'} }; h1.alignment = { horizontal:'center', vertical:'middle' };
+    h1.value = 'INSURESAAS INSURANCE BROKERS (PVT) LTD'; h1.font = { bold:true, size:14, color:{argb:'FFFFFFFF'}, name:'Calibri' };
+    h1.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0A1A3E'} }; h1.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(1).height = 26;
 
     ws.mergeCells('A2:G2');
     const h2 = ws.getCell('A2');
     h2.value = 'Employee Work Hours Report'; h2.font = { bold:true, size:12, color:{argb:'FFFFFFFF'}, name:'Calibri' };
-    h2.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFF5A5A'} }; h2.alignment = { horizontal:'center', vertical:'middle' };
+    h2.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF255EAB'} }; h2.alignment = { horizontal:'center', vertical:'middle' };
     ws.getRow(2).height = 22;
 
     ws.mergeCells('A3:G3');
     const h3 = ws.getCell('A3');
     h3.value = `Generated: ${dateStr}  |  ${rows.length} sessions`; h3.font = { size:9, color:{argb:'FF9CA3AF'}, name:'Calibri' };
-    h3.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFFFF8F5'} }; h3.alignment = { horizontal:'center' };
+    h3.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF2F7FC'} }; h3.alignment = { horizontal:'center' };
     ws.getRow(3).height = 14;
     ws.getRow(4).height = 8;
 
@@ -640,8 +645,8 @@ const AdminPanel = () => {
     let sr = 5;
     ws.mergeCells(`A${sr}:G${sr}`);
     const sh = ws.getCell(`A${sr}`);
-    sh.value = 'SUMMARY BY EMPLOYEE'; sh.font = { bold:true, size:10, color:{argb:'FFFF8B5A'}, name:'Calibri' };
-    sh.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A1A2E'} }; sh.alignment = { horizontal:'center' };
+    sh.value = 'SUMMARY BY EMPLOYEE'; sh.font = { bold:true, size:10, color:{argb:'FF38A3E0'}, name:'Calibri' };
+    sh.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0A1A3E'} }; sh.alignment = { horizontal:'center' };
     ws.getRow(sr).height = 18; sr++;
 
     ['Employee','Sessions','Total Hours','Avg Hours/Session'].forEach((label, i) => {
@@ -652,7 +657,7 @@ const AdminPanel = () => {
     ws.getRow(sr).height = 18; sr++;
 
     Object.entries(empTotals).forEach(([emp, data], ri) => {
-      const bg = ri % 2 === 0 ? 'FFFFF8F5' : 'FFFFFFFF';
+      const bg = ri % 2 === 0 ? 'FFF2F7FC' : 'FFFFFFFF';
       const hours = (data.minutes / 60).toFixed(2);
       const avg   = (data.minutes / data.sessions / 60).toFixed(2);
       [emp, data.sessions, hours, avg].forEach((v, i) => {
@@ -661,36 +666,43 @@ const AdminPanel = () => {
         if (i > 0) { cell.numFmt = i === 1 ? '0' : '0.00'; cell.alignment = { horizontal:'right' }; }
         cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
         cell.font = { size:10, name:'Calibri' };
-        cell.border = { bottom:{ style:'hair', color:{argb:'FFFFD4C0'} } };
+        cell.border = { bottom:{ style:'hair', color:{argb:'FFD6E6F5'} } };
       });
       sr++;
     });
     sr++; // spacer
 
     // Detail headers
-    const detailHeaders = ['Employee','Email','Date','Clock In','Clock Out','Duration (hrs)','Notes'];
+    const detailHeaders = ['Employee','Email','Date','Clock In','Clock Out','Duration (hrs)','Activity / Notes'];
     detailHeaders.forEach((label, i) => {
       const cell = ws.getCell(sr, i + 1);
-      cell.value = label; cell.font = { bold:true, size:10, color:{argb:'FFFF8B5A'}, name:'Calibri' };
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A1A2E'} }; cell.alignment = { horizontal: i >= 3 ? 'center' : 'left', vertical:'middle' };
+      cell.value = label; cell.font = { bold:true, size:10, color:{argb:'FF38A3E0'}, name:'Calibri' };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0A1A3E'} }; cell.alignment = { horizontal: i >= 3 ? 'center' : 'left', vertical:'middle' };
     });
     ws.getRow(sr).height = 20; sr++;
 
     // Detail rows
     rows.forEach((r, ri) => {
-      const bg = ri % 2 === 0 ? 'FFFFF8F5' : 'FFFFFFFF';
+      const bg = ri % 2 === 0 ? 'FFF2F7FC' : 'FFFFFFFF';
       const ci = r.clock_in?.toDate ? r.clock_in.toDate() : null;
       const co = r.clock_out?.toDate ? r.clock_out.toDate() : null;
       const fmtTime = (d) => d ? d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : '—';
       const hrs = r.duration_minutes != null ? (r.duration_minutes / 60).toFixed(2) : '—';
-      [r.user_name||'—', r.user_email||'—', r.date||'—', fmtTime(ci), fmtTime(co), hrs, r.notes||''].forEach((v, i) => {
+      const activityText = [
+        r.notes || '',
+        ...[...(r.activities || [])].sort((a, b) => (a.at || '').localeCompare(b.at || '')).map(a => {
+          const t = a.at ? new Date(a.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+          return `${t ? t + ' — ' : ''}${a.action || ''}`;
+        }),
+      ].filter(Boolean).join('\n');
+      [r.user_name||'—', r.user_email||'—', r.date||'—', fmtTime(ci), fmtTime(co), hrs, activityText].forEach((v, i) => {
         const cell = ws.getCell(sr, i + 1);
         cell.value = v;
         if (i >= 3 && i <= 5) cell.alignment = { horizontal:'center' };
         cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:bg} };
-        cell.font = { size:9.5, name:'Calibri', color:{argb:'FF1A1A2E'} };
+        cell.font = { size:9.5, name:'Calibri', color:{argb:'FF0A1A3E'} };
         if (!co && i === 4) cell.font = { ...cell.font, color:{argb:'FFf59e0b'}, bold:true };
-        cell.border = { bottom:{ style:'hair', color:{argb:'FFFFD4C0'} } };
+        cell.border = { bottom:{ style:'hair', color:{argb:'FFD6E6F5'} } };
       });
       ws.getRow(sr).height = 17; sr++;
     });
@@ -736,6 +748,7 @@ const AdminPanel = () => {
   };
 
   const deleteTicket = async (id) => {
+    if (!confirmTypedDelete('Delete this support ticket?')) return;
     await deleteDoc(doc(db, 'tickets', id));
     setTickets(prev => prev.filter(t => t.id !== id));
     setToast({ open: true, msg: 'Ticket deleted.', severity: 'info' });
@@ -878,7 +891,7 @@ const AdminPanel = () => {
 
       // README so anyone opening the ZIP understands the structure
       masterZip.file('README.txt', [
-        'InsureSAAS — FULL DATA BACKUP',
+        'INSURESAAS INSURANCE BROKERS — FULL DATA BACKUP',
         `Date: ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}`,
         '',
         'FOLDER STRUCTURE',
@@ -946,7 +959,7 @@ const AdminPanel = () => {
         variant="scrollable"
         scrollButtons="auto"
         sx={{
-          mb: 3, borderBottom: '1px solid rgba(255,139,90,0.12)',
+          mb: 3, borderBottom: '1px solid rgba(255, 139, 90,0.12)',
           '& .MuiTab-root': { fontSize: 13, fontWeight: 600, textTransform: 'none', color: '#9CA3AF' },
           '& .Mui-selected': { color: '#FF5A5A' },
           '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)', height: 2.5 },
@@ -963,6 +976,8 @@ const AdminPanel = () => {
         <Tab icon={<DevicesOtherIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Devices" />
         <Tab icon={<AccessTimeIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Work Hours" />
         <Tab icon={<CategoryOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Products" />
+        <Tab icon={<PeopleAltOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Customers" />
+        <Tab icon={<CampaignOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Marketers" />
       </Tabs>
 
       {/* ── TICKETS TAB ── */}
@@ -972,7 +987,7 @@ const AdminPanel = () => {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
             {[
               { label: 'Total',       val: stats.total,      color: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-              { label: 'Open',        val: stats.open,       color: '#FF5A5A', bg: 'rgba(255,90,90,0.08)' },
+              { label: 'Open',        val: stats.open,       color: '#FF5A5A', bg: 'rgba(255, 90, 90,0.08)' },
               { label: 'In Progress', val: stats.inProgress, color: '#d97706', bg: 'rgba(245,158,11,0.08)' },
               { label: 'Resolved',    val: stats.resolved,   color: '#059669', bg: 'rgba(16,185,129,0.08)' },
             ].map(s => (
@@ -1002,7 +1017,7 @@ const AdminPanel = () => {
               </Select>
             </FormControl>
             <Button size="small" variant="outlined" onClick={loadTickets}
-              sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A' }}>
+              sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A' }}>
               Refresh
             </Button>
           </Stack>
@@ -1011,7 +1026,7 @@ const AdminPanel = () => {
             ? <Typography sx={{ color: '#9CA3AF', fontSize: 13 }}>Loading tickets…</Typography>
             : filteredTickets.length === 0
               ? <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <ConfirmationNumberOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255,90,90,0.2)', mb: 1 }} />
+                  <ConfirmationNumberOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255, 90, 90,0.2)', mb: 1 }} />
                   <Typography sx={{ color: '#9CA3AF' }}>No tickets found.</Typography>
                 </Box>
               : filteredTickets.map(t => (
@@ -1084,7 +1099,7 @@ const AdminPanel = () => {
                       '📁 bulk_documents/ — all files flat',
                     ].map(t => (
                       <Chip key={t} label={t} size="small"
-                        sx={{ bgcolor: 'rgba(255,90,90,0.07)', color: '#FF5A5A', fontWeight: 600, fontSize: 11 }} />
+                        sx={{ bgcolor: 'rgba(255, 90, 90,0.07)', color: '#FF5A5A', fontWeight: 600, fontSize: 11 }} />
                     ))}
                   </Stack>
                   <Button
@@ -1116,7 +1131,7 @@ const AdminPanel = () => {
             variant="determinate" value={backupState.progress}
             sx={{ height: 8, borderRadius: 4,
                   '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' },
-                  bgcolor: 'rgba(255,90,90,0.10)' }}
+                  bgcolor: 'rgba(255, 90, 90,0.10)' }}
           />
           <Typography sx={{ fontSize: 11, color: '#9CA3AF', mt: 1, textAlign: 'right' }}>
             {backupState.progress}%
@@ -1141,7 +1156,7 @@ const AdminPanel = () => {
               </Typography>
             </Box>
             <Button size="small" variant="outlined" onClick={loadReditRequests}
-              sx={{ borderColor: 'rgba(255,139,90,0.3)', color: '#FF8B5A', fontSize: 12 }}>
+              sx={{ borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A', fontSize: 12 }}>
               Refresh
             </Button>
           </Box>
@@ -1150,7 +1165,7 @@ const AdminPanel = () => {
             <Typography sx={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</Typography>
           ) : reditRequests.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6 }}>
-              <EditOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255,90,90,0.2)', mb: 1 }} />
+              <EditOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255, 90, 90,0.2)', mb: 1 }} />
               <Typography sx={{ color: '#9CA3AF' }}>No re-edit requests yet.</Typography>
             </Box>
           ) : reditRequests.map(r => {
@@ -1163,7 +1178,7 @@ const AdminPanel = () => {
             const requestedAt = r.requested_at?.toDate?.()?.toLocaleString('en-GB') || '—';
 
             return (
-              <Card key={r.id} sx={{ mb: 1.5, border: '1px solid rgba(255,139,90,0.12)' }}>
+              <Card key={r.id} sx={{ mb: 1.5, border: '1px solid rgba(255, 139, 90,0.12)' }}>
                 <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1251,7 +1266,7 @@ const AdminPanel = () => {
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="outlined" startIcon={<RefreshIcon sx={{ fontSize: 15 }} />}
                   onClick={loadWorkSessions} disabled={workLoading}
-                  sx={{ fontSize: 12, borderColor: 'rgba(255,139,90,0.35)', color: '#FF8B5A' }}>
+                  sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A' }}>
                   {workLoading ? 'Loading…' : 'Refresh'}
                 </Button>
                 <Button size="small" variant="outlined" startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: 15 }} />}
@@ -1281,7 +1296,7 @@ const AdminPanel = () => {
             <Stack direction={{ xs:'column', sm:'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
               {[
                 { label: 'Total Sessions', val: filtered.length, color: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-                { label: 'Total Hours', val: `${(totalMins / 60).toFixed(1)} hrs`, color: '#FF5A5A', bg: 'rgba(255,90,90,0.07)' },
+                { label: 'Total Hours', val: `${(totalMins / 60).toFixed(1)} hrs`, color: '#FF5A5A', bg: 'rgba(255, 90, 90,0.07)' },
                 { label: 'Avg Hours/Session', val: filtered.length ? `${(totalMins / filtered.length / 60).toFixed(1)} hrs` : '—', color: '#10B981', bg: 'rgba(16,185,129,0.07)' },
                 { label: 'Currently Clocked In', val: openSessions, color: '#f59e0b', bg: 'rgba(245,158,11,0.07)' },
               ].map((s, i) => (
@@ -1293,11 +1308,11 @@ const AdminPanel = () => {
             </Stack>
 
             {/* Table */}
-            <Card sx={{ border: '1px solid rgba(255,139,90,0.12)', overflowX: 'auto' }}>
+            <Card sx={{ border: '1px solid rgba(255, 139, 90,0.12)', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#1A1A2E' }}>
-                    {['Employee', 'Email', 'Date', 'Clock In', 'Clock Out', 'Duration', 'Notes'].map(h => (
+                    {['Employee', 'Email', 'Date', 'Clock In', 'Clock Out', 'Duration', 'Activity / Notes'].map(h => (
                       <th key={h} style={{ padding: '10px 14px', color: '#FF8B5A', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', fontSize: 12 }}>{h}</th>
                     ))}
                   </tr>
@@ -1316,7 +1331,7 @@ const AdminPanel = () => {
                     const dur  = s.duration_minutes != null ? `${Math.floor(s.duration_minutes / 60)}h ${s.duration_minutes % 60}m` : null;
                     const active = !co;
                     return (
-                      <tr key={s.id} style={{ background: i % 2 === 0 ? '#FFF8F5' : '#fff' }}>
+                      <tr key={s.id} style={{ background: i % 2 === 0 ? '#FFF5F2' : '#fff' }}>
                         <td style={{ padding: '9px 14px', fontWeight: 600 }}>{s.user_name || '—'}</td>
                         <td style={{ padding: '9px 14px', color: '#6B7280', fontSize: 12 }}>{s.user_email || '—'}</td>
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{s.date || '—'}</td>
@@ -1327,7 +1342,21 @@ const AdminPanel = () => {
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: active ? '#f59e0b' : '#1A1A2E' }}>
                           {active ? 'In progress' : (dur || '—')}
                         </td>
-                        <td style={{ padding: '9px 14px', color: '#9CA3AF', fontSize: 12 }}>{s.notes || ''}</td>
+                        <td style={{ padding: '9px 14px', color: '#6B7280', fontSize: 12, minWidth: 240 }}>
+                          {s.notes ? <div style={{ marginBottom: (s.activities || []).length ? 4 : 0 }}>{s.notes}</div> : null}
+                          {(s.activities || []).length > 0 ? (
+                            <div style={{ maxHeight: 130, overflowY: 'auto' }}>
+                              {[...s.activities].sort((a, b) => (a.at || '').localeCompare(b.at || '')).map((a, ai) => (
+                                <div key={ai} style={{ display: 'flex', gap: 6, lineHeight: 1.55 }}>
+                                  <span style={{ color: '#7C93B0', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {a.at ? new Date(a.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                  </span>
+                                  <span style={{ color: '#374151' }}>{a.action}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (!s.notes ? '—' : null)}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1340,6 +1369,12 @@ const AdminPanel = () => {
 
       {/* ── PRODUCTS TAB ── */}
       {tab === 9 && <ProductsManager />}
+
+      {/* ── WEBSITE CUSTOMERS TAB ── */}
+      {tab === 10 && <CustomersManager />}
+
+      {/* ── MARKETERS TAB ── */}
+      {tab === 11 && <MarketersManager />}
 
       <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast(t => ({ ...t, open: false }))}>
         <Alert severity={toast.severity} variant="filled" sx={{ width: '100%' }}>{toast.msg}</Alert>

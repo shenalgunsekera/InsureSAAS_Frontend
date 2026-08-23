@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, setPersistence } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, browserSessionPersistence } from '../firebase';
 import { useAuth } from '../App';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -49,6 +49,8 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
     try {
+      // Staff sessions are session-only: logged out when the tab closes
+      await setPersistence(auth, browserSessionPersistence).catch(() => {});
       const cred = await signInWithEmailAndPassword(auth, email, password);
       setUser(cred.user);
       const snap = await getDoc(doc(db, 'users', cred.user.uid));
@@ -74,7 +76,7 @@ const LoginPage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(145deg, #0F172A 0%, #1E1B4B 50%, #0C2D5E 100%)',
+      background: 'linear-gradient(145deg, #1A1A2E 0%, #0F2A5C 50%, #164B8F 100%)',
       position: 'relative',
       overflow: 'hidden',
       p: 2,
@@ -102,7 +104,7 @@ const LoginPage = () => {
         {/* card header */}
         <Box sx={{
           px: 4, py: 3.5,
-          background: 'linear-gradient(135deg, #3B82F6, #6366f1)',
+          background: 'linear-gradient(135deg, #FF5A5A, #FF8B5A)',
           textAlign: 'center',
         }}>
             {/* logo */}
@@ -145,7 +147,7 @@ const LoginPage = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <MailOutlineIcon sx={{ color: '#6366f1', fontSize: 20 }} />
+                  <MailOutlineIcon sx={{ color: '#FF8B5A', fontSize: 20 }} />
                 </InputAdornment>
               ),
             }}
@@ -163,7 +165,7 @@ const LoginPage = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <LockOutlinedIcon sx={{ color: '#6366f1', fontSize: 20 }} />
+                  <LockOutlinedIcon sx={{ color: '#FF8B5A', fontSize: 20 }} />
                 </InputAdornment>
               ),
               endAdornment: (

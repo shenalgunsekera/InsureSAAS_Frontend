@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
@@ -8,6 +11,7 @@ import CardContent from '@mui/material/CardContent';
 import Stack from '@mui/material/Stack';
 import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
 import TableBody from '@mui/material/TableBody';
@@ -24,6 +28,10 @@ import MenuItem from '@mui/material/MenuItem';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
+
+const COMPANY = 'InsureSAAS Insurance Brokers (Pvt) Ltd';
 
 function daysLeft(dateStr) {
   if (!dateStr) return null;
@@ -32,10 +40,92 @@ function daysLeft(dateStr) {
   return Math.ceil((d - new Date()) / 86400000);
 }
 
+function daysText(days) {
+  if (days === null || days === undefined) return '—';
+  if (days < 0) return `Expired ${Math.abs(days)}d ago`;
+  return `${days}d left`;
+}
+
+const EXPORT_COLS = [
+  { label: 'Client Name',  get: c => c.client_name || '' },
+  { label: 'Policy No',    get: c => c.policy_no || '' },
+  { label: 'Product',      get: c => c.product || '' },
+  { label: 'Insurer',      get: c => c.insurance_provider || '' },
+  { label: 'Expiry Date',  get: c => c.policy_period_to || '' },
+  { label: 'Days Left',    get: c => daysText(c.daysLeft) },
+  { label: 'Net Premium',  get: c => (c.net_premium ? Number(c.net_premium) : ''), num: true },
+];
+
+function exportRenewalsCSV(rows, title) {
+  const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const q = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+  const lines = [
+    q('Renewals — ' + title),
+    `${q(COMPANY)},${q(dateStr)}`,
+    `${q('Total records')},${rows.length}`,
+    '',
+    EXPORT_COLS.map(c => q(c.label)).join(','),
+  ];
+  rows.forEach(r => {
+    lines.push(EXPORT_COLS.map(c => {
+      const v = c.get(r);
+      if (c.num) return v === '' ? '' : Number(v).toFixed(2);
+      return q(v);
+    }).join(','));
+  });
+  const BOM = '﻿';
+  const blob = new Blob([BOM + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  saveAs(blob, `Renewals_${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
+function exportRenewalsPDF(rows, title) {
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm' });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  pdf.setFillColor(255, 90, 90); pdf.rect(0, 0, pageW, 26, 'F');
+  pdf.setFillColor(26, 26, 46);  pdf.rect(0, 26, pageW, 10, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(15); pdf.setFont('helvetica', 'bold');
+  pdf.text(COMPANY, pageW / 2, 11, { align: 'center' });
+  pdf.setFontSize(10); pdf.setFont('helvetica', 'normal');
+  pdf.text('Renewals — ' + title, pageW / 2, 20, { align: 'center' });
+  pdf.setFontSize(8.5);
+  pdf.text(`Generated: ${dateStr}  ·  ${rows.length} records`, pageW / 2, 32, { align: 'center' });
+
+  autoTable(pdf, {
+    startY: 42,
+    head: [EXPORT_COLS.map(c => c.label)],
+    body: rows.map(r => EXPORT_COLS.map(c => {
+      const v = c.get(r);
+      if (c.num) return v === '' ? '—' : Number(v).toLocaleString();
+      return v === '' ? '—' : String(v);
+    })),
+    headStyles: { fillColor: [26, 26, 46], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, cellPadding: 3 },
+    alternateRowStyles: { fillColor: [255, 245, 242] },
+    styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [26, 26, 46] },
+    columnStyles: { 6: { halign: 'right' } },
+    didParseCell: (d) => {
+      if (d.section !== 'body') return;
+      const r = rows[d.row.index];
+      if (r && d.column.index === 5 && r.daysLeft < 0) { d.cell.styles.textColor = [220, 38, 38]; d.cell.styles.fontStyle = 'bold'; }
+    },
+    didDrawPage: () => {
+      pdf.setFontSize(7); pdf.setTextColor(180, 180, 180);
+      pdf.text(`${COMPANY} — Confidential`, 10, pageH - 6);
+      pdf.text(`Page ${pdf.getNumberOfPages()}`, pageW - 10, pageH - 6, { align: 'right' });
+    },
+  });
+  pdf.save(`Renewals_${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 const RenewalsPage = () => {
   const [clients,  setClients]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate,   setToDate]   = useState('');
   const [tab,      setTab]      = useState(0); // 0=expiring soon, 1=expired, 2=all
   const [rPage,    setRPage]    = useState(1);
   const [rPer,     setRPer]     = useState(15);
@@ -60,10 +150,22 @@ const RenewalsPage = () => {
   }, [clients]);
 
   const lists = [categorised.expiring, categorised.expired, categorised.all];
+  const fromT = fromDate ? new Date(fromDate).setHours(0, 0, 0, 0) : null;
+  const toT   = toDate   ? new Date(toDate).setHours(23, 59, 59, 999) : null;
   const filtered = lists[tab].filter(c => {
     const q = search.toLowerCase();
-    return !q || (c.client_name||'').toLowerCase().includes(q) || (c.policy_no||'').toLowerCase().includes(q);
+    const matchSearch = !q || (c.client_name||'').toLowerCase().includes(q) || (c.policy_no||'').toLowerCase().includes(q);
+    if (!matchSearch) return false;
+    if (fromT || toT) {
+      const t = new Date(c.policy_period_to).getTime();
+      if (isNaN(t)) return false;
+      if (fromT && t < fromT) return false;
+      if (toT && t > toT) return false;
+    }
+    return true;
   });
+
+  const tabName = ['Expiring Soon', 'Expired', 'All'][tab];
 
   const statusChip = (days) => {
     if (days < 0)   return { label: `Expired ${Math.abs(days)}d ago`, color: '#dc2626', bg: 'rgba(239,68,68,0.10)', icon: <ErrorOutlineIcon sx={{ fontSize: 13 }} /> };
@@ -104,7 +206,31 @@ const RenewalsPage = () => {
               <Tab label="All" />
             </Tabs>
             <Box sx={{ flex:1 }} />
-            <TextField size="small" placeholder="Search client or policy…" value={search} onChange={e=>setSearch(e.target.value)} sx={{ minWidth:220 }} />
+            <TextField size="small" placeholder="Search client or policy…" value={search} onChange={e=>{ setSearch(e.target.value); setRPage(1); }} sx={{ minWidth:220 }} />
+          </Box>
+
+          {/* Date filter + exports */}
+          <Box sx={{ px:2.5, pb:1.5, display:'flex', gap:1.5, alignItems:'center', flexWrap:'wrap' }}>
+            <Typography sx={{ fontSize:12.5, color:'#6B7280', fontWeight:600 }}>Expiry between</Typography>
+            <TextField size="small" type="date" label="From" InputLabelProps={{ shrink:true }}
+              value={fromDate} onChange={e=>{ setFromDate(e.target.value); setRPage(1); }} sx={{ width:160 }} />
+            <TextField size="small" type="date" label="To" InputLabelProps={{ shrink:true }}
+              value={toDate} onChange={e=>{ setToDate(e.target.value); setRPage(1); }} sx={{ width:160 }} />
+            {(fromDate || toDate) && (
+              <Button size="small" onClick={()=>{ setFromDate(''); setToDate(''); setRPage(1); }}
+                sx={{ textTransform:'none', color:'#9CA3AF', fontSize:12 }}>Clear</Button>
+            )}
+            <Box sx={{ flex:1 }} />
+            <Button size="small" variant="outlined" startIcon={<FileDownloadOutlinedIcon sx={{ fontSize:16 }} />}
+              disabled={!filtered.length} onClick={()=>exportRenewalsCSV(filtered, tabName)}
+              sx={{ textTransform:'none', fontSize:12.5, fontWeight:600, borderColor:'#FF5A5A', color:'#FF5A5A', '&:hover':{ borderColor:'#1A1A2E', bgcolor:'rgba(255, 90, 90,0.04)' } }}>
+              Export CSV
+            </Button>
+            <Button size="small" variant="contained" startIcon={<PictureAsPdfOutlinedIcon sx={{ fontSize:16 }} />}
+              disabled={!filtered.length} onClick={()=>exportRenewalsPDF(filtered, tabName)}
+              sx={{ textTransform:'none', fontSize:12.5, fontWeight:600, background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)', boxShadow:'none', '&:hover':{ boxShadow:'none', filter:'brightness(0.95)' } }}>
+              Export PDF
+            </Button>
           </Box>
 
           {loading ? (
@@ -125,7 +251,7 @@ const RenewalsPage = () => {
                   ) : filtered.slice((rPage-1)*rPer, rPage*rPer).map((c,i) => {
                     const s = statusChip(c.daysLeft);
                     return (
-                      <TableRow key={c.id} sx={{ bgcolor: i%2===0?'#fff':'rgba(255,248,245,0.6)' }}>
+                      <TableRow key={c.id} sx={{ bgcolor: i%2===0?'#fff':'rgba(255, 245, 242,0.6)' }}>
                         <TableCell sx={{ fontWeight:600 }}>{c.client_name}</TableCell>
                         <TableCell sx={{ fontFamily:'monospace' }}>{c.policy_no||'—'}</TableCell>
                         <TableCell>{c.product||'—'}</TableCell>
@@ -146,7 +272,7 @@ const RenewalsPage = () => {
             </TableContainer>
           )}
           {filtered.length > rPer && (
-            <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', px:2.5, py:1.5, borderTop:'1px solid rgba(255,139,90,0.08)', flexWrap:'wrap', gap:1 }}>
+            <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', px:2.5, py:1.5, borderTop:'1px solid rgba(255, 139, 90,0.08)', flexWrap:'wrap', gap:1 }}>
               <Typography sx={{ fontSize:12.5, color:'#9CA3AF' }}>
                 Showing {(rPage-1)*rPer+1}–{Math.min(rPage*rPer, filtered.length)} of {filtered.length}
               </Typography>

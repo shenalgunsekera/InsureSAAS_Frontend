@@ -146,23 +146,54 @@ export function viewUrl(url) {
   return url || '';
 }
 
-// Opens any file in a new tab. PDFs use a blob URL for guaranteed inline display.
-// Falls back to direct window.open if the fetch fails (e.g. CORS).
+// Extract the storage object path from a Firebase Storage URL.
+//   https://firebasestorage.googleapis.com/v0/b/BUCKET/o/<ENCODED_PATH>?alt=media&token=…
+//   gs://BUCKET/<PATH>
+function storagePathFromUrl(url) {
+  if (typeof url !== 'string') return null;
+  try {
+    const httpsMatch = url.match(/\/o\/([^?]+)/);
+    if (httpsMatch) return decodeURIComponent(httpsMatch[1]);
+    const gsMatch = url.match(/^gs:\/\/[^/]+\/(.+)$/);
+    if (gsMatch) return decodeURIComponent(gsMatch[1]);
+  } catch (_) { /* ignore */ }
+  return null;
+}
+
+// Re-mint a fresh, authorised download URL from the object path using the
+// signed-in session. This fixes "403 / unauthorized" caused by a stale or
+// revoked download token baked into the URL stored months ago — the fresh
+// URL always carries a valid token and passes the Storage rules for staff.
+// Falls back to the original URL if the path can't be resolved.
+export async function freshDownloadUrl(url) {
+  const path = storagePathFromUrl(url);
+  if (!path) return url;
+  try {
+    return await getDownloadURL(ref(storage, path));
+  } catch (_) {
+    return url;
+  }
+}
+
+// Opens any file in a new tab. Always resolves a fresh authorised URL first so
+// documents never 403 on a stale token. PDFs use a blob URL for guaranteed
+// inline display; other files open directly.
 export async function openFile(url) {
   if (!url) return;
-  const isPdf = /\.pdf(\?|$)/i.test(url);
+  const fresh = await freshDownloadUrl(url);
+  const isPdf = /\.pdf(\?|$)/i.test(fresh) || /\.pdf(\?|$)/i.test(url);
   if (isPdf) {
     try {
-      const res     = await fetch(url);
+      const res = await fetch(fresh);
       if (!res.ok) throw new Error('fetch failed');
       const blob    = await res.blob();
       const blobUrl = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       window.open(blobUrl, '_blank');
       setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
     } catch {
-      window.open(url, '_blank');
+      window.open(fresh, '_blank');
     }
     return;
   }
-  window.open(viewUrl(url), '_blank');
+  window.open(fresh, '_blank');
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { uploadFile as uploadToCloudinary } from '../storage';
+import { uploadFile as uploadToCloudinary, openFile } from '../storage';
+import { logActivity } from '../utils/workSession';
 import { useAuth } from '../App';
 import { PRODUCTS } from '../config/products';
 import { evaluateAutoCalc, describeAutoCalc } from '../utils/autoCalc';
@@ -70,14 +71,16 @@ const dropdowns = {
   sum_insured_currency: ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'JPY', 'INR', 'SGD', 'Other'],
   main_class: MAIN_CLASSES,
   // Auto-generated from PRODUCTS config — if a product is added there, it appears here
-  product: Object.values(PRODUCTS).map(p => p.label),
-  customer_type: ['Individual', 'Company'],
+  product: Object.values(PRODUCTS).filter(p => !p.hidden).map(p => p.label),
+  customer_type: ['Individual', 'Individual Inhouse', 'Corporate', 'Corporate Inhouse'],
   insurance_provider: [
     'AIA Insurance', 'Allianz Insurance Lanka', 'Ceylinco General Insurance',
-    'Ceylinco Life Insurance', 'Fairfirst Insurance', 'HNB General Insurance',
+    'Ceylinco Life Insurance', 'Continental Insurance Lanka', 'Fairfirst Insurance',
+    'HNB General Insurance',
     'Janashakthi General Insurance', 'Janashakthi Life Insurance',
     'LOLC General Insurance', 'LOLC Life Assurance',
     'National Insurance Trust Fund', 'Orient Insurance',
+    'Peoples Insurance', 'Sanasa General Insurance',
     'Sanasa Life Assurance', 'Softlogic Life Insurance',
     'Sri Lanka Insurance Corporation',
     'Union Assurance', 'Other',
@@ -98,8 +101,9 @@ const COMMISSION_BASIC_RATES = {
   Motor: 20, Fire: 20, Marine: 15, Health: 20,
   Miscellaneous: 20, Individual: 20, Group: 20, Other: 20,
 };
-const COMMISSION_SRCC_RATE = 7.5;
-const COMMISSION_TC_RATE   = 7.5;
+// SRCC and TC are 7.5% for most classes but 5% for MOTOR policies.
+const srccRateFor = (mainClass) => (mainClass === 'Motor' ? 5 : 7.5);
+const tcRateFor   = (mainClass) => (mainClass === 'Motor' ? 5 : 7.5);
 const num = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
 const roundMoney = (n) => (Number.isFinite(n) && n !== 0 ? String(Math.round(n * 100) / 100) : '');
 
@@ -107,7 +111,7 @@ const roundMoney = (n) => (Number.isFinite(n) && n !== 0 ? String(Math.round(n *
    Exported so TableSection can use it for CSV template generation           */
 export const textFields = [
   // Introducer
-  { label: 'InsureSAAS File No.', name: 'insuresaas_ib_file_no', section: 'Introducer' },
+  { label: 'InsureSAAS IB File No.', name: 'insuresaas_ib_file_no', section: 'Introducer' },
   { label: 'Manager',            name: 'manager',            section: 'Introducer' },
   { label: 'Introducer Code',    name: 'introducer_code',    section: 'Introducer' },
   // Insurance Company
@@ -201,7 +205,7 @@ export const textFields = [
 const SECTION_COLORS = {
   Introducer:                 '#FF5A5A',
   'Insurance Company':        '#FF8B5A',
-  'Proposer Details':         '#FFA95A',
+  'Proposer Details':         '#6BC0EC',
   'Period of Insurance':      '#10B981',
   'Financial Interest':       '#0284c7',
   'Risk Information':         '#0891b2',
@@ -229,13 +233,20 @@ function calcPolicyDays(from, to) {
   return diff >= 0 ? String(diff) : '';
 }
 
-function calcOsDays(from) {
+// Outstanding days = days from policy commencement (start) to the payment date.
+// While unpaid and no payment date yet, it counts up from the start to today.
+// Once the premium is Paid, nothing is outstanding → 0.
+function calcOsDays(from, paymentDate, paymentStatus) {
+  if (String(paymentStatus || '').toLowerCase() === 'paid') return '0';
   if (!from) return '';
-  const a = new Date(from instanceof Date ? from : from);
-  if (isNaN(a)) return '';
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.round((today - a) / (1000 * 60 * 60 * 24));
-  return diff >= 0 ? String(diff) : '';
+  const start = new Date(from instanceof Date ? from : from);
+  if (isNaN(start)) return '';
+  const end = paymentDate ? new Date(paymentDate instanceof Date ? paymentDate : paymentDate) : new Date();
+  if (isNaN(end)) return '';
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? String(diff) : '0';
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -268,12 +279,12 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
         onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
         onClick={() => document.getElementById(`file-${fieldName}`).click()}
         sx={{
-          border: `2px dashed ${dragging ? '#FF5A5A' : uploaded ? '#10B981' : 'rgba(255,139,90,0.35)'}`,
+          border: `2px dashed ${dragging ? '#FF5A5A' : uploaded ? '#10B981' : 'rgba(255, 139, 90,0.35)'}`,
           borderRadius: '12px', p: 1.5, cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 1,
-          bgcolor: dragging ? 'rgba(255,90,90,0.04)' : uploaded ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
+          bgcolor: dragging ? 'rgba(255, 90, 90,0.04)' : uploaded ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
           transition: 'all 0.2s ease',
-          '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255,139,90,0.04)' },
+          '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.04)' },
         }}
       >
         {uploaded
@@ -288,9 +299,9 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
               : <Typography sx={{ fontSize: 10.5, color: '#9CA3AF' }}>Click or drag to upload (PDF/image)</Typography>}
         </Box>
         {existing && !fileName && (
-          <Link href={existing} target="_blank" rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            sx={{ fontSize: 10.5, color: '#FF8B5A', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          <Link component="button" type="button"
+            onClick={e => { e.stopPropagation(); openFile(existing); }}
+            sx={{ fontSize: 10.5, color: '#FF8B5A', whiteSpace: 'nowrap', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
             View
           </Link>
         )}
@@ -314,7 +325,7 @@ function SectionHeader({ title }) {
       <Typography sx={{ fontWeight: 700, fontSize: 13, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.6 }}>
         {title}
       </Typography>
-      <Box sx={{ flex: 1, height: 1, bgcolor: 'rgba(255,139,90,0.12)' }} />
+      <Box sx={{ flex: 1, height: 1, bgcolor: 'rgba(255, 139, 90,0.12)' }} />
     </Box>
   );
 }
@@ -329,7 +340,7 @@ function NumericField({ value, onChange, readOnly, ...props }) {
       value={fmtNum(value)}
       onChange={readOnly ? undefined : handleChange}
       InputProps={{ readOnly: !!readOnly, ...(props.InputProps || {}) }}
-      inputProps={{ inputMode: 'numeric', ...(props.inputProps || {}) }}
+      inputProps={{ inputMode: 'decimal', ...(props.inputProps || {}) }}
       sx={{ ...props.sx, ...(readOnly ? { '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.03)' } } : {}) }}
     />
   );
@@ -356,7 +367,9 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
         obj.product = resolveProduct(initialData.product, initialData.product_key);
         return;
       }
-      const raw = initialData[f.name];
+      const raw0 = initialData[f.name];
+      // Legacy 'Company' customer_type → standardised 'Corporate'
+      const raw = (f.name === 'customer_type' && raw0 === 'Company') ? 'Corporate' : raw0;
       if (raw === undefined || raw === null || raw === '') { obj[f.name] = ''; return; }
       if (f.dropdown && dropdowns[f.name]) {
         obj[f.name] = dropdowns[f.name].includes(String(raw)) ? String(raw)
@@ -400,17 +413,24 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     const from = dates.policy_period_from;
     const to   = dates.policy_period_to;
     const days = calcPolicyDays(from, to);
-    const os   = calcOsDays(from);
     const year  = from ? String(from.getFullYear()) : '';
     const month = from ? MONTHS[from.getMonth()] : '';
     setFields(f => ({
       ...f,
       policy_days:  days,
-      os_days:      f.os_days !== '' ? f.os_days : os, // only auto-fill if empty
       policy_year:  year,
       policy_month: month,
     }));
   }, [dates.policy_period_from, dates.policy_period_to]);
+
+  // O/S Days recomputes automatically from commencement → payment date, and
+  // becomes 0 the moment the payment status is set to Paid.
+  useEffect(() => {
+    setFields(f => ({
+      ...f,
+      os_days: calcOsDays(dates.policy_period_from, dates.payment_date, f.payment_status),
+    }));
+  }, [dates.policy_period_from, dates.payment_date, fields.payment_status]);
 
   /* Auto-calculate Standard / Special commission from the rate table.
      Runs only when a commission type is selected; manual edits are left alone
@@ -421,8 +441,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     if (!autoCommission) return;
     const basicRate = COMMISSION_BASIC_RATES[fields.main_class] ?? 20;
     const cb = num(fields.basic_premium) * basicRate / 100;
-    const cs = num(fields.srcc_premium)  * COMMISSION_SRCC_RATE / 100;
-    const ct = num(fields.tc_premium)    * COMMISSION_TC_RATE   / 100;
+    const cs = num(fields.srcc_premium)  * srccRateFor(fields.main_class) / 100;
+    const ct = num(fields.tc_premium)    * tcRateFor(fields.main_class)   / 100;
     const specialAmt = fields.commission_type === 'Special'
       ? num(fields.basic_premium) * num(fields.commission_special_rate) / 100
       : 0;
@@ -544,6 +564,21 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     );
   }, [productKey, allProducts]);
 
+  // Any product field in a section this form doesn't already render — e.g. a
+  // custom section/field created in the product editor, or the "Notes for
+  // Insurer" section — so admin-created fields always surface here and their
+  // values (carried over from the quote) are visible/editable in underwriting.
+  const KNOWN_UW_SECTIONS = useMemo(() => new Set([
+    ...textFields.map(f => f.section),
+    ...RISK_SECTIONS, 'Financial Interest', 'Claims History', 'Underwriting Information',
+    'Covers Required', 'Cover Required', 'Additional Clauses', 'Sum Insured', 'Document Uploads',
+  ]), []);
+  const customFields = useMemo(() => {
+    if (!productKey || !allProducts[productKey]) return [];
+    return (allProducts[productKey].fields || []).filter(f =>
+      f.type !== 'file' && f.type !== 'plantable' && f.section && !KNOWN_UW_SECTIONS.has(f.section));
+  }, [productKey, allProducts, KNOWN_UW_SECTIONS]);
+
   const prodDocFields = useMemo(() => {
     if (!productKey || !allProducts[productKey]) return [];
     return (allProducts[productKey].fields || []).filter(f =>
@@ -642,6 +677,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           ...(initialData.source_quote_id ? { source_quote_id: initialData.source_quote_id } : {}),
         });
       }
+      logActivity(`${isEdit ? 'Updated' : 'Added'} policy${fields.client_name ? ` for ${fields.client_name}` : ''}${fields.insuresaas_ib_file_no ? ` (${fields.insuresaas_ib_file_no})` : ''}`);
       onSuccess?.();
     } catch (err) {
       setError(err.message || 'Failed to save client');
@@ -755,7 +791,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
         <SectionHeader title="Introducer" />
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           <Grid item xs={12} sm={6} md={4}>
-            <TextField label="InsureSAAS File No." value={fields.insuresaas_ib_file_no}
+            <TextField label="InsureSAAS IB File No." value={fields.insuresaas_ib_file_no}
               onChange={e => set('insuresaas_ib_file_no', e.target.value)}
               fullWidth size="small" helperText={fileNoHint}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
@@ -939,6 +975,26 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           </>
         )}
 
+        {/* ── Custom / additional product sections (from the product editor) ── */}
+        {(() => {
+          const visible = customFields.filter(isRiskFieldVisible);
+          if (!visible.length) return null;
+          const bySection = {};
+          visible.forEach(f => { (bySection[f.section] = bySection[f.section] || []).push(f); });
+          return Object.entries(bySection).map(([section, flds]) => (
+            <React.Fragment key={section}>
+              <SectionHeader title={section} />
+              <Grid container spacing={2} sx={{ mb: 2.5 }}>
+                {flds.map(f => (
+                  <Grid item xs={12} sm={f.type === 'textarea' ? 12 : 6} md={f.type === 'textarea' ? 12 : 4} key={f.name}>
+                    {renderRiskField(f)}
+                  </Grid>
+                ))}
+              </Grid>
+            </React.Fragment>
+          ));
+        })()}
+
         {/* ── Premium ──────────────────────────────────────── */}
         <SectionHeader title="Premium" />
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
@@ -972,8 +1028,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: '8px', bgcolor: 'rgba(236,72,153,0.06)', border: '1px solid rgba(236,72,153,0.18)' }}>
             <Typography sx={{ fontSize: 12, color: '#9d174d', fontWeight: 600 }}>
               {fields.commission_type === 'Special'
-                ? `Auto-calculated: Standard (${fields.main_class || '—'} basic ${COMMISSION_BASIC_RATES[fields.main_class] ?? 20}%, SRCC ${COMMISSION_SRCC_RATE}%, TC ${COMMISSION_TC_RATE}%) with the Special Rate applied to the basic premium.`
-                : `Auto-calculated from the rate table: ${fields.main_class || '—'} basic ${COMMISSION_BASIC_RATES[fields.main_class] ?? 20}%, SRCC ${COMMISSION_SRCC_RATE}%, TC ${COMMISSION_TC_RATE}% (× the entered premiums).`}
+                ? `Auto-calculated: Standard (${fields.main_class || '—'} basic ${COMMISSION_BASIC_RATES[fields.main_class] ?? 20}%, SRCC ${srccRateFor(fields.main_class)}%, TC ${tcRateFor(fields.main_class)}%) with the Special Rate applied to the basic premium.`
+                : `Auto-calculated from the rate table: ${fields.main_class || '—'} basic ${COMMISSION_BASIC_RATES[fields.main_class] ?? 20}%, SRCC ${srccRateFor(fields.main_class)}%, TC ${tcRateFor(fields.main_class)}% (× the entered premiums).`}
             </Typography>
           </Box>
         )}
@@ -1044,8 +1100,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                     {k.replace(/^doc_/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                   </Typography>
                   <Typography sx={{ fontSize: 10.5, color: '#10B981', mb: 0.3 }}>From quotation form</Typography>
-                  <Link href={url} target="_blank" rel="noopener noreferrer"
-                    sx={{ fontSize: 11, color: '#10B981', fontWeight: 700, '&:hover': { textDecoration: 'underline' } }}>
+                  <Link component="button" type="button" onClick={() => openFile(url)}
+                    sx={{ fontSize: 11, color: '#10B981', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
                     View document ↗
                   </Link>
                 </Box>
@@ -1085,7 +1141,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
         )}
 
         <Box sx={{ display: 'flex', gap: 1.5, pt: 1, justifyContent: 'flex-end',
-                    borderTop: '1px solid rgba(255,139,90,0.12)', mt: 1 }}>
+                    borderTop: '1px solid rgba(255, 139, 90,0.12)', mt: 1 }}>
           <Button onClick={onCancel} variant="outlined" disabled={saving}
             sx={{ borderColor: '#e0e0e0', color: '#6B7280', '&:hover': { borderColor: '#aaa' } }}>
             Cancel

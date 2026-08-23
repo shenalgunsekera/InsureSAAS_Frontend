@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { collection, getDocs, query, orderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
+import { liveOsDays, policyStatus } from '../utils/osDays';
+import { liveCommission } from '../utils/commission';
 import { textFields as UW_FIELDS } from './AddClientForm';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
@@ -22,6 +25,7 @@ import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
 import FormControl from '@mui/material/FormControl';
@@ -82,7 +86,8 @@ const CLIENT_FIELDS = (() => {
   const skip = new Set(['date_added', 'policy_year', 'policy_month']);
   const base = UW_FIELDS.filter(f => !skip.has(f.name)).map(f => ({ key: f.name, label: f.label, type: uwType(f) }));
   const have = new Set(base.map(f => f.key));
-  return [...base, ...CLIENT_SYSTEM_FIELDS.filter(f => !have.has(f.key))];
+  const derived = [{ key: 'policy_status', label: 'Policy Status (Active / Expired)', type: 'string' }];
+  return [...base, ...derived, ...CLIENT_SYSTEM_FIELDS.filter(f => !have.has(f.key))];
 })();
 // keys to hide from the dynamic field list (internal / file URLs / JSON blobs)
 const isInternalKey = (k) =>
@@ -93,14 +98,18 @@ const isInternalKey = (k) =>
 const prettyKey = (k) => k.replace(/^(cover_|clause_|fi_)/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const CLAIM_FIELDS = [
-  { key: 'client_name',    label: 'Client Name',    type: 'string' },
-  { key: 'claim_no',       label: 'Claim No',       type: 'string' },
-  { key: 'insurer',        label: 'Insurer',        type: 'string' },
-  { key: 'status',         label: 'Status',         type: 'string' },
-  { key: 'claim_amount',   label: 'Claim Amount',   type: 'number' },
-  { key: 'settled_amount', label: 'Settled Amount', type: 'number' },
-  { key: 'product',        label: 'Product',        type: 'string' },
-  { key: 'main_class',     label: 'Main Class',     type: 'string' },
+  { key: 'reference',         label: 'Claim Reference',   type: 'string' },
+  { key: 'claim_ref_id',      label: 'Claim Ref ID',      type: 'string' },
+  { key: 'client_name',       label: 'Client Name',       type: 'string' },
+  { key: 'policy_no',         label: 'Policy No',         type: 'string' },
+  { key: 'product',           label: 'Product / Class',   type: 'string' },
+  { key: 'status',            label: 'Status',            type: 'string' },
+  { key: 'incident_date',     label: 'Incident Date',     type: 'date'   },
+  { key: 'cause',             label: 'Cause of Loss',     type: 'string' },
+  { key: 'loss_amount',       label: 'Estimated Loss',    type: 'number' },
+  { key: 'settlement_amount', label: 'Settlement Amount', type: 'number' },
+  { key: 'created_by_name',   label: 'Registered By',     type: 'string' },
+  { key: 'created_at',        label: 'Registered On',     type: 'date'   },
 ];
 
 // Quotation report fields — these map to the flattened quote rows built in loadData().
@@ -134,6 +143,9 @@ const QUOTE_FIELDS = [
   { key: 'response_count',     label: 'No. Responses',      type: 'number' },
   { key: 'declined_count',     label: 'No. Declined',       type: 'number' },
   { key: 'lowest_premium',     label: 'Lowest Premium',     type: 'number' },
+  // Origin
+  { key: 'source',             label: 'Source',             type: 'string' },
+  { key: 'marketer_name',      label: 'Marketer',           type: 'string' },
   // Audit
   { key: 'days_outstanding',   label: 'Days Outstanding',   type: 'number' },
   { key: 'created_by_name',    label: 'Created By',          type: 'string' },
@@ -146,6 +158,13 @@ const FILTER_OPS = {
   number: ['=','>','<','>=','<='],
   date:   ['after','before','between'],
 };
+
+// The four customer types the forms use. Legacy 'Company' and any raw imported
+// "Insured Detail" values (INTERCOMPANY, DSI EMPLOYEE, OUTSIDE COMPANY/INDIVIDUAL)
+// are folded to these so reports always show one clean, complete set.
+const CUSTOMER_TYPES = ['Individual', 'Individual Inhouse', 'Corporate', 'Corporate Inhouse'];
+const CT_ALIASES = { 'COMPANY':'Corporate', 'INTERCOMPANY':'Corporate Inhouse', 'DSI EMPLOYEE':'Individual Inhouse', 'OUTSIDE COMPANY':'Corporate', 'OUTSIDE INDIVIDUAL':'Individual' };
+const normCustomerType = (t) => { const s = String(t ?? '').trim(); if (!s) return ''; return CT_ALIASES[s.toUpperCase().replace(/\s+/g,' ')] || s; };
 
 const BUILTIN_TEMPLATES = [
   { id:'unfinalised_quotes', name:'Not Finalised Quotations', description:'Quotes where the customer went with another company (marked not finalised) — full quote detail', icon:'⏳', source:'quotes', fields:['reference','product','client_name','customer_type','mobile','email','nic_no','address','city','district','sum_insured','vehicle_no','period_from','period_to','status','not_finalised_at','selected_company','selected_premium','insurers_sent','sent_count','insurers_responded','response_count','declined_count','lowest_premium','days_outstanding','created_by_name','created_at'], groupBy:'', aggregations:[], filters:[{field:'not_finalised',op:'equals',value:'Yes'}], sortBy:'not_finalised_at', sortDir:'desc', viewMode:'flat', charts:[] },
@@ -313,8 +332,8 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
   const pageW=pdf.internal.pageSize.getWidth(); const pageH=pdf.internal.pageSize.getHeight();
   const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 
-  pdf.setFillColor(255,90,90); pdf.rect(0,0,pageW,26,'F');
-  pdf.setFillColor(26,26,46);  pdf.rect(0,26,pageW,10,'F');
+  pdf.setFillColor(255, 90, 90); pdf.rect(0,0,pageW,26,'F');
+  pdf.setFillColor(26, 26, 46);  pdf.rect(0,26,pageW,10,'F');
   pdf.setTextColor(255,255,255);
   pdf.setFontSize(15); pdf.setFont('helvetica','bold');
   pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd',pageW/2,11,{align:'center'});
@@ -331,9 +350,9 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
     numCols.forEach((c,i)=>{
       const total=rows.filter(r=>!r._type||r._type==='data').reduce((a,r)=>a+parseNum(r[c.key]),0);
       const x=10+i*boxW;
-      pdf.setFillColor(255,248,245); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
-      pdf.setDrawColor(255,139,90); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
-      pdf.setTextColor(255,90,90); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
+      pdf.setFillColor(255, 245, 242); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
+      pdf.setDrawColor(255, 139, 90); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
+      pdf.setTextColor(255, 90, 90); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
       pdf.text(fmtNum(total),x+(boxW-3)/2,Y+10,{align:'center'});
       pdf.setTextColor(107,114,128); pdf.setFontSize(7.5); pdf.setFont('helvetica','normal');
       pdf.text(c.label,x+(boxW-3)/2,Y+16,{align:'center'});
@@ -372,15 +391,15 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
         return String(v);
       });
     }),
-    headStyles:{fillColor:[26,26,46],textColor:[255,255,255],fontStyle:'bold',fontSize:9,cellPadding:3},
-    alternateRowStyles:{fillColor:[255,248,245]},
-    styles:{fontSize:8.5,cellPadding:2.5,textColor:[26,26,46]},
+    headStyles:{fillColor:[26, 26, 46],textColor:[255,255,255],fontStyle:'bold',fontSize:9,cellPadding:3},
+    alternateRowStyles:{fillColor:[255, 245, 242]},
+    styles:{fontSize:8.5,cellPadding:2.5,textColor:[26, 26, 46]},
     columnStyles:columns.reduce((acc,c,i)=>{if(c.type==='number')acc[i]={halign:'right'};return acc;},{}),
     didParseCell:(d)=>{
       const r=rows[d.row.index];
       if (!r) return;
       if (r._type==='subtotal'){d.cell.styles.fillColor=[230,230,255];d.cell.styles.fontStyle='bold';d.cell.styles.textColor=[60,60,200];}
-      if (r._type==='grandtotal'){d.cell.styles.fillColor=[26,26,46];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}
+      if (r._type==='grandtotal'){d.cell.styles.fillColor=[26, 26, 46];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}
     },
     didDrawPage:()=>{
       pdf.setFontSize(7); pdf.setTextColor(180,180,180);
@@ -463,8 +482,8 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   const spanCols  = Math.max(maxColIdx, 8);
 
   wsSummary.mergeCells(1, 1, 1, spanCols);
-  setCell(wsSummary, 1, 1, 'InsureSAAS',
-    { fill:'FF1A1A2E', font:{ bold:true, size:16, color:{argb:'FFFFFFFF'} }, align:{ horizontal:'center', vertical:'middle' } });
+  setCell(wsSummary, 1, 1, 'INSURESAAS INSURANCE BROKERS (PVT) LTD',
+    { fill:'FF0A1A3E', font:{ bold:true, size:16, color:{argb:'FFFFFFFF'} }, align:{ horizontal:'center', vertical:'middle' } });
   wsSummary.getRow(1).height = 32;
 
   wsSummary.mergeCells(2, 1, 2, spanCols);
@@ -487,12 +506,12 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
       const col2  = col1 + 1;
       wsSummary.mergeCells(sumRow, col1, sumRow, col2);
       setCell(wsSummary, sumRow, col1, c.label,
-        { fill:'FF374151', font:{ bold:true, size:9, color:{argb:'FFFF8B5A'} }, align:{ horizontal:'center', vertical:'middle' } });
+        { fill:'FF374151', font:{ bold:true, size:9, color:{argb:'FF38A3E0'} }, align:{ horizontal:'center', vertical:'middle' } });
       wsSummary.getRow(sumRow).height = 18;
       wsSummary.mergeCells(sumRow + 1, col1, sumRow + 1, col2);
       setCell(wsSummary, sumRow + 1, col1, total,
-        { fill:'FFFFFFFF', font:{ bold:true, size:14, color:{argb:'FF1A1A2E'} }, align:{ horizontal:'center', vertical:'middle' }, numFmt:'#,##0.00',
-          border:{ left:{style:'thin',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}}, bottom:{style:'medium',color:{argb:'FFFF5A5A'}} } });
+        { fill:'FFFFFFFF', font:{ bold:true, size:14, color:{argb:'FF0A1A3E'} }, align:{ horizontal:'center', vertical:'middle' }, numFmt:'#,##0.00',
+          border:{ left:{style:'thin',color:{argb:'FFE5E7EB'}}, right:{style:'thin',color:{argb:'FFE5E7EB'}}, bottom:{style:'medium',color:{argb:'FF255EAB'}} } });
       wsSummary.getRow(sumRow + 1).height = 28;
     });
     sumRow += 3;
@@ -516,7 +535,7 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
 
   wsData.mergeCells(1, 1, 1, maxColIdx);
   setCell(wsData, 1, 1, `${reportName} — Full Data`,
-    { fill:'FF1A1A2E', font:{ bold:true, size:13, color:{argb:'FFFFFFFF'} }, align:{ horizontal:'center', vertical:'middle' } });
+    { fill:'FF0A1A3E', font:{ bold:true, size:13, color:{argb:'FFFFFFFF'} }, align:{ horizontal:'center', vertical:'middle' } });
   wsData.getRow(1).height = 24;
 
   wsData.mergeCells(2, 1, 2, maxColIdx);
@@ -530,10 +549,10 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   columns.forEach((c, i) => {
     const cell = wsData.getCell(headerRow, i + 1);
     cell.value = c.label;
-    cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1A1A2E' } };
-    cell.font  = { bold:true, size:10, color:{ argb:'FFFF8B5A' }, name:'Calibri' };
+    cell.fill  = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF0A1A3E' } };
+    cell.font  = { bold:true, size:10, color:{ argb:'FF38A3E0' }, name:'Calibri' };
     cell.alignment = { horizontal: c.type === 'number' ? 'right' : 'left', vertical:'middle' };
-    cell.border = { bottom:{ style:'medium', color:{ argb:'FFFF5A5A' } } };
+    cell.border = { bottom:{ style:'medium', color:{ argb:'FF255EAB' } } };
   });
 
   wsData.views = [{ state:'frozen', ySplit: headerRow }];
@@ -543,7 +562,7 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   rows.forEach((row) => {
     const isSub = row._type === 'subtotal';
     const isGT  = row._type === 'grandtotal';
-    const bgArgb   = isGT ? 'FF1A1A2E' : isSub ? 'FFEEF2FF' : dataRowNum % 2 === 0 ? 'FFF9FAFB' : 'FFFFFFFF';
+    const bgArgb   = isGT ? 'FF0A1A3E' : isSub ? 'FFEEF2FF' : dataRowNum % 2 === 0 ? 'FFF9FAFB' : 'FFFFFFFF';
     const textArgb = isGT ? 'FFFFFFFF' : isSub ? 'FF4338CA' : 'FF374151';
     wsData.getRow(dataRowNum).height = 17;
     columns.forEach((c, i) => {
@@ -578,7 +597,7 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
       } else if (i === 0) {
         cell.value = 'TOTAL';
       }
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF1A1A2E' } };
+      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF0A1A3E' } };
       cell.font = { bold:true, size:10, color:{ argb:'FFFFFFFF' }, name:'Calibri' };
     });
   }
@@ -735,7 +754,7 @@ function ReportChart({ chartCfg, data, groupByLabel, innerRef, onRemove, onUpdat
   const ChIcon = type==='pie'?PieChartOutlineIcon:type==='line'?ShowChartIcon:BarChartIcon;
   const yLabel = label || '';
   return (
-    <Card sx={{ border:'1px solid rgba(255,139,90,0.12)', mb:2 }}>
+    <Card sx={{ border:'1px solid rgba(255, 139, 90,0.12)', mb:2 }}>
       <CardContent ref={innerRef} sx={{ p:2.5 }}>
         <Stack direction={{ xs:'column', sm:'row' }} spacing={1} alignItems={{ sm:'center' }} sx={{ mb:1.5 }} flexWrap="wrap">
           <ChIcon sx={{ color:'#6366f1', fontSize:18, flexShrink:0 }} />
@@ -865,7 +884,9 @@ const ReportsPage = () => {
       getDocs(query(collection(db,'claims'), orderBy('created_at','desc'))),
       getDocs(query(collection(db,'quotes'), orderBy('created_at','desc'))),
     ]);
-    setClients(cS.docs.map(d=>({id:d.id,...d.data()})));
+    // Compute O/S Days live (counts up from policy start, 0 once paid) so reports
+    // never show the stale stored snapshot or a leftover value on paid policies.
+    setClients(cS.docs.map(d=>{ const c={id:d.id,...d.data()}; return {...c, ...liveCommission(c), os_days: liveOsDays(c), policy_status: policyStatus(c), customer_type: normCustomerType(c.customer_type)}; }));
     setClaims(clS.docs.map(d=>({id:d.id,...d.data()})));
     // Flatten quotes into report-friendly rows (a quote is "finalised" once
     // the broker converts it — status 'confirmed').
@@ -881,7 +902,7 @@ const ReportsPage = () => {
         product:x.product_label||x.product_key||'',
         // Proposer / client
         client_name:fd.proposer_name||fd.company_name||fd.full_name||fd.client_name||'',
-        customer_type:fd.customer_type||'',
+        customer_type:normCustomerType(fd.customer_type),
         mobile:fd.mobile||fd.mobile_no||'',
         email:fd.email||'',
         nic_no:fd.nic_no||fd.business_reg||fd.nic_proof||'',
@@ -906,6 +927,9 @@ const ReportsPage = () => {
         response_count:active.length,
         declined_count:resp.filter(r=>r.declined).length,
         lowest_premium:premiums.length?Math.min(...premiums):'',
+        // Origin
+        source:x.marketer_id?(x.source==='marketer'?'Marketer (POS)':'Marketer (Link)'):(x.source==='website'?'Website':'Staff'),
+        marketer_name:x.marketer_name||'',
         // Audit
         days_outstanding:created?Math.max(0,Math.round((Date.now()-created.getTime())/86400000)):'',
         created_by_name:x.created_by_name||'',
@@ -944,6 +968,24 @@ const ReportsPage = () => {
 
   const fieldsFor = (src) => src === 'clients' ? clientFields : src === 'claims' ? CLAIM_FIELDS : QUOTE_FIELDS;
   const sourceFields = fieldsFor(source);
+
+  // Distinct values actually present in the data for a field, so filter values
+  // can be picked from a dropdown instead of typed blind.
+  const distinctValues = useCallback((fieldKey) => {
+    const base = source === 'clients' ? clients : source === 'claims' ? claims : quotes;
+    const set = new Set();
+    for (const row of base) {
+      let v = row?.[fieldKey];
+      if (v === null || v === undefined || v === '') continue;
+      if (typeof v === 'object') { v = v.toDate ? v.toDate().toISOString().slice(0, 10) : null; }
+      if (v === null) continue;
+      set.add(String(v));
+      if (set.size > 300) break;
+    }
+    // Customer type always offers the full canonical set, even if some aren't in the data yet.
+    if (fieldKey === 'customer_type') CUSTOMER_TYPES.forEach(t => set.add(t));
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [source, clients, claims, quotes]);
 
   // Compute report results from an explicit config + the current datasets/period.
   // Used by both the Run button and by running a template directly, so a template
@@ -1026,7 +1068,7 @@ const ReportsPage = () => {
     setSavingTpl(false);
   };
 
-  const handleDelTpl = async(id)=>{ await deleteDoc(doc(db,'report_templates',id)); setSavedTemplates(p=>p.filter(t=>t.id!==id)); showToast('Template deleted.','info'); };
+  const handleDelTpl = async(id)=>{ if (!confirmTypedDelete('Delete this saved report template?')) return; await deleteDoc(doc(db,'report_templates',id)); setSavedTemplates(p=>p.filter(t=>t.id!==id)); showToast('Template deleted.','info'); };
 
   // displayCols for the flat/subtotals/aggregated table
   const displayCols = useMemo(()=>{
@@ -1134,7 +1176,7 @@ const ReportsPage = () => {
   const rowSx = (row) => {
     if (row._type==='grandtotal') return { bgcolor:'#1A1A2E','& td':{color:'#fff',fontWeight:800,borderBottom:'none'} };
     if (row._type==='subtotal')   return { bgcolor:'rgba(99,102,241,0.08)','& td':{color:'#4338ca',fontWeight:700,fontStyle:'italic'} };
-    return { '&:nth-of-type(even)':{ bgcolor:'rgba(255,248,245,0.6)' }, '&:hover':{ bgcolor:'rgba(255,90,90,0.04)' } };
+    return { '&:nth-of-type(even)':{ bgcolor:'rgba(255, 245, 242,0.6)' }, '&:hover':{ bgcolor:'rgba(255, 90, 90,0.04)' } };
   };
 
   const totalDataRows = results ? results.filter(r=>!r._type||r._type==='data').length : 0;
@@ -1151,7 +1193,7 @@ const ReportsPage = () => {
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap">
           <Button size="small" variant="outlined" startIcon={<RefreshIcon/>} onClick={loadData} disabled={loading}
-            sx={{fontSize:12,borderColor:'rgba(255,139,90,0.35)',color:'#FF8B5A'}}>{loading?'Loading…':'Refresh'}</Button>
+            sx={{fontSize:12,borderColor:'rgba(255, 139, 90,0.35)',color:'#FF8B5A'}}>{loading?'Loading…':'Refresh'}</Button>
           {results&&<>
             <Button size="small" variant="outlined" startIcon={<PictureAsPdfOutlinedIcon/>}
               onClick={()=>exportPDF(displayCols,results,saveName||'Report',allChartEls())}
@@ -1167,7 +1209,7 @@ const ReportsPage = () => {
         </Stack>
       </Stack>
 
-      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(255,139,90,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#FF5A5A'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)',height:2.5}}}>
+      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(255, 139, 90,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#FF5A5A'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)',height:2.5}}}>
         <Tab icon={<BookmarkIcon sx={{fontSize:17}}/>} iconPosition="start" label={`Templates (${BUILTIN_TEMPLATES.length+savedTemplates.length})`}/>
         <Tab icon={<TuneIcon sx={{fontSize:17}}/>} iconPosition="start" label="Report Builder"/>
       </Tabs>
@@ -1177,7 +1219,7 @@ const ReportsPage = () => {
 
           {/* ── Config panel ── */}
           <Box sx={{width:{xs:'100%',lg:340},flexShrink:0}}>
-            <Card sx={{border:'1px solid rgba(255,139,90,0.12)',mb:2}}>
+            <Card sx={{border:'1px solid rgba(255, 139, 90,0.12)',mb:2}}>
               <CardContent sx={{p:2.5}}>
 
                 {/* Source */}
@@ -1395,7 +1437,11 @@ const ReportsPage = () => {
                                 slotProps={{textField:{size:'small',sx:{flex:1,'& input':{fontSize:12}}}}}/>
                             )
                           ) : (
-                            <TextField size="small" value={f.value} onChange={e=>setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:e.target.value}:ff))} placeholder="Value" sx={{flex:1,'& input':{fontSize:12}}}/>
+                            <Autocomplete freeSolo size="small" options={distinctValues(f.field)}
+                              inputValue={f.value||''}
+                              onInputChange={(_,val)=>setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:val}:ff))}
+                              sx={{flex:1}}
+                              renderInput={(params)=><TextField {...params} placeholder="Value — pick or type" sx={{'& input':{fontSize:12}}}/>}/>
                           )}
                         </Stack>
                       </Box>
@@ -1440,7 +1486,7 @@ const ReportsPage = () => {
             {!dataLoaded&&<Stack spacing={1}>{[1,2,3].map(i=><Skeleton key={i} height={56} sx={{borderRadius:'10px'}}/>)}</Stack>}
 
             {dataLoaded&&!results&&(
-              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(255,90,90,0.03)',borderRadius:'16px',border:'1px dashed rgba(255,139,90,0.20)'}}>
+              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(255, 90, 90,0.03)',borderRadius:'16px',border:'1px dashed rgba(255, 139, 90,0.20)'}}>
                 <Typography sx={{fontSize:40,mb:1}}>📊</Typography>
                 <Typography sx={{fontWeight:700,fontSize:15,color:'#1A1A2E',mb:0.5}}>Configure and run your report</Typography>
                 <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Select fields, set a view mode, add filters, then click Run Report</Typography>
@@ -1462,7 +1508,7 @@ const ReportsPage = () => {
                       ...chosen.map(c=>({
                         label:c.label,
                         val:fmtNum(dataRows.reduce((a,r)=>a+parseNum(r[c.key]),0)),
-                        color:'#FF5A5A',bg:'rgba(255,90,90,0.05)',
+                        color:'#FF5A5A',bg:'rgba(255, 90, 90,0.05)',
                       })),
                     ];
                   })().map((s,i)=>(
@@ -1499,9 +1545,9 @@ const ReportsPage = () => {
 
                 {/* Pivot Table */}
                 {viewMode==='pivot'&&pivotData&&(
-                  <Card sx={{border:'1px solid rgba(255,139,90,0.12)',mb:2}}>
+                  <Card sx={{border:'1px solid rgba(255, 139, 90,0.12)',mb:2}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255,139,90,0.08)'}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255, 139, 90,0.08)'}}>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Pivot: {sourceFields.find(f=>f.key===groupBy)?.label} × {sourceFields.find(f=>f.key===pivotColField)?.label} → {sourceFields.find(f=>f.key===pivotValField)?.label} ({pivotValOp})
                         </Typography>
@@ -1518,8 +1564,8 @@ const ReportsPage = () => {
                           <TableBody>
                             {pivotData.pivotRows.map((row,i)=>(
                               <TableRow key={i} sx={row._type==='pivottotal'?{bgcolor:'#1A1A2E','& td':{color:'#fff',fontWeight:800}}:{
-                                '&:nth-of-type(even)':{bgcolor:'rgba(255,248,245,0.6)'},
-                                '&:hover':{bgcolor:'rgba(255,90,90,0.04)'},
+                                '&:nth-of-type(even)':{bgcolor:'rgba(255, 245, 242,0.6)'},
+                                '&:hover':{bgcolor:'rgba(255, 90, 90,0.04)'},
                               }}>
                                 <TableCell sx={{fontSize:12.5,fontWeight:row._type==='pivottotal'?800:600,py:1,whiteSpace:'nowrap'}}>{row._rowLabel}</TableCell>
                                 {pivotData.colValues.map(cv=><TableCell key={cv} sx={{fontSize:12.5,py:1,textAlign:'right',fontFamily:'monospace'}}>{fmtNum(row[`_p_${cv}`])}</TableCell>)}
@@ -1535,9 +1581,9 @@ const ReportsPage = () => {
 
                 {/* Flat / Subtotals / Aggregated table */}
                 {viewMode!=='pivot'&&(
-                  <Card sx={{border:'1px solid rgba(255,139,90,0.12)'}}>
+                  <Card sx={{border:'1px solid rgba(255, 139, 90,0.12)'}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255,139,90,0.08)',display:'flex',alignItems:'center',gap:1}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255, 139, 90,0.08)',display:'flex',alignItems:'center',gap:1}}>
                         <TableChartOutlinedIcon sx={{color:'#9CA3AF',fontSize:18}}/>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Data ({totalDataRows} rows{viewMode==='subtotals'&&groupBy?', with subtotals':''})
@@ -1554,7 +1600,7 @@ const ReportsPage = () => {
                             {pagedResults.map((row,i)=>(
                               <TableRow key={i} sx={rowSx(row)}>
                                 {displayCols.map(c=>(
-                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(255,139,90,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
+                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(255, 139, 90,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
                                     {row._type==='subtotal'&&c===displayCols[0]?`↳ Subtotal: ${row[c.key]||''}`:
                                      row._type==='grandtotal'&&c===displayCols[0]?'GRAND TOTAL':
                                      renderCell(c,row)}
@@ -1568,7 +1614,7 @@ const ReportsPage = () => {
                       {viewMode!=='subtotals'&&results.length>R_PER_PAGE&&(
                         <Box sx={{display:'flex',justifyContent:'center',py:1.5}}>
                           <Pagination count={Math.ceil(results.length/R_PER_PAGE)} page={rPage} onChange={(_,v)=>setRPage(v)} size="small"
-                            sx={{'& .Mui-selected':{bgcolor:'rgba(255,90,90,0.12) !important',color:'#FF5A5A',fontWeight:700}}}/>
+                            sx={{'& .Mui-selected':{bgcolor:'rgba(255, 90, 90,0.12) !important',color:'#FF5A5A',fontWeight:700}}}/>
                         </Box>
                       )}
                     </CardContent>
@@ -1586,7 +1632,7 @@ const ReportsPage = () => {
           <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:1,mb:1.5}}>Built-in Reports</Typography>
           <Stack spacing={1.5} sx={{mb:3}}>
             {BUILTIN_TEMPLATES.map(tpl=>(
-              <Card key={tpl.id} sx={{border:'1px solid rgba(255,139,90,0.12)'}}>
+              <Card key={tpl.id} sx={{border:'1px solid rgba(255, 139, 90,0.12)'}}>
                 <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                   <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                     <Typography sx={{fontSize:22}}>{tpl.icon}</Typography>
@@ -1607,14 +1653,14 @@ const ReportsPage = () => {
           </Stack>
           {savedTemplates.length===0?(
             <Box sx={{textAlign:'center',py:6,border:'1px dashed rgba(0,0,0,0.12)',borderRadius:'12px'}}>
-              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(255,90,90,0.2)',mb:1}}/>
+              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(255, 90, 90,0.2)',mb:1}}/>
               <Typography sx={{fontWeight:700,color:'#374151',mb:0.5}}>No saved templates yet</Typography>
               <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Open the Report Builder, design a report and click "Save Template" — it will appear here.</Typography>
             </Box>
           ):(
             <Stack spacing={1.5}>
               {savedTemplates.map(tpl=>(
-                <Card key={tpl.id} sx={{border:'1px solid rgba(255,139,90,0.12)'}}>
+                <Card key={tpl.id} sx={{border:'1px solid rgba(255, 139, 90,0.12)'}}>
                   <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                     <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                       <Box sx={{flex:1,minWidth:0}}>
@@ -1622,7 +1668,7 @@ const ReportsPage = () => {
                         {tpl.description&&<Typography sx={{fontSize:12,color:'#9CA3AF'}}>{tpl.description}</Typography>}
                         <Stack direction="row" spacing={0.8} sx={{mt:0.5}} flexWrap="wrap">
                           <Chip label={tpl.source} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>
-                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(255,90,90,0.08)',color:'#FF5A5A'}}/>
+                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(255, 90, 90,0.08)',color:'#FF5A5A'}}/>
                           {tpl.groupBy&&<Chip label={`By ${tpl.groupBy}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(16,185,129,0.08)',color:'#059669'}}/>}
                           {tpl.charts?.length>0&&<Chip label={`${tpl.charts.length} chart${tpl.charts.length!==1?'s':''}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>}
                         </Stack>

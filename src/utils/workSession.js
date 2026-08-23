@@ -6,7 +6,7 @@
 // null) and the session stays "ongoing" forever. So every logout path closes
 // the session first, then signs out.
 
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { db } from '../firebase';
 
@@ -14,6 +14,19 @@ let active = null; // { id, clockInTs, userId }
 
 export function setActiveWorkSession(session) { active = session; }
 export function getActiveWorkSession() { return active; }
+
+/** Append an activity entry to the current open work session, so the Admin
+ *  Panel Work Hours view shows what each staff member actually did. Silent
+ *  no-op when there is no open session (never blocks the action). */
+export async function logActivity(action) {
+  const s = active;
+  if (!s || !action) return;
+  try {
+    await updateDoc(doc(db, 'work_sessions', s.id), {
+      activities: arrayUnion({ action: String(action).slice(0, 200), at: new Date().toISOString() }),
+    });
+  } catch (_) { /* best-effort — never disrupt the user's action */ }
+}
 
 /** Close the open work session while still authenticated. Safe to call twice. */
 export async function closeActiveWorkSession() {

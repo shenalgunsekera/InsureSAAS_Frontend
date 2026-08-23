@@ -4,6 +4,7 @@ import {
   updateDoc, deleteDoc, setDoc, serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { getOrCreateDeviceId } from '../utils/deviceFingerprint';
 
@@ -63,7 +64,7 @@ function DeviceCard({ session, isCurrentDevice, onApprove, onBlock, onRemove, ac
 
   return (
     <Box sx={{
-      border: `1.5px solid ${isCurrentDevice ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.12)'}`,
+      border: `1.5px solid ${isCurrentDevice ? 'rgba(99,102,241,0.35)' : 'rgba(255, 139, 90,0.12)'}`,
       borderRadius: '14px',
       p: 2.5,
       bgcolor: isCurrentDevice ? 'rgba(99,102,241,0.03)' : '#fff',
@@ -79,7 +80,7 @@ function DeviceCard({ session, isCurrentDevice, onApprove, onBlock, onRemove, ac
 
       <Stack direction="row" spacing={2} alignItems="flex-start">
         {/* Device icon */}
-        <Box sx={{ width: 48, height: 48, borderRadius: '12px', bgcolor: 'rgba(99,102,241,0.08)',
+        <Box sx={{ width: 48, height: 48, borderRadius: '12px', bgcolor: 'rgba(255, 139, 90,0.08)',
                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <DeviceIcon type={session.device_type} />
         </Box>
@@ -116,7 +117,7 @@ function DeviceCard({ session, isCurrentDevice, onApprove, onBlock, onRemove, ac
               <Typography sx={{ fontSize: 12, color: '#6B7280' }}>
                 Last seen: {timeAgo(session.last_seen)}
                 {session.first_seen && (
-                  <Box component="span" sx={{ color: '#C4B5B0', ml: 0.8 }}>
+                  <Box component="span" sx={{ color: '#A9B6C8', ml: 0.8 }}>
                     · First login: {timeAgo(session.first_seen)}
                   </Box>
                 )}
@@ -231,6 +232,7 @@ export default function DevicesManager() {
   };
 
   const remove = async (id) => {
+    if (!confirmTypedDelete('Remove this device session? The user will need approval again to log in from that device.')) return;
     await deleteDoc(doc(db, 'device_sessions', id));
   };
 
@@ -334,7 +336,7 @@ export default function DevicesManager() {
             <Button key={f} size="small" variant={filter === f ? 'contained' : 'outlined'}
               onClick={() => setFilter(f)}
               sx={{ fontSize: 11.5, textTransform: 'capitalize', py: 0.6,
-                    ...(filter === f ? { background: 'linear-gradient(135deg,#2563EB,#3B82F6)', boxShadow: 'none' } : { borderColor: 'rgba(99,102,241,0.3)', color: '#6B7280' }) }}>
+                    ...(filter === f ? { background: 'linear-gradient(135deg,#E04848,#FF7373)', boxShadow: 'none' } : { borderColor: 'rgba(255, 139, 90,0.3)', color: '#6B7280' }) }}>
               {f}
             </Button>
           ))}
@@ -354,12 +356,12 @@ export default function DevicesManager() {
       {/* Device list */}
       {loading ? (
         <Box sx={{ textAlign: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#3B82F6' }} />
+          <CircularProgress sx={{ color: '#FF5A5A' }} />
         </Box>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 6 }}>
           <Typography sx={{ color: '#9CA3AF', fontWeight: 600 }}>No devices found.</Typography>
-          <Typography sx={{ fontSize: 12.5, color: '#C4B5B0', mt: 0.5 }}>
+          <Typography sx={{ fontSize: 12.5, color: '#A9B6C8', mt: 0.5 }}>
             Devices appear here when staff log in.
           </Typography>
         </Box>

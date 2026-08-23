@@ -86,7 +86,7 @@ const RaiseTicketModal = ({ open, onClose }) => {
     <>
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <ConfirmationNumberOutlinedIcon sx={{ color: '#6366f1', fontSize: 20 }} />
+          <ConfirmationNumberOutlinedIcon sx={{ color: '#FF8B5A', fontSize: 20 }} />
           Raise Support Ticket
         </DialogTitle>
 
@@ -132,7 +132,7 @@ const RaiseTicketModal = ({ open, onClose }) => {
           </Stack>
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(99,102,241,0.10)' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255, 139, 90,0.10)' }}>
           <Button onClick={onClose} variant="outlined"
             sx={{ borderColor: '#e0e0e0', color: '#6B7280', '&:hover': { borderColor: '#aaa' } }}>
             Cancel
