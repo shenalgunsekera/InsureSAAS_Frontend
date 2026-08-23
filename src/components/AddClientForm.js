@@ -21,11 +21,25 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
 import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import CircularProgress from '@mui/material/CircularProgress';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+
+/* Endorsement = a recorded change to an in-force policy. Each captures the
+   revised Basic/SRCC/TC premium + sum insured; commission auto-calculates and
+   the latest endorsement's figures become the policy's current values. */
+const ENDORSEMENT_TYPES = [
+  'Sum Insured Change', 'Period Extension / Change', 'Additional Coverage',
+  'Add Cover', 'Add New Location', 'Cancellation / Return', 'Other',
+];
+const ENDO_UPLOAD_PREFIX = 'insuresaas';
 
 /* ── Derived from PRODUCTS config — always in sync ───────────────────────── */
 // label → product key  (e.g. 'Motor Insurance' → 'motor')
@@ -402,6 +416,18 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
+  // ── Endorsements (edit mode) ────────────────────────────────────────────
+  const [endorsements, setEndorsements] = useState(() =>
+    Array.isArray(initialData.endorsements) ? initialData.endorsements : []);
+  const freshDraft = (src = initialData) => ({
+    effective_date: '', type: ENDORSEMENT_TYPES[0], description: '',
+    basic_premium: src.basic_premium ?? '', srcc_premium: src.srcc_premium ?? '',
+    tc_premium: src.tc_premium ?? '', sum_insured: src.sum_insured ?? '', documents: [],
+  });
+  const [endoDraft, setEndoDraft] = useState(() => freshDraft());
+  const [endoError, setEndoError] = useState('');
+  const [endoUploading, setEndoUploading] = useState(false);
+
   const set = (name, val) => setFields(f => ({ ...f, [name]: val }));
 
   const handleDate = (name, val) => {
@@ -462,6 +488,76 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                 + num(fields.commission_tc) + num(fields.commission_special_amount);
     setFields(f => ({ ...f, commission_total: total !== 0 ? String(Math.round(total * 100) / 100) : '' }));
   }, [fields.commission_basic, fields.commission_srcc, fields.commission_tc, fields.commission_special_amount]);
+
+  /* ── Endorsement helpers ──────────────────────────────────────────────────
+     Commission is NOT entered — it auto-calculates from the endorsement's
+     Basic/SRCC/TC using the same rate table + commission type as the policy. */
+  const endoCommission = (draft) => {
+    const basicRate = COMMISSION_BASIC_RATES[fields.main_class] ?? 20;
+    const cb = num(draft.basic_premium) * basicRate / 100;
+    const cs = num(draft.srcc_premium) * srccRateFor(fields.main_class) / 100;
+    const ct = num(draft.tc_premium)   * tcRateFor(fields.main_class)   / 100;
+    const special = fields.commission_type === 'Special'
+      ? num(draft.basic_premium) * num(fields.commission_special_rate) / 100 : 0;
+    return Math.round((cb + cs + ct + special) * 100) / 100;
+  };
+
+  const handleEndoFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setEndoUploading(true); setEndoError('');
+    try {
+      const safeName = (fields.client_name || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+      const added = [];
+      for (const file of files) {
+        const url = await uploadToCloudinary(file, `${ENDO_UPLOAD_PREFIX}/clients/${safeName}/endorsements`, () => {}, file.name);
+        added.push({ name: file.name, url });
+      }
+      setEndoDraft(d => ({ ...d, documents: [...d.documents, ...added] }));
+    } catch (err) {
+      setEndoError(err?.message || 'Failed to upload document.');
+    }
+    setEndoUploading(false);
+  };
+
+  const removeEndoDraftDoc = (idx) =>
+    setEndoDraft(d => ({ ...d, documents: d.documents.filter((_, i) => i !== idx) }));
+
+  const addEndorsement = () => {
+    if (!endoDraft.effective_date && !endoDraft.description.trim()) {
+      setEndoError('Add an effective date or a description for the endorsement.');
+      return;
+    }
+    const entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      endorsement_no: endorsements.length + 1,
+      effective_date: endoDraft.effective_date || '',
+      type: endoDraft.type,
+      description: endoDraft.description.trim(),
+      basic_premium: String(num(endoDraft.basic_premium)),
+      srcc_premium:  String(num(endoDraft.srcc_premium)),
+      tc_premium:    String(num(endoDraft.tc_premium)),
+      sum_insured:   String(num(endoDraft.sum_insured)),
+      commission_total: String(endoCommission(endoDraft)),
+      documents: endoDraft.documents,
+      created_at: new Date().toISOString(),
+      created_by: userProfile?.full_name || user?.email?.split('@')[0] || 'Unknown',
+    };
+    setEndorsements(list => [...list, entry]);
+    // Apply the revised figures to the policy — commission/net auto-recalc, saved on submit
+    setFields(f => ({ ...f,
+      basic_premium: entry.basic_premium,
+      srcc_premium:  entry.srcc_premium,
+      tc_premium:    entry.tc_premium,
+      sum_insured:   entry.sum_insured,
+    }));
+    setEndoDraft(freshDraft({ basic_premium: entry.basic_premium, srcc_premium: entry.srcc_premium,
+      tc_premium: entry.tc_premium, sum_insured: entry.sum_insured }));
+    setEndoError('');
+  };
+
+  const deleteEndorsement = (id) =>
+    setEndorsements(list => list.filter(e => e.id !== id).map((e, i) => ({ ...e, endorsement_no: i + 1 })));
 
   /* ── custom products (Firestore) merged with built-ins ───────────────────
      Without this, a quote built on a custom product would not render any of its
@@ -651,6 +747,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
         ...fields,       // text fields win over riskValues for any shared keys
         ...datePayload,  // date fields override anything above
         ...docUrls,
+        endorsements,    // recorded policy endorsements (with per-endorsement docs)
         product_key: productKey || '',
       };
       delete payload.date_added;
@@ -1129,6 +1226,105 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
             </Grid>
           ))}
         </Grid>
+
+        {/* ── Endorsements (edit mode only) ─────────────────── */}
+        {isEdit && (
+          <>
+            <SectionHeader title="Endorsements" />
+            <Typography sx={{ fontSize: 12, color: '#9CA3AF', mb: 1.5, mt: -0.5 }}>
+              Record changes to this in-force policy. The latest endorsement's Basic / SRCC / TC premium
+              and sum insured become the policy's current values; commission recalculates automatically.
+            </Typography>
+
+            {endorsements.length === 0 ? (
+              <Typography sx={{ color: '#9CA3AF', fontSize: 13, mb: 2 }}>No endorsements recorded yet.</Typography>
+            ) : (
+              <Box sx={{ mb: 2.5 }}>
+                {ENDORSEMENT_TYPES.filter(t => endorsements.some(e => e.type === t)).map(t => (
+                  <Box key={t} sx={{ mb: 1.5 }}>
+                    <Typography sx={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.6 }}>{t}</Typography>
+                    {endorsements.filter(e => e.type === t).map(e => (
+                      <Box key={e.id} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', p: 1.5, mb: 1, borderRadius: '10px', border: '1px solid rgba(124,58,237,0.18)', bgcolor: 'rgba(124,58,237,0.04)' }}>
+                        <Box sx={{ width: 26, height: 26, flexShrink: 0, borderRadius: '50%', bgcolor: '#7c3aed', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>{e.endorsement_no}</Box>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          {e.effective_date && <Typography sx={{ fontSize: 11.5, color: '#6B7280' }}>Effective {e.effective_date}</Typography>}
+                          {e.description && <Typography sx={{ fontSize: 13, color: '#111827', mt: 0.3 }}>{e.description}</Typography>}
+                          <Box sx={{ display: 'flex', gap: 2, mt: 0.6, flexWrap: 'wrap' }}>
+                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>Basic LKR {num(e.basic_premium).toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>SRCC LKR {num(e.srcc_premium).toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>TC LKR {num(e.tc_premium).toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#0891B2' }}>Sum Insured LKR {num(e.sum_insured).toLocaleString()}</Typography>
+                            <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#059669' }}>Commission LKR {num(e.commission_total).toLocaleString()}</Typography>
+                          </Box>
+                          {Array.isArray(e.documents) && e.documents.length > 0 && (
+                            <Box sx={{ display: 'flex', gap: 1, mt: 0.8, flexWrap: 'wrap' }}>
+                              {e.documents.map((d, i) => (
+                                <Chip key={i} icon={<DescriptionOutlinedIcon sx={{ fontSize: 14 }} />} label={d.name || `Document ${i + 1}`} size="small" onClick={() => openFile(d.url)} sx={{ height: 22, fontSize: 10.5, cursor: 'pointer', bgcolor: 'rgba(124,58,237,0.10)', color: '#7c3aed' }} />
+                              ))}
+                            </Box>
+                          )}
+                          {e.created_by && <Typography sx={{ fontSize: 10, color: '#9CA3AF', mt: 0.4 }}>Recorded by {e.created_by}</Typography>}
+                        </Box>
+                        <IconButton size="small" onClick={() => deleteEndorsement(e.id)} sx={{ color: '#dc2626' }}><DeleteOutlineIcon sx={{ fontSize: 18 }} /></IconButton>
+                      </Box>
+                    ))}
+                  </Box>
+                ))}
+              </Box>
+            )}
+
+            <Box sx={{ p: 2, borderRadius: '12px', border: '1px dashed rgba(124,58,237,0.35)', bgcolor: 'rgba(124,58,237,0.03)', mb: 2.5 }}>
+              <Typography sx={{ fontSize: 12.5, fontWeight: 800, color: '#7c3aed', mb: 1.5 }}>Add Endorsement</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField type="date" label="Effective Date" InputLabelProps={{ shrink: true }} fullWidth size="small" value={endoDraft.effective_date} onChange={e => setEndoDraft(d => ({ ...d, effective_date: e.target.value }))} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel sx={{ fontSize: 13 }}>Type</InputLabel>
+                    <Select label="Type" value={endoDraft.type} onChange={e => setEndoDraft(d => ({ ...d, type: e.target.value }))} sx={{ borderRadius: '10px', fontSize: 13 }}>
+                      {ENDORSEMENT_TYPES.map(t => <MenuItem key={t} value={t} sx={{ fontSize: 13 }}>{t}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField label="Description of Change" fullWidth size="small" value={endoDraft.description} onChange={e => setEndoDraft(d => ({ ...d, description: e.target.value }))} placeholder="e.g. Sum insured increased; new location added…" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <NumericField label="Basic Premium" value={endoDraft.basic_premium} onChange={e => setEndoDraft(d => ({ ...d, basic_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <NumericField label="SRCC Premium" value={endoDraft.srcc_premium} onChange={e => setEndoDraft(d => ({ ...d, srcc_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <NumericField label="TC Premium" value={endoDraft.tc_premium} onChange={e => setEndoDraft(d => ({ ...d, tc_premium: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <NumericField label="Sum Insured" value={endoDraft.sum_insured} onChange={e => setEndoDraft(d => ({ ...d, sum_insured: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                    <Box sx={{ px: 1.5, py: 0.8, borderRadius: '8px', bgcolor: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.2)' }}>
+                      <Typography sx={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>Auto Commission</Typography>
+                      <Typography sx={{ fontSize: 14, fontWeight: 800, color: '#059669' }}>LKR {endoCommission(endoDraft).toLocaleString()}</Typography>
+                    </Box>
+                    <Button component="label" variant="outlined" size="small" startIcon={endoUploading ? <CircularProgress size={14} /> : <CloudUploadOutlinedIcon />} disabled={endoUploading} sx={{ textTransform: 'none', borderColor: '#7c3aed', color: '#7c3aed', fontSize: 12.5 }}>
+                      {endoUploading ? 'Uploading…' : 'Upload Documents'}
+                      <input hidden type="file" multiple accept="application/pdf,image/*" onChange={e => { handleEndoFiles(e.target.files); e.target.value = ''; }} />
+                    </Button>
+                    {endoDraft.documents.map((d, i) => (
+                      <Chip key={i} icon={<DescriptionOutlinedIcon sx={{ fontSize: 14 }} />} label={d.name} size="small" onDelete={() => removeEndoDraftDoc(i)} sx={{ height: 24, fontSize: 11, bgcolor: 'rgba(124,58,237,0.10)', color: '#7c3aed' }} />
+                    ))}
+                  </Box>
+                </Grid>
+                {endoError && <Grid item xs={12}><Alert severity="error" sx={{ borderRadius: '10px', py: 0 }}>{endoError}</Alert></Grid>}
+                <Grid item xs={12}>
+                  <Button onClick={addEndorsement} startIcon={<AddCircleOutlineIcon />} variant="contained" sx={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)', fontSize: 13, textTransform: 'none' }}>Add Endorsement</Button>
+                </Grid>
+              </Grid>
+            </Box>
+          </>
+        )}
 
         {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '10px' }}>{error}</Alert>}
 
