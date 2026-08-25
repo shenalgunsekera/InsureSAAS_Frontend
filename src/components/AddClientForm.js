@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadFile as uploadToCloudinary, openFile } from '../storage';
@@ -49,6 +49,12 @@ const PRODUCT_KEY_MAP = Object.fromEntries(
 // product key → main class  (used to auto-fill the Main Class dropdown)
 // Allowed Main Class values (what the dropdown shows).
 const MAIN_CLASSES = ['Fire', 'Marine', 'Motor', 'Health', 'Miscellaneous', 'Individual', 'Group', 'Other'];
+// Main Class options depend on Insurance Type. General = non-life classes;
+// Life = life classes. Health appears under both.
+const MAIN_CLASS_BY_TYPE = {
+  General: ['Fire', 'Motor', 'Marine', 'Miscellaneous', 'Health'],
+  Life:    ['Individual', 'Group', 'Other', 'Health'],
+};
 const PRODUCT_MAIN_CLASS = {
   motor: 'Motor', mf: 'Motor',
   fire: 'Fire',
@@ -190,6 +196,7 @@ export const textFields = [
   { label: 'Cheque / Slip No.',  name: 'cheque_slip_no',     section: 'Payment' },
   { label: 'Receipt No.',        name: 'receipt_no',         section: 'Payment' },
   { label: 'Debit Note No.',     name: 'debit_note_no',      section: 'Payment' },
+  { label: 'Debit Note Date',    name: 'debit_note_date',    section: 'Payment', date: true },
   // Commission
   { label: 'Commission Type',    name: 'commission_type',    section: 'Commission', dropdown: true },
   { label: 'Basic Commission %', name: 'commission_pct',     section: 'Commission', type: 'number', readOnly: true },
@@ -402,6 +409,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     policy_period_from:      initialData.policy_period_from ? new Date(initialData.policy_period_from) : null,
     policy_period_to:        initialData.policy_period_to   ? new Date(initialData.policy_period_to)   : null,
     payment_date:            initialData.payment_date        ? new Date(initialData.payment_date)        : null,
+    debit_note_date:         initialData.debit_note_date     ? new Date(initialData.debit_note_date)     : null,
     commission_receive_date: initialData.commission_receive_date ? new Date(initialData.commission_receive_date) : null,
     claim_date:              initialData.claim_date           ? new Date(initialData.claim_date)           : null,
     birthday_policy:         initialData.birthday_policy      ? new Date(initialData.birthday_policy)      : null,
@@ -599,14 +607,27 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     if (resolved) setFields(f => ({ ...f, product: resolved }));
   }, [productKeyMap, allProducts]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── auto-fill main_class when product changes ───────────────────────── */
+  /* ── Main Class options depend on Insurance Type (General vs Life) ─────── */
+  const mainClassOptions = MAIN_CLASS_BY_TYPE[fields.insurance_type] || MAIN_CLASSES;
+
+  /* ── auto-fill main_class ONLY when the user actually changes the product —
+     never on the initial edit-load (that would clobber the saved main class). */
+  const prevProduct = useRef(fields.product);
   useEffect(() => {
+    if (prevProduct.current === fields.product) return; // deps changed for another reason (e.g. products loaded)
+    prevProduct.current = fields.product;
     const key = productKeyMap[fields.product];
     const mc = (key && PRODUCT_MAIN_CLASS[key]) || allProducts[key]?.mainClass;
-    // Only auto-fill with a value that exists in the dropdown; otherwise leave
-    // it for manual selection so the Select never shows an out-of-range value.
-    if (mc && MAIN_CLASSES.includes(mc)) setFields(f => ({ ...f, main_class: mc }));
-  }, [fields.product, productKeyMap, allProducts]);
+    if (mc && mainClassOptions.includes(mc)) setFields(f => ({ ...f, main_class: mc }));
+  }, [fields.product, productKeyMap, allProducts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── When Insurance Type changes, drop a main class that no longer applies. */
+  const prevInsType = useRef(fields.insurance_type);
+  useEffect(() => {
+    if (prevInsType.current === fields.insurance_type) return;
+    prevInsType.current = fields.insurance_type;
+    setFields(f => (mainClassOptions.includes(f.main_class) ? f : { ...f, main_class: '' }));
+  }, [fields.insurance_type]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   /* ── product-specific risk fields ────────────────────────────────────── */
@@ -799,7 +820,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
         onChange={e => onChangeFn(f.name, e.target.value)} required={!!f.required}
         sx={{ borderRadius: '10px', fontSize: 13 }}>
         {/* Product list includes custom products so custom-product quotes resolve here */}
-        {(f.name === 'product' ? productOptions : (dropdowns[f.name] || [])).map(opt => <MenuItem key={opt} value={opt} sx={{ fontSize: 13 }}>{opt}</MenuItem>)}
+        {(f.name === 'product' ? productOptions : f.name === 'main_class' ? mainClassOptions : (dropdowns[f.name] || [])).map(opt => <MenuItem key={opt} value={opt} sx={{ fontSize: 13 }}>{opt}</MenuItem>)}
       </Select>
       {f.required && !val && <FormHelperText error>{f.label} is required</FormHelperText>}
     </FormControl>

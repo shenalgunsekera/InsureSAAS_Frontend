@@ -462,6 +462,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         ['Cheque / Slip No.', client.cheque_slip_no],
         ['Receipt No.',     client.receipt_no],
         ['Debit Note No.',  client.debit_note_no],
+        ['Debit Note Date', client.debit_note_date],
       ]);
 
       addSection('claims', 'CLAIMS', [
@@ -694,7 +695,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       addSheetSection('PAYMENT', [
         ['Payment Status', client.payment_status], ['Amount Received', client.amount_received], ['Payment Date', client.payment_date],
         ['Payment Method', client.payment_method], ['Cheque / Slip No.', client.cheque_slip_no], ['Receipt No.', client.receipt_no],
-        ['Debit Note No.', client.debit_note_no],
+        ['Debit Note No.', client.debit_note_no], ['Debit Note Date', client.debit_note_date],
       ]);
       addSheetSection('CLAIMS', [
         ['Claim Paid?', client.claim_paid], ['Date of Claim', client.claim_date], ['Claim Amount', client.claim_amount],
@@ -980,6 +981,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
             <Grid item xs={12} sm={6} md={4}><Field label="Cheque / Slip No." value={client.cheque_slip_no} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Receipt No."       value={client.receipt_no} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Debit Note No."    value={client.debit_note_no} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="Debit Note Date"   value={client.debit_note_date} /></Grid>
           </Grid>
         );
       case 7: /* Claims */
