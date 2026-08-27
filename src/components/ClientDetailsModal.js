@@ -186,7 +186,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
   // current client figures ARE the revised totals; the original is derived by
   // backing out the cumulative endorsement change.
   const sumDelta  = endorsements.reduce((a, e) => a + endoNum(e.sum_insured_change), 0);
-  const premDelta = endorsements.reduce((a, e) => a + endoNum(e.basic_premium_change) + endoNum(e.srcc_premium_change) + endoNum(e.tc_premium_change) + endoNum(e.premium_change), 0);
+  const premDelta = endorsements.reduce((a, e) => a + endoNum(e.total_premium_change) + endoNum(e.premium_change), 0);
   const commDelta = endorsements.reduce((a, e) => a + endoNum(e.commission_change), 0);
   const revisedSum  = endoNum(client.sum_insured);
   const revisedPrem = endoNum(client.total_invoice);
@@ -491,7 +491,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
             { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' },
           ]],
           body: endorsements.map(e => {
-            const premChange = endoNum(e.basic_premium_change) + endoNum(e.srcc_premium_change) + endoNum(e.tc_premium_change) + endoNum(e.premium_change);
+            const premChange = endoNum(e.total_premium_change) + endoNum(e.premium_change);
             return [
               String(e.endorsement_no),
               e.effective_date || '—',
@@ -715,7 +715,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         endorsements.forEach(e => {
           es.addRow([
             e.endorsement_no, e.effective_date || '', e.type || '', e.description || '',
-            endoNum(e.sum_insured_change) || '', (endoNum(e.basic_premium_change) + endoNum(e.srcc_premium_change) + endoNum(e.tc_premium_change) + endoNum(e.premium_change)) || '', endoNum(e.commission_change) || '', e.created_by || '',
+            endoNum(e.sum_insured_change) || '', (endoNum(e.total_premium_change) + endoNum(e.premium_change)) || '', endoNum(e.commission_change) || '', e.created_by || '',
           ]);
         });
         es.addRow([]);
@@ -1036,6 +1036,8 @@ const ClientDetailsModal = ({ client, onClose }) => {
                         {endoNum(e.basic_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>Basic {fmtSigned(endoNum(e.basic_premium_change))}</Typography>}
                         {endoNum(e.srcc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>SRCC {fmtSigned(endoNum(e.srcc_premium_change))}</Typography>}
                         {endoNum(e.tc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>TC {fmtSigned(endoNum(e.tc_premium_change))}</Typography>}
+                        {endoNum(e.net_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#6366F1' }}>Net {fmtSigned(endoNum(e.net_premium_change))}</Typography>}
+                        {endoNum(e.total_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#FF5A5A' }}>Total {fmtSigned(endoNum(e.total_premium_change))}</Typography>}
                         {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#FF5A5A' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
                         {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
                         {endoNum(e.commission_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Commission {fmtSigned(endoNum(e.commission_change))}</Typography>}
