@@ -211,16 +211,16 @@ function ClaimCard({ claim, onUpdate, onDelete, defaultOpen = false }) {
   };
 
   return (
-    <Card sx={{ mb: 1.5, border: '1px solid rgba(255, 139, 90,0.12)' }}>
+    <Card sx={{ mb: 1.5, border: '1px solid rgba(56, 163, 224,0.12)' }}>
       <CardContent sx={{ p:0,'&:last-child':{pb:0} }}>
         <Box sx={{ px:2.5, py:1.5, display:'flex', alignItems:'center', gap:1.5,
-                    cursor:'pointer','&:hover':{bgcolor:'rgba(255, 90, 90,0.02)'} }}
+                    cursor:'pointer','&:hover':{bgcolor:'rgba(37, 94, 171,0.02)'} }}
              onClick={() => setOpen(o=>!o)}>
           <Box sx={{ flex:1, minWidth:0 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:0.3 }}>
               <Typography sx={{ fontWeight:700, fontSize:14 }}>{claim.reference}</Typography>
               {claim.claim_ref_id && (
-                <Chip label={`Ref: ${claim.claim_ref_id}`} size="small" sx={{ bgcolor:'rgba(255, 90, 90,0.10)', color:'#FF5A5A', fontWeight:700, fontSize:10.5 }} />
+                <Chip label={`Ref: ${claim.claim_ref_id}`} size="small" sx={{ bgcolor:'rgba(37, 94, 171,0.10)', color:'#255EAB', fontWeight:700, fontSize:10.5 }} />
               )}
               <Chip label={claim.status} size="small" sx={{ bgcolor:s.bg, color:s.color, fontWeight:700, fontSize:10.5 }} />
             </Stack>
@@ -228,18 +228,18 @@ function ClaimCard({ claim, onUpdate, onDelete, defaultOpen = false }) {
               {claim.client_name} · {claim.policy_no} · Filed: {filed}
             </Typography>
           </Box>
-          <Typography sx={{ fontWeight:800, fontSize:14, color:'#FF5A5A', flexShrink:0 }}>
+          <Typography sx={{ fontWeight:800, fontSize:14, color:'#255EAB', flexShrink:0 }}>
             {claim.loss_amount ? `LKR ${Number(claim.loss_amount).toLocaleString()}` : '—'}
           </Typography>
           {open ? <ExpandLessIcon sx={{ color:'#9CA3AF' }} /> : <ExpandMoreIcon sx={{ color:'#9CA3AF' }} />}
         </Box>
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px:2.5, pb:2.5, pt:0.5, borderTop:'1px solid rgba(255, 139, 90,0.08)' }}>
-            <Typography sx={{ fontSize:11, fontWeight:800, color:'#FF5A5A', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Reference</Typography>
+          <Box sx={{ px:2.5, pb:2.5, pt:0.5, borderTop:'1px solid rgba(56, 163, 224,0.08)' }}>
+            <Typography sx={{ fontSize:11, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Reference</Typography>
             <Box sx={{ mb:2 }}>
               <TextField size="small" label="Claim Ref ID" value={core.claim_ref_id} onChange={e=>setC('claim_ref_id', e.target.value)} sx={{ width:{ xs:'100%', sm:'50%' } }} />
             </Box>
-            <Typography sx={{ fontSize:11, fontWeight:800, color:'#FF5A5A', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Details</Typography>
+            <Typography sx={{ fontSize:11, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Details</Typography>
             <Box sx={{ display:'grid', gridTemplateColumns:{ xs:'1fr', sm:'1fr 1fr' }, gap:1.5, mb:2 }}>
               <TextField size="small" label="Client Name" value={core.client_name} onChange={e=>setC('client_name', e.target.value)} />
               <TextField size="small" label="Policy No" value={core.policy_no} onChange={e=>setC('policy_no', e.target.value)} />
@@ -271,7 +271,7 @@ function ClaimCard({ claim, onUpdate, onDelete, defaultOpen = false }) {
               </Button>
             </Stack>
 
-            <ClaimProcessTracker value={tracker} onChange={persistTracker} claimId={claim.id} brandPrefix="insuresaas" accent="#FF5A5A" />
+            <ClaimProcessTracker value={tracker} onChange={persistTracker} claimId={claim.id} brandPrefix="insuresaas" accent="#255EAB" />
           </Box>
         </Collapse>
       </CardContent>
@@ -433,10 +433,10 @@ const ClaimsPage = () => {
         <DialogContent sx={{pt:2.5}}>
           <Stack spacing={2}>
             <Box>
-              <Typography sx={{ fontSize:11, fontWeight:800, color:'#FF5A5A', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Reference</Typography>
+              <Typography sx={{ fontSize:11, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Reference</Typography>
               <TextField size="small" fullWidth label="Claim Ref ID" value={form.claim_ref_id} onChange={e=>set('claim_ref_id',e.target.value)} />
             </Box>
-            <Typography sx={{ fontSize:11, fontWeight:800, color:'#FF5A5A', textTransform:'uppercase', letterSpacing:1, mt:0.5 }}>Claim Details</Typography>
+            <Typography sx={{ fontSize:11, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:1, mt:0.5 }}>Claim Details</Typography>
             <TextField size="small" fullWidth label="Client Name *" value={form.client_name} onChange={e=>set('client_name',e.target.value)} />
             <Stack direction={{ xs:'column', sm:'row' }} spacing={1.5}>
               <TextField size="small" fullWidth label="Policy No" value={form.policy_no} onChange={e=>set('policy_no',e.target.value)} />
@@ -450,10 +450,10 @@ const ClaimsPage = () => {
             <TextField size="small" fullWidth multiline minRows={3} label="Loss Description" value={form.description} onChange={e=>set('description',e.target.value)} />
           </Stack>
           {newClaimRef && (
-            <ClaimProcessTracker value={regTracker} onChange={setRegTracker} claimId={newClaimRef.id} brandPrefix="insuresaas" accent="#FF5A5A" />
+            <ClaimProcessTracker value={regTracker} onChange={setRegTracker} claimId={newClaimRef.id} brandPrefix="insuresaas" accent="#255EAB" />
           )}
         </DialogContent>
-        <DialogActions sx={{px:3,py:2,borderTop:'1px solid rgba(255, 139, 90,0.10)'}}>
+        <DialogActions sx={{px:3,py:2,borderTop:'1px solid rgba(56, 163, 224,0.10)'}}>
           <Button onClick={()=>setOpen(false)} variant="outlined" sx={{borderColor:'#e0e0e0',color:'#6B7280'}}>Cancel</Button>
           <Button variant="contained" onClick={handleCreate} disabled={saving}>{saving?'Saving…':'Register Claim'}</Button>
         </DialogActions>

@@ -64,7 +64,7 @@ function DeviceCard({ session, isCurrentDevice, onApprove, onBlock, onRemove, ac
 
   return (
     <Box sx={{
-      border: `1.5px solid ${isCurrentDevice ? 'rgba(99,102,241,0.35)' : 'rgba(255, 139, 90,0.12)'}`,
+      border: `1.5px solid ${isCurrentDevice ? 'rgba(99,102,241,0.35)' : 'rgba(56, 163, 224,0.12)'}`,
       borderRadius: '14px',
       p: 2.5,
       bgcolor: isCurrentDevice ? 'rgba(99,102,241,0.03)' : '#fff',
@@ -80,7 +80,7 @@ function DeviceCard({ session, isCurrentDevice, onApprove, onBlock, onRemove, ac
 
       <Stack direction="row" spacing={2} alignItems="flex-start">
         {/* Device icon */}
-        <Box sx={{ width: 48, height: 48, borderRadius: '12px', bgcolor: 'rgba(255, 139, 90,0.08)',
+        <Box sx={{ width: 48, height: 48, borderRadius: '12px', bgcolor: 'rgba(56, 163, 224,0.08)',
                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <DeviceIcon type={session.device_type} />
         </Box>
@@ -88,7 +88,7 @@ function DeviceCard({ session, isCurrentDevice, onApprove, onBlock, onRemove, ac
         {/* Main info */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0A1A3E' }}>
               {session.device_type || 'Device'} — {session.browser || 'Unknown'} / {session.os || 'Unknown'}
             </Typography>
             <Chip label={st.label} size="small"
@@ -336,7 +336,7 @@ export default function DevicesManager() {
             <Button key={f} size="small" variant={filter === f ? 'contained' : 'outlined'}
               onClick={() => setFilter(f)}
               sx={{ fontSize: 11.5, textTransform: 'capitalize', py: 0.6,
-                    ...(filter === f ? { background: 'linear-gradient(135deg,#E04848,#FF7373)', boxShadow: 'none' } : { borderColor: 'rgba(255, 139, 90,0.3)', color: '#6B7280' }) }}>
+                    ...(filter === f ? { background: 'linear-gradient(135deg,#1D4E96,#2E76C4)', boxShadow: 'none' } : { borderColor: 'rgba(56, 163, 224,0.3)', color: '#6B7280' }) }}>
               {f}
             </Button>
           ))}
@@ -356,7 +356,7 @@ export default function DevicesManager() {
       {/* Device list */}
       {loading ? (
         <Box sx={{ textAlign: 'center', py: 6 }}>
-          <CircularProgress sx={{ color: '#FF5A5A' }} />
+          <CircularProgress sx={{ color: '#255EAB' }} />
         </Box>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 6 }}>

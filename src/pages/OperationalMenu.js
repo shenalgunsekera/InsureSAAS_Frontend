@@ -26,14 +26,14 @@ const MODULE_ROUTES = {
 
 // Visual colour theme for each module
 const MODULE_COLORS = {
-  quotations:   { grad:'linear-gradient(135deg,#FF5A5A,#FF8B5A)', light:'rgba(255, 90, 90,0.08)',   border:'rgba(255, 90, 90,0.18)'   },
+  quotations:   { grad:'linear-gradient(135deg,#255EAB,#38A3E0)', light:'rgba(37, 94, 171,0.08)',   border:'rgba(37, 94, 171,0.18)'   },
   underwriting: { grad:'linear-gradient(135deg,#6366f1,#818cf8)', light:'rgba(99,102,241,0.08)',  border:'rgba(99,102,241,0.18)'  },
   claims:       { grad:'linear-gradient(135deg,#0ea5e9,#38bdf8)', light:'rgba(14,165,233,0.08)',  border:'rgba(14,165,233,0.18)'  },
   accounting:   { grad:'linear-gradient(135deg,#10B981,#34d399)', light:'rgba(16,185,129,0.08)',  border:'rgba(16,185,129,0.18)'  },
   reports:      { grad:'linear-gradient(135deg,#f59e0b,#fbbf24)', light:'rgba(245,158,11,0.08)',  border:'rgba(245,158,11,0.18)'  },
   renewals:     { grad:'linear-gradient(135deg,#8b5cf6,#a78bfa)', light:'rgba(139,92,246,0.08)',  border:'rgba(139,92,246,0.18)'  },
   marketing:    { grad:'linear-gradient(135deg,#25D366,#128C7E)',  light:'rgba(37,211,102,0.08)', border:'rgba(37,211,102,0.18)'  },
-  portfolio:    { grad:'linear-gradient(135deg,#E04848,#FF7373)', light:'rgba(224, 72, 72,0.08)',   border:'rgba(224, 72, 72,0.18)'   },
+  portfolio:    { grad:'linear-gradient(135deg,#1D4E96,#2E76C4)', light:'rgba(29, 78, 150,0.08)',   border:'rgba(29, 78, 150,0.18)'   },
 };
 
 const OperationalMenu = () => {
@@ -53,26 +53,26 @@ const OperationalMenu = () => {
   const isAdminOrManager = role === 'admin' || role === 'manager';
 
   return (
-    <Box sx={{ minHeight:'100vh', bgcolor:'#FFF5F2', display:'flex', flexDirection:'column' }}>
+    <Box sx={{ minHeight:'100vh', bgcolor:'#F2F7FC', display:'flex', flexDirection:'column' }}>
 
       {/* ── Top bar ── */}
       <Box sx={{
         px:{ xs:3, md:6 }, py:2.5, bgcolor:'#fff',
-        borderBottom:'1px solid rgba(255, 139, 90,0.12)',
+        borderBottom:'1px solid rgba(56, 163, 224,0.12)',
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        boxShadow:'0 2px 12px rgba(255, 90, 90,0.06)',
+        boxShadow:'0 2px 12px rgba(37, 94, 171,0.06)',
       }}>
         <Box sx={{ display:'flex', alignItems:'center', gap:1.5 }}>
           <Box sx={{
             width:40, height:40, borderRadius:'10px',
-            background:'rgba(255, 245, 242,0.8)', border:'1px solid rgba(255, 139, 90,0.15)',
+            background:'rgba(242, 247, 252,0.8)', border:'1px solid rgba(56, 163, 224,0.15)',
             display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden',
           }}>
             <Box component="img" src={require('../InsureSAAS Logo.png')} alt="InsureSAAS"
               sx={{ width:34, height:34, objectFit:'contain' }} />
           </Box>
           <Box>
-            <Typography sx={{ fontWeight:800, color:'#1A1A2E', fontSize:16, lineHeight:1.1 }}>
+            <Typography sx={{ fontWeight:800, color:'#0A1A3E', fontSize:16, lineHeight:1.1 }}>
               InsureSAAS
             </Typography>
             <Typography sx={{ fontSize:10.5, color:'#9CA3AF', fontWeight:600, letterSpacing:0.8, textTransform:'uppercase' }}>
@@ -82,15 +82,15 @@ const OperationalMenu = () => {
         </Box>
         <Box sx={{ display:'flex', alignItems:'center', gap:1.5 }}>
           <Box sx={{ textAlign:'right', display:{ xs:'none', sm:'block' } }}>
-            <Typography sx={{ fontSize:13.5, fontWeight:700, color:'#1A1A2E' }}>{name}</Typography>
-            <Typography sx={{ fontSize:11, color:'#FF8B5A', fontWeight:600, textTransform:'capitalize' }}>{role}</Typography>
+            <Typography sx={{ fontSize:13.5, fontWeight:700, color:'#0A1A3E' }}>{name}</Typography>
+            <Typography sx={{ fontSize:11, color:'#38A3E0', fontWeight:600, textTransform:'capitalize' }}>{role}</Typography>
           </Box>
-          <Avatar sx={{ width:36, height:36, fontSize:13, fontWeight:800, background:'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
+          <Avatar sx={{ width:36, height:36, fontSize:13, fontWeight:800, background:'linear-gradient(135deg,#255EAB,#38A3E0)' }}>
             {initials}
           </Avatar>
           <Tooltip title="Sign out" placement="bottom">
             <IconButton size="small" onClick={handleLogout}
-              sx={{ color:'#9CA3AF', '&:hover':{ color:'#FF5A5A', bgcolor:'rgba(255, 90, 90,0.06)' } }}>
+              sx={{ color:'#9CA3AF', '&:hover':{ color:'#255EAB', bgcolor:'rgba(37, 94, 171,0.06)' } }}>
               <LogoutIcon fontSize="small" />
             </IconButton>
           </Tooltip>
@@ -100,13 +100,13 @@ const OperationalMenu = () => {
       {/* ── Hero ── */}
       <Box sx={{
         px:{ xs:3, md:6 }, pt:{ xs:4, md:5 }, pb:{ xs:3, md:4 },
-        background:'linear-gradient(135deg,rgba(255, 90, 90,0.04) 0%,rgba(255, 139, 90,0.03) 100%)',
-        borderBottom:'1px solid rgba(255, 139, 90,0.08)',
+        background:'linear-gradient(135deg,rgba(37, 94, 171,0.04) 0%,rgba(56, 163, 224,0.03) 100%)',
+        borderBottom:'1px solid rgba(56, 163, 224,0.08)',
       }}>
         <Box sx={{ maxWidth:960, mx:'auto' }}>
-          <Typography sx={{ fontSize:{ xs:22, md:28 }, fontWeight:800, color:'#1A1A2E', mb:0.5, lineHeight:1.2 }}>
+          <Typography sx={{ fontSize:{ xs:22, md:28 }, fontWeight:800, color:'#0A1A3E', mb:0.5, lineHeight:1.2 }}>
             {greeting},{' '}
-            <Box component="span" sx={{ background:'linear-gradient(135deg,#FF5A5A,#FF8B5A)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            <Box component="span" sx={{ background:'linear-gradient(135deg,#255EAB,#38A3E0)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
               {name}
             </Box>{' '}👋
           </Typography>
@@ -133,9 +133,9 @@ const OperationalMenu = () => {
                   sx={{
                     bgcolor:'#fff', borderRadius:'16px', border:`1px solid ${colors.border}`,
                     p:0, cursor:'pointer', overflow:'hidden',
-                    boxShadow:'0 2px 12px rgba(255, 90, 90,0.05)',
+                    boxShadow:'0 2px 12px rgba(37, 94, 171,0.05)',
                     transition:'all 0.22s cubic-bezier(0.4,0,0.2,1)',
-                    '&:hover':{ transform:'translateY(-3px)', boxShadow:'0 8px 32px rgba(255, 90, 90,0.12)' },
+                    '&:hover':{ transform:'translateY(-3px)', boxShadow:'0 8px 32px rgba(37, 94, 171,0.12)' },
                   }}>
                   <Box sx={{ height:4, background:colors.grad }} />
                   <Box sx={{ p:2.5 }}>
@@ -146,7 +146,7 @@ const OperationalMenu = () => {
                     }}>
                       {mod.icon}
                     </Box>
-                    <Typography sx={{ fontWeight:800, fontSize:15, color:'#1A1A2E', mb:0.4 }}>{mod.label}</Typography>
+                    <Typography sx={{ fontWeight:800, fontSize:15, color:'#0A1A3E', mb:0.4 }}>{mod.label}</Typography>
                     <Typography sx={{ fontSize:12.5, color:'#9CA3AF', lineHeight:1.5 }}>{mod.description}</Typography>
                   </Box>
                 </Box>
@@ -157,21 +157,21 @@ const OperationalMenu = () => {
             {isAdminOrManager && (
               <Box onClick={() => navigate('/admin')}
                 sx={{
-                  bgcolor:'#fff', borderRadius:'16px', border:'1px solid rgba(26, 26, 46,0.15)',
+                  bgcolor:'#fff', borderRadius:'16px', border:'1px solid rgba(10, 26, 62,0.15)',
                   p:0, cursor:'pointer', overflow:'hidden',
-                  boxShadow:'0 2px 12px rgba(255, 90, 90,0.05)',
+                  boxShadow:'0 2px 12px rgba(37, 94, 171,0.05)',
                   transition:'all 0.22s cubic-bezier(0.4,0,0.2,1)',
-                  '&:hover':{ transform:'translateY(-3px)', boxShadow:'0 8px 32px rgba(26, 26, 46,0.12)' },
+                  '&:hover':{ transform:'translateY(-3px)', boxShadow:'0 8px 32px rgba(10, 26, 62,0.12)' },
                 }}>
-                <Box sx={{ height:4, background:'linear-gradient(135deg,#1A1A2E,#374151)' }} />
+                <Box sx={{ height:4, background:'linear-gradient(135deg,#0A1A3E,#374151)' }} />
                 <Box sx={{ p:2.5 }}>
                   <Box sx={{
-                    width:48, height:48, borderRadius:'12px', background:'rgba(26, 26, 46,0.06)',
+                    width:48, height:48, borderRadius:'12px', background:'rgba(10, 26, 62,0.06)',
                     display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, mb:2,
                   }}>
                     ⚙️
                   </Box>
-                  <Typography sx={{ fontWeight:800, fontSize:15, color:'#1A1A2E', mb:0.4 }}>Admin Panel</Typography>
+                  <Typography sx={{ fontWeight:800, fontSize:15, color:'#0A1A3E', mb:0.4 }}>Admin Panel</Typography>
                   <Typography sx={{ fontSize:12.5, color:'#9CA3AF', lineHeight:1.5 }}>
                     User management, module access, tickets and system settings
                   </Typography>
@@ -186,15 +186,15 @@ const OperationalMenu = () => {
       {/* ── Footer ── */}
       <Box sx={{
         px:{ xs:3, md:6 }, py:2, bgcolor:'#fff',
-        borderTop:'1px solid rgba(255, 139, 90,0.08)',
+        borderTop:'1px solid rgba(56, 163, 224,0.08)',
         display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:1,
       }}>
         <Typography sx={{ fontSize:12, color:'#A9B6C8' }}>
           InsureSAAS Insurance Brokers (Pvt) Ltd — Internal Use Only
         </Typography>
         <Chip label={role} size="small"
-          sx={{ bgcolor:'rgba(255, 139, 90,0.10)', color:'#FF8B5A', fontWeight:700, fontSize:11,
-                textTransform:'capitalize', border:'1px solid rgba(255, 139, 90,0.20)' }} />
+          sx={{ bgcolor:'rgba(56, 163, 224,0.10)', color:'#38A3E0', fontWeight:700, fontSize:11,
+                textTransform:'capitalize', border:'1px solid rgba(56, 163, 224,0.20)' }} />
       </Box>
     </Box>
   );

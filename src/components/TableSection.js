@@ -329,7 +329,7 @@ function SkeletonRow() {
     <TableRow>
       {[180, 120, 120, 120, 90, 100].map((w, i) => (
         <TableCell key={i}>
-          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(255, 90, 90,0.06)' }} />
+          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(37, 94, 171,0.06)' }} />
         </TableCell>
       ))}
     </TableRow>
@@ -687,10 +687,10 @@ const TableSection = () => {
                 sx={{
                   fontWeight: 600, fontSize: 12,
                   background: filterType === t
-                    ? 'linear-gradient(135deg,#FF5A5A,#FF8B5A)'
-                    : 'rgba(255, 90, 90,0.07)',
-                  color: filterType === t ? '#fff' : '#FF5A5A',
-                  border: filterType === t ? 'none' : '1px solid rgba(255, 90, 90,0.20)',
+                    ? 'linear-gradient(135deg,#255EAB,#38A3E0)'
+                    : 'rgba(37, 94, 171,0.07)',
+                  color: filterType === t ? '#fff' : '#255EAB',
+                  border: filterType === t ? 'none' : '1px solid rgba(37, 94, 171,0.20)',
                   transition: 'all 0.2s ease',
                   '&:hover': { opacity: 0.88 },
                 }}
@@ -702,12 +702,12 @@ const TableSection = () => {
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>Date Added:</Typography>
             <Select size="small" value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 139, 90,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56, 163, 224,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Years</MenuItem>
               {availableYears.map(y => <MenuItem key={y} value={y} sx={{ fontSize: 12 }}>{y}</MenuItem>)}
             </Select>
             <Select size="small" value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 139, 90,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56, 163, 224,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Months</MenuItem>
               {['January','February','March','April','May','June','July','August','September','October','November','December']
                 .map((m, i) => <MenuItem key={i} value={i} sx={{ fontSize: 12 }}>{m}</MenuItem>)}
@@ -730,8 +730,8 @@ const TableSection = () => {
             size="small" variant="outlined"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={handleDownloadTemplate}
-            sx={{ borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A', fontSize: 12,
-                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.07)' } }}
+            sx={{ borderColor: 'rgba(56, 163, 224,0.35)', color: '#38A3E0', fontSize: 12,
+                  '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56, 163, 224,0.07)' } }}
           >
             CSV Template
           </Button>
@@ -749,8 +749,8 @@ const TableSection = () => {
             startIcon={<FileUploadOutlinedIcon />}
             onClick={() => document.getElementById('csv-input').click()}
             disabled={csvImporting}
-            sx={{ borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A', fontSize: 12,
-                  '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.07)' } }}
+            sx={{ borderColor: 'rgba(56, 163, 224,0.35)', color: '#38A3E0', fontSize: 12,
+                  '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56, 163, 224,0.07)' } }}
           >
             {csvImporting ? 'Importing…' : 'Import CSV'}
           </Button>
@@ -790,7 +790,7 @@ const TableSection = () => {
       </Box>
 
       {/* ── table ────────────────────────────────────────────── */}
-      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(255, 139, 90,0.10)' }}>
+      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(56, 163, 224,0.10)' }}>
         <TableContainer>
           <Table sx={{ minWidth: 680 }}>
             <TableHead>
@@ -811,7 +811,7 @@ const TableSection = () => {
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(255, 90, 90,0.25)' }} />
+                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(37, 94, 171,0.25)' }} />
                           <Typography sx={{ color: '#9CA3AF', fontWeight: 500 }}>
                             {searchQuery ? 'No clients match your search' : 'No clients yet — add your first client!'}
                           </Typography>
@@ -830,13 +830,13 @@ const TableSection = () => {
                         key={client.id}
                         className={rowClass}
                         sx={{
-                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(255, 245, 242,0.7)',
+                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(242, 247, 252,0.7)',
                           animation: `stagger 0.3s ease both`,
                           animationDelay: `${Math.min(idx * 0.04, 0.4)}s`,
                         }}
                       >
                         <TableCell>
-                          <Typography sx={{ fontWeight: 600, fontSize: 13, color: '#1A1A2E' }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: 13, color: '#0A1A3E' }}>
                             {client.client_name}
                           </Typography>
                           {client.email && (
@@ -859,7 +859,7 @@ const TableSection = () => {
                             label={client.product || '—'}
                             size="small"
                             sx={{ fontSize: 11, fontWeight: 600,
-                                  bgcolor: 'rgba(255, 139, 90,0.10)', color: '#E04848' }}
+                                  bgcolor: 'rgba(56, 163, 224,0.10)', color: '#1D4E96' }}
                           />
                         </TableCell>
                         <TableCell sx={{ fontSize: 13, fontFamily: 'monospace', letterSpacing: 0.3 }}>
@@ -888,7 +888,7 @@ const TableSection = () => {
                               <>
                                 <Tooltip title="Edit">
                                   <IconButton size="small" onClick={() => setEditClient(client)}
-                                    sx={{ color: '#FF8B5A', '&:hover': { bgcolor: 'rgba(255, 139, 90,0.10)' } }}>
+                                    sx={{ color: '#38A3E0', '&:hover': { bgcolor: 'rgba(56, 163, 224,0.10)' } }}>
                                     <EditOutlinedIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
@@ -915,7 +915,7 @@ const TableSection = () => {
           <Box sx={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             px: 2.5, py: 1.5, flexWrap: 'wrap', gap: 1,
-            borderTop: '1px solid rgba(255, 139, 90,0.08)',
+            borderTop: '1px solid rgba(56, 163, 224,0.08)',
           }}>
             <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>
               Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, filtered.length)} of {filtered.length} clients
@@ -982,7 +982,7 @@ const TableSection = () => {
             Cancel
           </Button>
           <Button onClick={handleDelete} variant="contained"
-            sx={{ background: 'linear-gradient(135deg,#FF5A5A,#e04040)', boxShadow: 'none',
+            sx={{ background: 'linear-gradient(135deg,#255EAB,#e04040)', boxShadow: 'none',
                   '&:hover': { background: 'linear-gradient(135deg,#e04040,#c03030)' } }}>
             Delete
           </Button>
@@ -1001,7 +1001,7 @@ const TableSection = () => {
             Cancel
           </Button>
           <Button onClick={handleDeleteAll} variant="contained"
-            sx={{ background: 'linear-gradient(135deg,#FF5A5A,#e04040)', boxShadow: 'none' }}>
+            sx={{ background: 'linear-gradient(135deg,#255EAB,#e04040)', boxShadow: 'none' }}>
             Delete All
           </Button>
         </DialogActions>
@@ -1077,7 +1077,7 @@ const TableSection = () => {
                       : <Box sx={{ width: 16, height: 16, borderRadius: '50%', bgcolor: 'rgba(99,102,241,0.15)', flexShrink: 0 }} />
                     }
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#1A1A2E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: '#0A1A3E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.file.name}
                       </Typography>
                       <Typography sx={{ fontSize: 11, color: '#9CA3AF' }}>

@@ -76,7 +76,7 @@ const LoginPage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(145deg, #1A1A2E 0%, #0F2A5C 50%, #164B8F 100%)',
+      background: 'linear-gradient(145deg, #0A1A3E 0%, #0F2A5C 50%, #164B8F 100%)',
       position: 'relative',
       overflow: 'hidden',
       p: 2,
@@ -104,7 +104,7 @@ const LoginPage = () => {
         {/* card header */}
         <Box sx={{
           px: 4, py: 3.5,
-          background: 'linear-gradient(135deg, #FF5A5A, #FF8B5A)',
+          background: 'linear-gradient(135deg, #255EAB, #38A3E0)',
           textAlign: 'center',
         }}>
             {/* logo */}
@@ -130,7 +130,7 @@ const LoginPage = () => {
 
         {/* form */}
         <Box component="form" onSubmit={handleSubmit} sx={{ px: 4, py: 4 }}>
-          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#1A1A2E', mb: 2.5, textAlign: 'center' }}>
+          <Typography sx={{ fontSize: 16, fontWeight: 700, color: '#0A1A3E', mb: 2.5, textAlign: 'center' }}>
             Sign in to your account
           </Typography>
 
@@ -147,7 +147,7 @@ const LoginPage = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <MailOutlineIcon sx={{ color: '#FF8B5A', fontSize: 20 }} />
+                  <MailOutlineIcon sx={{ color: '#38A3E0', fontSize: 20 }} />
                 </InputAdornment>
               ),
             }}
@@ -165,7 +165,7 @@ const LoginPage = () => {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <LockOutlinedIcon sx={{ color: '#FF8B5A', fontSize: 20 }} />
+                  <LockOutlinedIcon sx={{ color: '#38A3E0', fontSize: 20 }} />
                 </InputAdornment>
               ),
               endAdornment: (

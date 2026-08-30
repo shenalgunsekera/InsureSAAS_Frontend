@@ -65,12 +65,12 @@ function NavItem({ item, active, onClick }) {
         <Box sx={{
           position: 'absolute', left: 0, top: '18%', bottom: '18%',
           width: 3, borderRadius: '0 3px 3px 0',
-          background: 'linear-gradient(180deg,#E04848,#FF7373)',
+          background: 'linear-gradient(180deg,#1D4E96,#2E76C4)',
         }} />
       )}
       <ListItemIcon sx={{
         minWidth: 36,
-        color: active ? '#FF7373' : 'rgba(255,255,255,0.45)',
+        color: active ? '#2E76C4' : 'rgba(255,255,255,0.45)',
         transition: 'color 0.2s ease',
         '& svg': { fontSize: 20 },
       }}>
@@ -203,10 +203,10 @@ function DrawerContent({ onClose }) {
           sx={{
             mx: 1.5, borderRadius: '10px', px: 1.5, py: 1,
             transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-            '&:hover': { background: 'rgba(255, 139, 90,0.12)', transform: 'translateX(3px)' },
+            '&:hover': { background: 'rgba(56, 163, 224,0.12)', transform: 'translateX(3px)' },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(255, 139, 90,0.7)', '& svg': { fontSize: 20 } }}>
+          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(56, 163, 224,0.7)', '& svg': { fontSize: 20 } }}>
             <MenuBookOutlinedIcon />
           </ListItemIcon>
           <ListItemText
@@ -222,10 +222,10 @@ function DrawerContent({ onClose }) {
           sx={{
             mx: 1.5, borderRadius: '10px', px: 1.5, py: 1,
             transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-            '&:hover': { background: 'rgba(255, 139, 90,0.12)', transform: 'translateX(3px)' },
+            '&:hover': { background: 'rgba(56, 163, 224,0.12)', transform: 'translateX(3px)' },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(255, 139, 90,0.7)', '& svg': { fontSize: 20 } }}>
+          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(56, 163, 224,0.7)', '& svg': { fontSize: 20 } }}>
             <ConfirmationNumberOutlinedIcon />
           </ListItemIcon>
           <ListItemText
@@ -246,7 +246,7 @@ function DrawerContent({ onClose }) {
         }}>
           <Avatar sx={{
             width: 36, height: 36, fontSize: 13, fontWeight: 700,
-            background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)',
+            background: 'linear-gradient(135deg,#255EAB,#38A3E0)',
             flexShrink: 0,
           }}>
             {initials}
@@ -255,7 +255,7 @@ function DrawerContent({ onClose }) {
             <Typography sx={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {name}
             </Typography>
-            <Typography sx={{ fontSize: 11, color: '#FF7373', fontWeight: 600, textTransform: 'capitalize' }}>
+            <Typography sx={{ fontSize: 11, color: '#2E76C4', fontWeight: 600, textTransform: 'capitalize' }}>
               {role || 'User'}
             </Typography>
           </Box>
@@ -265,7 +265,7 @@ function DrawerContent({ onClose }) {
               onClick={handleLogout}
               sx={{
                 color: 'rgba(255,255,255,0.35)', flexShrink: 0,
-                '&:hover': { color: '#E04848', bgcolor: 'rgba(224, 72, 72,0.12)' },
+                '&:hover': { color: '#1D4E96', bgcolor: 'rgba(29, 78, 150,0.12)' },
                 transition: 'all 0.2s ease',
               }}
             >
@@ -289,8 +289,8 @@ const Sidebar = () => {
         sx={{
           display: { xs: 'flex', md: 'none' },
           position: 'fixed', top: 12, left: 12, zIndex: 1300,
-          bgcolor: 'white', boxShadow: '0 2px 12px rgba(255, 90, 90,0.20)',
-          color: '#FF5A5A', borderRadius: '12px', p: 0.8,
+          bgcolor: 'white', boxShadow: '0 2px 12px rgba(37, 94, 171,0.20)',
+          color: '#255EAB', borderRadius: '12px', p: 0.8,
           '&:hover': { bgcolor: 'white', transform: 'scale(1.05)' },
           transition: 'all 0.2s ease',
         }}
@@ -306,7 +306,7 @@ const Sidebar = () => {
           '& .MuiDrawer-paper': {
             width: DRAWER_W,
             border: 'none',
-            boxShadow: '4px 0 24px rgba(255, 90, 90,0.08)',
+            boxShadow: '4px 0 24px rgba(37, 94, 171,0.08)',
           },
         }}
         open
@@ -325,7 +325,7 @@ const Sidebar = () => {
           '& .MuiDrawer-paper': {
             width: DRAWER_W,
             border: 'none',
-            boxShadow: '4px 0 40px rgba(255, 90, 90,0.18)',
+            boxShadow: '4px 0 40px rgba(37, 94, 171,0.18)',
           },
         }}
       >

@@ -74,7 +74,7 @@ export const PRODUCTS = {
     prefix: 'FR',
     customerNameField: 'proposer_name',
     icon: '🔥',
-    color: '#FF5A5A',
+    color: '#255EAB',
     comparisonRows: ['Annual Premium (LKR)', 'Basic Premium (LKR)', 'SRCC (LKR)', 'Sum Insured (LKR)', 'EML (LKR)', 'PML (LKR)', 'Terrorism Cover', 'Flood Cover', 'Validity (days)', 'Special Conditions'],
     fields: [
 

@@ -84,8 +84,8 @@ function exportRenewalsPDF(rows, title) {
   const pageH = pdf.internal.pageSize.getHeight();
   const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  pdf.setFillColor(255, 90, 90); pdf.rect(0, 0, pageW, 26, 'F');
-  pdf.setFillColor(26, 26, 46);  pdf.rect(0, 26, pageW, 10, 'F');
+  pdf.setFillColor(37, 94, 171); pdf.rect(0, 0, pageW, 26, 'F');
+  pdf.setFillColor(10, 26, 62);  pdf.rect(0, 26, pageW, 10, 'F');
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(15); pdf.setFont('helvetica', 'bold');
   pdf.text(COMPANY, pageW / 2, 11, { align: 'center' });
@@ -102,9 +102,9 @@ function exportRenewalsPDF(rows, title) {
       if (c.num) return v === '' ? '—' : Number(v).toLocaleString();
       return v === '' ? '—' : String(v);
     })),
-    headStyles: { fillColor: [26, 26, 46], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, cellPadding: 3 },
-    alternateRowStyles: { fillColor: [255, 245, 242] },
-    styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [26, 26, 46] },
+    headStyles: { fillColor: [10, 26, 62], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9, cellPadding: 3 },
+    alternateRowStyles: { fillColor: [242, 247, 252] },
+    styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [10, 26, 62] },
     columnStyles: { 6: { halign: 'right' } },
     didParseCell: (d) => {
       if (d.section !== 'body') return;
@@ -200,7 +200,7 @@ const RenewalsPage = () => {
         <CardContent sx={{ p:0, '&:last-child':{pb:0} }}>
           <Box sx={{ px:2.5, pt:2, pb:1, display:'flex', gap:2, alignItems:'center', flexWrap:'wrap' }}>
             <Tabs value={tab} onChange={(_,v)=>{ setTab(v); setRPage(1); }}
-              sx={{ '& .MuiTab-root':{fontSize:12.5, fontWeight:600, textTransform:'none', color:'#9CA3AF'}, '& .Mui-selected':{color:'#FF5A5A'}, '& .MuiTabs-indicator':{background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)', height:2.5} }}>
+              sx={{ '& .MuiTab-root':{fontSize:12.5, fontWeight:600, textTransform:'none', color:'#9CA3AF'}, '& .Mui-selected':{color:'#255EAB'}, '& .MuiTabs-indicator':{background:'linear-gradient(90deg,#255EAB,#38A3E0)', height:2.5} }}>
               <Tab label={`Expiring Soon (${categorised.expiring.length})`} />
               <Tab label={`Expired (${categorised.expired.length})`} />
               <Tab label="All" />
@@ -223,12 +223,12 @@ const RenewalsPage = () => {
             <Box sx={{ flex:1 }} />
             <Button size="small" variant="outlined" startIcon={<FileDownloadOutlinedIcon sx={{ fontSize:16 }} />}
               disabled={!filtered.length} onClick={()=>exportRenewalsCSV(filtered, tabName)}
-              sx={{ textTransform:'none', fontSize:12.5, fontWeight:600, borderColor:'#FF5A5A', color:'#FF5A5A', '&:hover':{ borderColor:'#1A1A2E', bgcolor:'rgba(255, 90, 90,0.04)' } }}>
+              sx={{ textTransform:'none', fontSize:12.5, fontWeight:600, borderColor:'#255EAB', color:'#255EAB', '&:hover':{ borderColor:'#0A1A3E', bgcolor:'rgba(37, 94, 171,0.04)' } }}>
               Export CSV
             </Button>
             <Button size="small" variant="contained" startIcon={<PictureAsPdfOutlinedIcon sx={{ fontSize:16 }} />}
               disabled={!filtered.length} onClick={()=>exportRenewalsPDF(filtered, tabName)}
-              sx={{ textTransform:'none', fontSize:12.5, fontWeight:600, background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)', boxShadow:'none', '&:hover':{ boxShadow:'none', filter:'brightness(0.95)' } }}>
+              sx={{ textTransform:'none', fontSize:12.5, fontWeight:600, background:'linear-gradient(90deg,#255EAB,#38A3E0)', boxShadow:'none', '&:hover':{ boxShadow:'none', filter:'brightness(0.95)' } }}>
               Export PDF
             </Button>
           </Box>
@@ -251,7 +251,7 @@ const RenewalsPage = () => {
                   ) : filtered.slice((rPage-1)*rPer, rPage*rPer).map((c,i) => {
                     const s = statusChip(c.daysLeft);
                     return (
-                      <TableRow key={c.id} sx={{ bgcolor: i%2===0?'#fff':'rgba(255, 245, 242,0.6)' }}>
+                      <TableRow key={c.id} sx={{ bgcolor: i%2===0?'#fff':'rgba(242, 247, 252,0.6)' }}>
                         <TableCell sx={{ fontWeight:600 }}>{c.client_name}</TableCell>
                         <TableCell sx={{ fontFamily:'monospace' }}>{c.policy_no||'—'}</TableCell>
                         <TableCell>{c.product||'—'}</TableCell>
@@ -272,7 +272,7 @@ const RenewalsPage = () => {
             </TableContainer>
           )}
           {filtered.length > rPer && (
-            <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', px:2.5, py:1.5, borderTop:'1px solid rgba(255, 139, 90,0.08)', flexWrap:'wrap', gap:1 }}>
+            <Box sx={{ display:'flex', alignItems:'center', justifyContent:'space-between', px:2.5, py:1.5, borderTop:'1px solid rgba(56, 163, 224,0.08)', flexWrap:'wrap', gap:1 }}>
               <Typography sx={{ fontSize:12.5, color:'#9CA3AF' }}>
                 Showing {(rPage-1)*rPer+1}–{Math.min(rPage*rPer, filtered.length)} of {filtered.length}
               </Typography>

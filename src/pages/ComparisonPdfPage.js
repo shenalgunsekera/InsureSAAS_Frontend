@@ -78,7 +78,7 @@ const ComparisonPdfPage = () => {
     <Box sx={{ minHeight:'100vh', bgcolor:'#F9F9FB', display:'flex', alignItems:'center', justifyContent:'center', p:3 }}>
       <Box sx={{ maxWidth:440, width:'100%', textAlign:'center' }}>
 
-        <Box sx={{ width:64, height:64, borderRadius:'16px', mx:'auto', mb:2, background:'linear-gradient(135deg,#1A1A2E,#374151)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30 }}>
+        <Box sx={{ width:64, height:64, borderRadius:'16px', mx:'auto', mb:2, background:'linear-gradient(135deg,#0A1A3E,#374151)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:30 }}>
           📄
         </Box>
 
@@ -93,14 +93,14 @@ const ComparisonPdfPage = () => {
         </Typography>
 
         {(status === 'loading' || status === 'generating') && (
-          <CircularProgress sx={{ color:'#FF5A5A', mb:2 }} />
+          <CircularProgress sx={{ color:'#255EAB', mb:2 }} />
         )}
 
         {status === 'error' && (
           <>
             <Alert severity="error" sx={{ mb:2, textAlign:'left' }}>{error}</Alert>
             <Button variant="contained" onClick={() => window.location.reload()}
-              sx={{ background:'linear-gradient(135deg,#FF5A5A,#FF8B5A)' }}>
+              sx={{ background:'linear-gradient(135deg,#255EAB,#38A3E0)' }}>
               Try Again
             </Button>
           </>
@@ -112,7 +112,7 @@ const ComparisonPdfPage = () => {
               Your comparison PDF has been downloaded successfully.
             </Alert>
             <Button variant="outlined" onClick={generateAndDownload}
-              sx={{ borderColor:'rgba(255, 90, 90,0.3)', color:'#FF5A5A' }}>
+              sx={{ borderColor:'rgba(37, 94, 171,0.3)', color:'#255EAB' }}>
               Download Again
             </Button>
           </>

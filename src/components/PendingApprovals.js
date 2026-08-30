@@ -44,7 +44,7 @@ function ClientSummary({ client }) {
           <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             {label}
           </Typography>
-          <Typography sx={{ fontSize: 13, color: '#1A1A2E', fontWeight: 500 }}>
+          <Typography sx={{ fontSize: 13, color: '#0A1A3E', fontWeight: 500 }}>
             {['net_premium','total_invoice'].includes(key)
               ? `LKR ${Number(client[key]).toLocaleString()}`
               : client[key]}
@@ -87,12 +87,12 @@ function PendingCard({ client, onApprove, onReject }) {
                       cursor: 'pointer', '&:hover': { bgcolor: 'rgba(245,158,11,0.03)' } }}
                onClick={() => setOpen(o => !o)}>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E' }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0A1A3E' }}>
                 {client.client_name || '(Unnamed)'}
               </Typography>
               <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap" sx={{ mt: 0.3 }}>
                 <Chip label={client.product || '—'} size="small"
-                  sx={{ bgcolor: 'rgba(255, 90, 90,0.08)', color: '#FF5A5A', fontWeight: 600, fontSize: 11 }} />
+                  sx={{ bgcolor: 'rgba(37, 94, 171,0.08)', color: '#255EAB', fontWeight: 600, fontSize: 11 }} />
                 <Typography sx={{ fontSize: 11.5, color: '#9CA3AF' }}>
                   by {client.submitted_by_name || 'Unknown'} · {submitted}
                 </Typography>
@@ -185,13 +185,13 @@ const PendingApprovals = () => {
 
   if (loading) return (
     <Stack spacing={1.5}>
-      {[1,2,3].map(i => <Skeleton key={i} height={72} sx={{ borderRadius: '12px', bgcolor: 'rgba(255, 90, 90,0.05)' }} />)}
+      {[1,2,3].map(i => <Skeleton key={i} height={72} sx={{ borderRadius: '12px', bgcolor: 'rgba(37, 94, 171,0.05)' }} />)}
     </Stack>
   );
 
   if (pending.length === 0) return (
     <Box sx={{ textAlign: 'center', py: 6 }}>
-      <HourglassEmptyIcon sx={{ fontSize: 42, color: 'rgba(255, 90, 90,0.15)', mb: 1 }} />
+      <HourglassEmptyIcon sx={{ fontSize: 42, color: 'rgba(37, 94, 171,0.15)', mb: 1 }} />
       <Typography sx={{ color: '#9CA3AF', fontWeight: 600 }}>No pending submissions</Typography>
       <Typography sx={{ fontSize: 12, color: '#A9B6C8' }}>All caught up!</Typography>
     </Box>

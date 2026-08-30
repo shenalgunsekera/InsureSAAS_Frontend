@@ -69,7 +69,7 @@ import ViewListIcon from '@mui/icons-material/ViewList';
 import FunctionsIcon from '@mui/icons-material/Functions';
 
 /* ── Palette ─────────────────────────────────────────────────────────────── */
-const CHART_COLORS = ['#FF5A5A','#6366f1','#10B981','#f59e0b','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
+const CHART_COLORS = ['#255EAB','#6366f1','#10B981','#f59e0b','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
 
 /* ── Field definitions ───────────────────────────────────────────────────── */
 const uwType = (f) => (f.type === 'number' || f.type === 'currency') ? 'number' : (f.date ? 'date' : 'string');
@@ -332,8 +332,8 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
   const pageW=pdf.internal.pageSize.getWidth(); const pageH=pdf.internal.pageSize.getHeight();
   const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 
-  pdf.setFillColor(255, 90, 90); pdf.rect(0,0,pageW,26,'F');
-  pdf.setFillColor(26, 26, 46);  pdf.rect(0,26,pageW,10,'F');
+  pdf.setFillColor(37, 94, 171); pdf.rect(0,0,pageW,26,'F');
+  pdf.setFillColor(10, 26, 62);  pdf.rect(0,26,pageW,10,'F');
   pdf.setTextColor(255,255,255);
   pdf.setFontSize(15); pdf.setFont('helvetica','bold');
   pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd',pageW/2,11,{align:'center'});
@@ -350,9 +350,9 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
     numCols.forEach((c,i)=>{
       const total=rows.filter(r=>!r._type||r._type==='data').reduce((a,r)=>a+parseNum(r[c.key]),0);
       const x=10+i*boxW;
-      pdf.setFillColor(255, 245, 242); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
-      pdf.setDrawColor(255, 139, 90); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
-      pdf.setTextColor(255, 90, 90); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
+      pdf.setFillColor(242, 247, 252); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
+      pdf.setDrawColor(56, 163, 224); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
+      pdf.setTextColor(37, 94, 171); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
       pdf.text(fmtNum(total),x+(boxW-3)/2,Y+10,{align:'center'});
       pdf.setTextColor(107,114,128); pdf.setFontSize(7.5); pdf.setFont('helvetica','normal');
       pdf.text(c.label,x+(boxW-3)/2,Y+16,{align:'center'});
@@ -391,15 +391,15 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
         return String(v);
       });
     }),
-    headStyles:{fillColor:[26, 26, 46],textColor:[255,255,255],fontStyle:'bold',fontSize:9,cellPadding:3},
-    alternateRowStyles:{fillColor:[255, 245, 242]},
-    styles:{fontSize:8.5,cellPadding:2.5,textColor:[26, 26, 46]},
+    headStyles:{fillColor:[10, 26, 62],textColor:[255,255,255],fontStyle:'bold',fontSize:9,cellPadding:3},
+    alternateRowStyles:{fillColor:[242, 247, 252]},
+    styles:{fontSize:8.5,cellPadding:2.5,textColor:[10, 26, 62]},
     columnStyles:columns.reduce((acc,c,i)=>{if(c.type==='number')acc[i]={halign:'right'};return acc;},{}),
     didParseCell:(d)=>{
       const r=rows[d.row.index];
       if (!r) return;
       if (r._type==='subtotal'){d.cell.styles.fillColor=[230,230,255];d.cell.styles.fontStyle='bold';d.cell.styles.textColor=[60,60,200];}
-      if (r._type==='grandtotal'){d.cell.styles.fillColor=[26, 26, 46];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}
+      if (r._type==='grandtotal'){d.cell.styles.fillColor=[10, 26, 62];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}
     },
     didDrawPage:()=>{
       pdf.setFontSize(7); pdf.setTextColor(180,180,180);
@@ -754,7 +754,7 @@ function ReportChart({ chartCfg, data, groupByLabel, innerRef, onRemove, onUpdat
   const ChIcon = type==='pie'?PieChartOutlineIcon:type==='line'?ShowChartIcon:BarChartIcon;
   const yLabel = label || '';
   return (
-    <Card sx={{ border:'1px solid rgba(255, 139, 90,0.12)', mb:2 }}>
+    <Card sx={{ border:'1px solid rgba(56, 163, 224,0.12)', mb:2 }}>
       <CardContent ref={innerRef} sx={{ p:2.5 }}>
         <Stack direction={{ xs:'column', sm:'row' }} spacing={1} alignItems={{ sm:'center' }} sx={{ mb:1.5 }} flexWrap="wrap">
           <ChIcon sx={{ color:'#6366f1', fontSize:18, flexShrink:0 }} />
@@ -796,7 +796,7 @@ function ReportChart({ chartCfg, data, groupByLabel, innerRef, onRemove, onUpdat
         {groupByLabel && (
           <Typography sx={{fontSize:11,color:'#9CA3AF',mb:1}}>
             X Axis: <strong style={{color:'#6366f1'}}>{groupByLabel}</strong>
-            {chartCfg.field && <span> · Y Axis: <strong style={{color:'#FF5A5A'}}>{yLabel} ({chartCfg.aggOp||'sum'})</strong></span>}
+            {chartCfg.field && <span> · Y Axis: <strong style={{color:'#255EAB'}}>{yLabel} ({chartCfg.aggOp||'sum'})</strong></span>}
           </Typography>
         )}
         <ResponsiveContainer width="100%" height={240}>
@@ -1174,9 +1174,9 @@ const ReportsPage = () => {
   };
 
   const rowSx = (row) => {
-    if (row._type==='grandtotal') return { bgcolor:'#1A1A2E','& td':{color:'#fff',fontWeight:800,borderBottom:'none'} };
+    if (row._type==='grandtotal') return { bgcolor:'#0A1A3E','& td':{color:'#fff',fontWeight:800,borderBottom:'none'} };
     if (row._type==='subtotal')   return { bgcolor:'rgba(99,102,241,0.08)','& td':{color:'#4338ca',fontWeight:700,fontStyle:'italic'} };
-    return { '&:nth-of-type(even)':{ bgcolor:'rgba(255, 245, 242,0.6)' }, '&:hover':{ bgcolor:'rgba(255, 90, 90,0.04)' } };
+    return { '&:nth-of-type(even)':{ bgcolor:'rgba(242, 247, 252,0.6)' }, '&:hover':{ bgcolor:'rgba(37, 94, 171,0.04)' } };
   };
 
   const totalDataRows = results ? results.filter(r=>!r._type||r._type==='data').length : 0;
@@ -1193,7 +1193,7 @@ const ReportsPage = () => {
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap">
           <Button size="small" variant="outlined" startIcon={<RefreshIcon/>} onClick={loadData} disabled={loading}
-            sx={{fontSize:12,borderColor:'rgba(255, 139, 90,0.35)',color:'#FF8B5A'}}>{loading?'Loading…':'Refresh'}</Button>
+            sx={{fontSize:12,borderColor:'rgba(56, 163, 224,0.35)',color:'#38A3E0'}}>{loading?'Loading…':'Refresh'}</Button>
           {results&&<>
             <Button size="small" variant="outlined" startIcon={<PictureAsPdfOutlinedIcon/>}
               onClick={()=>exportPDF(displayCols,results,saveName||'Report',allChartEls())}
@@ -1209,7 +1209,7 @@ const ReportsPage = () => {
         </Stack>
       </Stack>
 
-      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(255, 139, 90,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#FF5A5A'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#FF5A5A,#FF8B5A)',height:2.5}}}>
+      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(56, 163, 224,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#255EAB'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#255EAB,#38A3E0)',height:2.5}}}>
         <Tab icon={<BookmarkIcon sx={{fontSize:17}}/>} iconPosition="start" label={`Templates (${BUILTIN_TEMPLATES.length+savedTemplates.length})`}/>
         <Tab icon={<TuneIcon sx={{fontSize:17}}/>} iconPosition="start" label="Report Builder"/>
       </Tabs>
@@ -1219,7 +1219,7 @@ const ReportsPage = () => {
 
           {/* ── Config panel ── */}
           <Box sx={{width:{xs:'100%',lg:340},flexShrink:0}}>
-            <Card sx={{border:'1px solid rgba(255, 139, 90,0.12)',mb:2}}>
+            <Card sx={{border:'1px solid rgba(56, 163, 224,0.12)',mb:2}}>
               <CardContent sx={{p:2.5}}>
 
                 {/* Source */}
@@ -1267,7 +1267,7 @@ const ReportsPage = () => {
                 <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Fields to Show</Typography>
                 <Box sx={{maxHeight:180,overflowY:'auto',border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px',p:1,mb:1}}>
                   {sourceFields.map(f=>(
-                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={selFields.includes(f.key)} onChange={()=>setSelFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#FF8B5A','&.Mui-checked':{color:'#FF5A5A'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
+                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={selFields.includes(f.key)} onChange={()=>setSelFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#38A3E0','&.Mui-checked':{color:'#255EAB'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
                   ))}
                 </Box>
                 <Stack direction="row" spacing={1} sx={{mb:2.5}}>
@@ -1333,7 +1333,7 @@ const ReportsPage = () => {
                       <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8}}>
                         Summary Columns
                       </Typography>
-                      <IconButton size="small" onClick={()=>setAggregations(p=>[...p,{field:sourceFields.find(f=>f.type==='number')?.key||'',op:'sum'}])} sx={{color:'#FF5A5A'}}><AddIcon fontSize="small"/></IconButton>
+                      <IconButton size="small" onClick={()=>setAggregations(p=>[...p,{field:sourceFields.find(f=>f.type==='number')?.key||'',op:'sum'}])} sx={{color:'#255EAB'}}><AddIcon fontSize="small"/></IconButton>
                     </Stack>
                     <Typography sx={{fontSize:11,color:'#9CA3AF',mb:1,lineHeight:1.5}}>
                       These add calculated columns to each group
@@ -1396,7 +1396,7 @@ const ReportsPage = () => {
                 {/* Filters */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb:1}}>
                   <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8}}>Filters</Typography>
-                  <IconButton size="small" onClick={()=>setFilters(p=>[...p,{field:sourceFields[0].key,op:'equals',value:''}])} sx={{color:'#FF5A5A'}}><AddIcon fontSize="small"/></IconButton>
+                  <IconButton size="small" onClick={()=>setFilters(p=>[...p,{field:sourceFields[0].key,op:'equals',value:''}])} sx={{color:'#255EAB'}}><AddIcon fontSize="small"/></IconButton>
                 </Stack>
                 <Stack spacing={1.2} sx={{mb:2.5}}>
                   {filters.map((f,i)=>{
@@ -1486,9 +1486,9 @@ const ReportsPage = () => {
             {!dataLoaded&&<Stack spacing={1}>{[1,2,3].map(i=><Skeleton key={i} height={56} sx={{borderRadius:'10px'}}/>)}</Stack>}
 
             {dataLoaded&&!results&&(
-              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(255, 90, 90,0.03)',borderRadius:'16px',border:'1px dashed rgba(255, 139, 90,0.20)'}}>
+              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(37, 94, 171,0.03)',borderRadius:'16px',border:'1px dashed rgba(56, 163, 224,0.20)'}}>
                 <Typography sx={{fontSize:40,mb:1}}>📊</Typography>
-                <Typography sx={{fontWeight:700,fontSize:15,color:'#1A1A2E',mb:0.5}}>Configure and run your report</Typography>
+                <Typography sx={{fontWeight:700,fontSize:15,color:'#0A1A3E',mb:0.5}}>Configure and run your report</Typography>
                 <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Select fields, set a view mode, add filters, then click Run Report</Typography>
               </Box>
             )}
@@ -1508,7 +1508,7 @@ const ReportsPage = () => {
                       ...chosen.map(c=>({
                         label:c.label,
                         val:fmtNum(dataRows.reduce((a,r)=>a+parseNum(r[c.key]),0)),
-                        color:'#FF5A5A',bg:'rgba(255, 90, 90,0.05)',
+                        color:'#255EAB',bg:'rgba(37, 94, 171,0.05)',
                       })),
                     ];
                   })().map((s,i)=>(
@@ -1545,9 +1545,9 @@ const ReportsPage = () => {
 
                 {/* Pivot Table */}
                 {viewMode==='pivot'&&pivotData&&(
-                  <Card sx={{border:'1px solid rgba(255, 139, 90,0.12)',mb:2}}>
+                  <Card sx={{border:'1px solid rgba(56, 163, 224,0.12)',mb:2}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255, 139, 90,0.08)'}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(56, 163, 224,0.08)'}}>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Pivot: {sourceFields.find(f=>f.key===groupBy)?.label} × {sourceFields.find(f=>f.key===pivotColField)?.label} → {sourceFields.find(f=>f.key===pivotValField)?.label} ({pivotValOp})
                         </Typography>
@@ -1555,17 +1555,17 @@ const ReportsPage = () => {
                       <Box sx={{overflowX:'auto'}}>
                         <Table size="small">
                           <TableHead>
-                            <TableRow sx={{bgcolor:'#1A1A2E'}}>
-                              <TableCell sx={{color:'#FF8B5A',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2}}>{sourceFields.find(f=>f.key===groupBy)?.label||groupBy}</TableCell>
-                              {pivotData.colValues.map(cv=><TableCell key={cv} sx={{color:'#FF8B5A',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2,textAlign:'right'}}>{cv}</TableCell>)}
+                            <TableRow sx={{bgcolor:'#0A1A3E'}}>
+                              <TableCell sx={{color:'#38A3E0',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2}}>{sourceFields.find(f=>f.key===groupBy)?.label||groupBy}</TableCell>
+                              {pivotData.colValues.map(cv=><TableCell key={cv} sx={{color:'#38A3E0',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',py:1.2,textAlign:'right'}}>{cv}</TableCell>)}
                               <TableCell sx={{color:'#fff',fontWeight:800,fontSize:11.5,textAlign:'right',py:1.2}}>TOTAL</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {pivotData.pivotRows.map((row,i)=>(
-                              <TableRow key={i} sx={row._type==='pivottotal'?{bgcolor:'#1A1A2E','& td':{color:'#fff',fontWeight:800}}:{
-                                '&:nth-of-type(even)':{bgcolor:'rgba(255, 245, 242,0.6)'},
-                                '&:hover':{bgcolor:'rgba(255, 90, 90,0.04)'},
+                              <TableRow key={i} sx={row._type==='pivottotal'?{bgcolor:'#0A1A3E','& td':{color:'#fff',fontWeight:800}}:{
+                                '&:nth-of-type(even)':{bgcolor:'rgba(242, 247, 252,0.6)'},
+                                '&:hover':{bgcolor:'rgba(37, 94, 171,0.04)'},
                               }}>
                                 <TableCell sx={{fontSize:12.5,fontWeight:row._type==='pivottotal'?800:600,py:1,whiteSpace:'nowrap'}}>{row._rowLabel}</TableCell>
                                 {pivotData.colValues.map(cv=><TableCell key={cv} sx={{fontSize:12.5,py:1,textAlign:'right',fontFamily:'monospace'}}>{fmtNum(row[`_p_${cv}`])}</TableCell>)}
@@ -1581,9 +1581,9 @@ const ReportsPage = () => {
 
                 {/* Flat / Subtotals / Aggregated table */}
                 {viewMode!=='pivot'&&(
-                  <Card sx={{border:'1px solid rgba(255, 139, 90,0.12)'}}>
+                  <Card sx={{border:'1px solid rgba(56, 163, 224,0.12)'}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(255, 139, 90,0.08)',display:'flex',alignItems:'center',gap:1}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(56, 163, 224,0.08)',display:'flex',alignItems:'center',gap:1}}>
                         <TableChartOutlinedIcon sx={{color:'#9CA3AF',fontSize:18}}/>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Data ({totalDataRows} rows{viewMode==='subtotals'&&groupBy?', with subtotals':''})
@@ -1592,15 +1592,15 @@ const ReportsPage = () => {
                       <Box sx={{overflowX:'auto'}}>
                         <Table size="small">
                           <TableHead>
-                            <TableRow sx={{bgcolor:'#1A1A2E'}}>
-                              {displayCols.map(c=><TableCell key={c.key} sx={{color:'#FF8B5A',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',borderBottom:'none',py:1.2,textAlign:c.type==='number'?'right':'left'}}>{c.label}</TableCell>)}
+                            <TableRow sx={{bgcolor:'#0A1A3E'}}>
+                              {displayCols.map(c=><TableCell key={c.key} sx={{color:'#38A3E0',fontWeight:700,fontSize:11.5,whiteSpace:'nowrap',borderBottom:'none',py:1.2,textAlign:c.type==='number'?'right':'left'}}>{c.label}</TableCell>)}
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {pagedResults.map((row,i)=>(
                               <TableRow key={i} sx={rowSx(row)}>
                                 {displayCols.map(c=>(
-                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(255, 139, 90,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
+                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(56, 163, 224,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
                                     {row._type==='subtotal'&&c===displayCols[0]?`↳ Subtotal: ${row[c.key]||''}`:
                                      row._type==='grandtotal'&&c===displayCols[0]?'GRAND TOTAL':
                                      renderCell(c,row)}
@@ -1614,7 +1614,7 @@ const ReportsPage = () => {
                       {viewMode!=='subtotals'&&results.length>R_PER_PAGE&&(
                         <Box sx={{display:'flex',justifyContent:'center',py:1.5}}>
                           <Pagination count={Math.ceil(results.length/R_PER_PAGE)} page={rPage} onChange={(_,v)=>setRPage(v)} size="small"
-                            sx={{'& .Mui-selected':{bgcolor:'rgba(255, 90, 90,0.12) !important',color:'#FF5A5A',fontWeight:700}}}/>
+                            sx={{'& .Mui-selected':{bgcolor:'rgba(37, 94, 171,0.12) !important',color:'#255EAB',fontWeight:700}}}/>
                         </Box>
                       )}
                     </CardContent>
@@ -1632,7 +1632,7 @@ const ReportsPage = () => {
           <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:1,mb:1.5}}>Built-in Reports</Typography>
           <Stack spacing={1.5} sx={{mb:3}}>
             {BUILTIN_TEMPLATES.map(tpl=>(
-              <Card key={tpl.id} sx={{border:'1px solid rgba(255, 139, 90,0.12)'}}>
+              <Card key={tpl.id} sx={{border:'1px solid rgba(56, 163, 224,0.12)'}}>
                 <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                   <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                     <Typography sx={{fontSize:22}}>{tpl.icon}</Typography>
@@ -1653,14 +1653,14 @@ const ReportsPage = () => {
           </Stack>
           {savedTemplates.length===0?(
             <Box sx={{textAlign:'center',py:6,border:'1px dashed rgba(0,0,0,0.12)',borderRadius:'12px'}}>
-              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(255, 90, 90,0.2)',mb:1}}/>
+              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(37, 94, 171,0.2)',mb:1}}/>
               <Typography sx={{fontWeight:700,color:'#374151',mb:0.5}}>No saved templates yet</Typography>
               <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Open the Report Builder, design a report and click "Save Template" — it will appear here.</Typography>
             </Box>
           ):(
             <Stack spacing={1.5}>
               {savedTemplates.map(tpl=>(
-                <Card key={tpl.id} sx={{border:'1px solid rgba(255, 139, 90,0.12)'}}>
+                <Card key={tpl.id} sx={{border:'1px solid rgba(56, 163, 224,0.12)'}}>
                   <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                     <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                       <Box sx={{flex:1,minWidth:0}}>
@@ -1668,7 +1668,7 @@ const ReportsPage = () => {
                         {tpl.description&&<Typography sx={{fontSize:12,color:'#9CA3AF'}}>{tpl.description}</Typography>}
                         <Stack direction="row" spacing={0.8} sx={{mt:0.5}} flexWrap="wrap">
                           <Chip label={tpl.source} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>
-                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(255, 90, 90,0.08)',color:'#FF5A5A'}}/>
+                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(37, 94, 171,0.08)',color:'#255EAB'}}/>
                           {tpl.groupBy&&<Chip label={`By ${tpl.groupBy}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(16,185,129,0.08)',color:'#059669'}}/>}
                           {tpl.charts?.length>0&&<Chip label={`${tpl.charts.length} chart${tpl.charts.length!==1?'s':''}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>}
                         </Stack>

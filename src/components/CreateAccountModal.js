@@ -84,7 +84,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <PersonAddOutlinedIcon sx={{ color: '#FF8B5A', fontSize: 20 }} />
+        <PersonAddOutlinedIcon sx={{ color: '#38A3E0', fontSize: 20 }} />
         Create Employee Account
       </DialogTitle>
 
@@ -94,7 +94,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
             <Alert severity="success" sx={{ mb: 2 }}>
               Account created for <strong>{created.name}</strong>!
             </Alert>
-            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#F9F9FB', border: '1px solid rgba(255, 139, 90,0.15)' }}>
+            <Box sx={{ p: 2, borderRadius: '12px', bgcolor: '#F9F9FB', border: '1px solid rgba(56, 163, 224,0.15)' }}>
               <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.6 }}>
                 Login Credentials — share securely
               </Typography>
@@ -115,12 +115,12 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography sx={{ fontSize: 13, color: '#6B7280' }}>Role</Typography>
                   <Chip label={created.role} size="small"
-                    sx={{ bgcolor: 'rgba(255, 90, 90,0.10)', color: '#FF5A5A', fontWeight: 700, fontSize: 11, textTransform: 'capitalize' }} />
+                    sx={{ bgcolor: 'rgba(37, 94, 171,0.10)', color: '#255EAB', fontWeight: 700, fontSize: 11, textTransform: 'capitalize' }} />
                 </Box>
               </Stack>
               <Button fullWidth variant="outlined" startIcon={<ContentCopyIcon />}
                 onClick={copyCredentials}
-                sx={{ mt: 2, fontSize: 12, borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A' }}>
+                sx={{ mt: 2, fontSize: 12, borderColor: 'rgba(56, 163, 224,0.3)', color: '#38A3E0' }}>
                 {copied ? '✓ Copied!' : 'Copy Credentials'}
               </Button>
             </Box>
@@ -152,7 +152,7 @@ const CreateAccountModal = ({ open, onClose, onCreated }) => {
         )}
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255, 139, 90,0.10)' }}>
+      <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(56, 163, 224,0.10)' }}>
         <Button onClick={handleClose} variant="outlined"
           sx={{ borderColor: '#e0e0e0', color: '#6B7280' }}>
           {created ? 'Done' : 'Cancel'}

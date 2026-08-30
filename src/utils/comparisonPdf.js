@@ -14,9 +14,9 @@
 
 import { isInsurerFieldHidden, customInsurerRows, responseCustomValue, showInsurerTotal, formatCustomValue } from './insurerFields';
 
-const NAVY = [26, 26, 46];
-const RED = [255, 90, 90];
-const ORANGE = [255, 139, 90];
+const NAVY = [10, 26, 62];
+const RED = [37, 94, 171];
+const ORANGE = [56, 163, 224];
 const GREY = [148, 163, 184];
 
 // Max insurer columns per table chunk. Landscape A4 keeps ~225mm after the
@@ -116,8 +116,8 @@ export async function generateComparisonPdf({ quote, product, responses, audienc
     const colCount = resps.length + 1;
     const mkSectionRow = (label) => [{ content: label, colSpan: colCount, styles: { fillColor: NAVY, textColor: ORANGE, fontStyle: 'bold', fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 4, right: 4 } } }];
     const mkRow = (label, vals, isTotal = false, isInternal = false, i = 0) => [
-      { content: label, styles: { fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 245, 242], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : NAVY } },
-      ...vals.map(v => ({ content: v, styles: { halign: 'center', fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [255, 245, 242], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : [55, 65, 81] } })),
+      { content: label, styles: { fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [242, 247, 252], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : NAVY } },
+      ...vals.map(v => ({ content: v, styles: { halign: 'center', fontStyle: isTotal ? 'bold' : 'normal', fontSize: isTotal ? 9 : 8.5, fillColor: isTotal ? RED : isInternal ? [232, 232, 255] : i % 2 === 0 ? [255, 255, 255] : [242, 247, 252], textColor: isTotal ? [255, 255, 255] : isInternal ? [67, 56, 202] : [55, 65, 81] } })),
     ];
 
     const premiumRows = isPlansProduct

@@ -224,8 +224,8 @@ export const textFields = [
 ];
 
 const SECTION_COLORS = {
-  Introducer:                 '#FF5A5A',
-  'Insurance Company':        '#FF8B5A',
+  Introducer:                 '#255EAB',
+  'Insurance Company':        '#38A3E0',
   'Proposer Details':         '#6BC0EC',
   'Period of Insurance':      '#10B981',
   'Financial Interest':       '#0284c7',
@@ -300,17 +300,17 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
         onDrop={e => { e.preventDefault(); setDragging(false); handleFile(e.dataTransfer.files[0]); }}
         onClick={() => document.getElementById(`file-${fieldName}`).click()}
         sx={{
-          border: `2px dashed ${dragging ? '#FF5A5A' : uploaded ? '#10B981' : 'rgba(255, 139, 90,0.35)'}`,
+          border: `2px dashed ${dragging ? '#255EAB' : uploaded ? '#10B981' : 'rgba(56, 163, 224,0.35)'}`,
           borderRadius: '12px', p: 1.5, cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 1,
-          bgcolor: dragging ? 'rgba(255, 90, 90,0.04)' : uploaded ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
+          bgcolor: dragging ? 'rgba(37, 94, 171,0.04)' : uploaded ? 'rgba(16,185,129,0.04)' : '#FAFAFA',
           transition: 'all 0.2s ease',
-          '&:hover': { borderColor: '#FF8B5A', bgcolor: 'rgba(255, 139, 90,0.04)' },
+          '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56, 163, 224,0.04)' },
         }}
       >
         {uploaded
           ? <CheckCircleOutlinedIcon sx={{ color: '#10B981', fontSize: 20, flexShrink: 0 }} />
-          : <CloudUploadOutlinedIcon sx={{ color: '#FF8B5A', fontSize: 20, flexShrink: 0 }} />}
+          : <CloudUploadOutlinedIcon sx={{ color: '#38A3E0', fontSize: 20, flexShrink: 0 }} />}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: '#374151', lineHeight: 1.2 }}>{label}</Typography>
           {fileName
@@ -322,7 +322,7 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
         {existing && !fileName && (
           <Link component="button" type="button"
             onClick={e => { e.stopPropagation(); openFile(existing); }}
-            sx={{ fontSize: 10.5, color: '#FF8B5A', whiteSpace: 'nowrap', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
+            sx={{ fontSize: 10.5, color: '#38A3E0', whiteSpace: 'nowrap', flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer' }}>
             View
           </Link>
         )}
@@ -330,7 +330,7 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
       {progress !== null && progress < 100 && (
         <LinearProgress variant="determinate" value={progress}
           sx={{ mt: 0.5, borderRadius: '2px', height: 3,
-                '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' } }} />
+                '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#255EAB,#38A3E0)' } }} />
       )}
       <input type="file" id={`file-${fieldName}`} accept="application/pdf,image/*"
         style={{ display: 'none' }} onChange={e => handleFile(e.target.files[0])} />
@@ -339,14 +339,14 @@ function DocUploadBox({ label, fieldName, existing, onFile, progress, uploaded }
 }
 
 function SectionHeader({ title }) {
-  const color = SECTION_COLORS[title] || '#FF5A5A';
+  const color = SECTION_COLORS[title] || '#255EAB';
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, mt: 0.5 }}>
       <Box sx={{ width: 4, height: 20, borderRadius: '2px', background: `linear-gradient(180deg,${color},rgba(0,0,0,0))` }} />
       <Typography sx={{ fontWeight: 700, fontSize: 13, color: '#374151', textTransform: 'uppercase', letterSpacing: 0.6 }}>
         {title}
       </Typography>
-      <Box sx={{ flex: 1, height: 1, bgcolor: 'rgba(255, 139, 90,0.12)' }} />
+      <Box sx={{ flex: 1, height: 1, bgcolor: 'rgba(56, 163, 224,0.12)' }} />
     </Box>
   );
 }
@@ -872,7 +872,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           readOnly fullWidth size="small"
           helperText={describeAutoCalc(f.autoCalc, labelFor)}
           sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 },
-                '& .MuiInputBase-input': { color: '#FF5A5A', fontWeight: 700 } }} />
+                '& .MuiInputBase-input': { color: '#255EAB', fontWeight: 700 } }} />
       );
     }
     if (f.type === 'select') return (
@@ -1291,7 +1291,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                             {num(e.srcc_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>SRCC {num(e.srcc_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.srcc_premium_change)).toLocaleString()}</Typography>}
                             {num(e.tc_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#374151' }}>TC {num(e.tc_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.tc_premium_change)).toLocaleString()}</Typography>}
                             {num(e.net_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#6366F1' }}>Net {num(e.net_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.net_premium_change)).toLocaleString()}</Typography>}
-                            {num(e.total_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#FF5A5A' }}>Total {num(e.total_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.total_premium_change)).toLocaleString()}</Typography>}
+                            {num(e.total_premium_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#255EAB' }}>Total {num(e.total_premium_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.total_premium_change)).toLocaleString()}</Typography>}
                             {num(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 600, color: '#0891B2' }}>Sum Insured {num(e.sum_insured_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.sum_insured_change)).toLocaleString()}</Typography>}
                             {num(e.commission_change) !== 0 && <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: '#059669' }}>Commission {num(e.commission_change) < 0 ? '-' : '+'}LKR {Math.abs(num(e.commission_change)).toLocaleString()}</Typography>}
                           </Box>
@@ -1379,14 +1379,14 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
 
         {saving && (
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: 12, color: '#FF8B5A', mb: 0.5, fontWeight: 600 }}>Uploading and saving…</Typography>
+            <Typography sx={{ fontSize: 12, color: '#38A3E0', mb: 0.5, fontWeight: 600 }}>Uploading and saving…</Typography>
             <LinearProgress sx={{ borderRadius: '4px', height: 5,
-              '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' } }} />
+              '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#255EAB,#38A3E0)' } }} />
           </Box>
         )}
 
         <Box sx={{ display: 'flex', gap: 1.5, pt: 1, justifyContent: 'flex-end',
-                    borderTop: '1px solid rgba(255, 139, 90,0.12)', mt: 1 }}>
+                    borderTop: '1px solid rgba(56, 163, 224,0.12)', mt: 1 }}>
           <Button onClick={onCancel} variant="outlined" disabled={saving}
             sx={{ borderColor: '#e0e0e0', color: '#6B7280', '&:hover': { borderColor: '#aaa' } }}>
             Cancel

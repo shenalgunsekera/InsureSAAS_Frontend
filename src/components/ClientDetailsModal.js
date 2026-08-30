@@ -75,7 +75,7 @@ function Field({ label, value }) {
           Not filled
         </Typography>
       ) : (
-        <Typography sx={{ fontSize: 13.5, color: '#1A1A2E', fontWeight: 500, wordBreak: 'break-word' }}>
+        <Typography sx={{ fontSize: 13.5, color: '#0A1A3E', fontWeight: 500, wordBreak: 'break-word' }}>
           {value}
         </Typography>
       )}
@@ -89,7 +89,7 @@ function SubHeader({ title }) {
       <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, mb: -0.5, mt: 0.5 }}>
         {title}
       </Typography>
-      <Divider sx={{ mb: 1, borderColor: 'rgba(255, 139, 90,0.15)' }} />
+      <Divider sx={{ mb: 1, borderColor: 'rgba(56, 163, 224,0.15)' }} />
     </Grid>
   );
 }
@@ -97,9 +97,9 @@ function SubHeader({ title }) {
 function FinancialRow({ label, value }) {
   const fmt = v => fmtLKRv(v);
   return (
-    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(255, 139, 90,0.08)' }}>
+    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(56, 163, 224,0.08)' }}>
       <Typography sx={{ fontSize:13, color:'#6B7280' }}>{label}</Typography>
-      <Typography sx={{ fontSize:13, fontWeight:700, color:'#1A1A2E' }}>{fmt(value)}</Typography>
+      <Typography sx={{ fontSize:13, fontWeight:700, color:'#0A1A3E' }}>{fmt(value)}</Typography>
     </Box>
   );
 }
@@ -108,22 +108,22 @@ function DocCard({ label, url, description }) {
   return (
     <Box sx={{
       p:1.5, borderRadius:'12px',
-      border:`1px solid ${url ? 'rgba(255, 139, 90,0.25)' : 'rgba(0,0,0,0.06)'}`,
-      bgcolor: url ? 'rgba(255, 245, 242,0.8)' : '#FAFAFA',
+      border:`1px solid ${url ? 'rgba(56, 163, 224,0.25)' : 'rgba(0,0,0,0.06)'}`,
+      bgcolor: url ? 'rgba(242, 247, 252,0.8)' : '#FAFAFA',
       transition:'all 0.2s ease',
-      '&:hover': url ? { boxShadow:'0 4px 16px rgba(255, 90, 90,0.10)', transform:'translateY(-1px)' } : {},
+      '&:hover': url ? { boxShadow:'0 4px 16px rgba(37, 94, 171,0.10)', transform:'translateY(-1px)' } : {},
     }}>
       <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', mb:0.5 }}>
         <Typography sx={{ fontSize:12, fontWeight:700, color:'#374151' }}>{label}</Typography>
         {url && (
           <Link component="button" type="button" onClick={() => openFile(url)}
-            sx={{ display:'flex', alignItems:'center', gap:0.3, fontSize:11, fontWeight:700, color:'#FF5A5A', textDecoration:'none',
+            sx={{ display:'flex', alignItems:'center', gap:0.3, fontSize:11, fontWeight:700, color:'#255EAB', textDecoration:'none',
                   background:'none', border:'none', cursor:'pointer', '&:hover':{ textDecoration:'underline' } }}>
             View <OpenInNewIcon sx={{ fontSize:11 }} />
           </Link>
         )}
       </Box>
-      <Typography sx={{ fontSize:11, color: url ? '#FF8B5A' : '#A9B6C8', fontWeight: url ? 500 : 400 }}>
+      <Typography sx={{ fontSize:11, color: url ? '#38A3E0' : '#A9B6C8', fontWeight: url ? 500 : 400 }}>
         {url ? 'Document uploaded' : 'No document'}
       </Typography>
       {description && (
@@ -264,9 +264,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
       };
 
       const drawHeader = () => {
-        pdf.setFillColor(26, 26, 46);  pdf.rect(0,0,pw,20,'F');
-        pdf.setFillColor(224, 72, 72); pdf.rect(0,20,pw,2.5,'F');
-        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
+        pdf.setFillColor(10, 26, 62);  pdf.rect(0,0,pw,20,'F');
+        pdf.setFillColor(29, 78, 150); pdf.rect(0,20,pw,2.5,'F');
+        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(56, 163, 224);
         pdf.text('INSURESAAS INSURANCE BROKERS (PVT) LTD', pw/2, 9, {align:'center'});
         pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
         pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2, 15.5, {align:'center'});
@@ -275,9 +275,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const drawFooter = () => {
         const pn = pdf.internal.getCurrentPageInfo().pageNumber;
         const tp = pdf.internal.getNumberOfPages();
-        pdf.setFillColor(26, 26, 46);  pdf.rect(0, ph-14, pw, 14, 'F');
-        pdf.setFillColor(224, 72, 72); pdf.rect(0, ph-14, pw, 1,  'F');
-        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(255, 139, 90);
+        pdf.setFillColor(10, 26, 62);  pdf.rect(0, ph-14, pw, 14, 'F');
+        pdf.setFillColor(29, 78, 150); pdf.rect(0, ph-14, pw, 1,  'F');
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(56, 163, 224);
         pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph-8);
         pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(107,114,128);
         pdf.text(`Page ${pn} / ${tp}`, pw-12, ph-8, {align:'right'});
@@ -287,13 +287,13 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       drawHeader();
       pdf.setFillColor(249,250,251); pdf.rect(0, 22.5+TAB_H, pw, 13, 'F');
-      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(26, 26, 46);
+      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(10, 26, 62);
       pdf.text('UNDERWRITING RECORD', 14, 30.5+TAB_H);
       pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128);
       const fileRef = [client.insuresaas_ib_file_no && `File: ${client.insuresaas_ib_file_no}`, client.policy_no && `Policy: ${client.policy_no}`].filter(Boolean).join('   ·   ');
       if (fileRef) pdf.text(fileRef, pw-14, 30.5+TAB_H, {align:'right'});
 
-      pdf.setFillColor(224, 72, 72); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
+      pdf.setFillColor(29, 78, 150); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
       pdf.setFontSize(13); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,255,255);
       pdf.text(client.client_name || '—', 14, 44.5+TAB_H);
       const tags = [client.main_class, client.product, client.customer_type].filter(Boolean);
@@ -311,7 +311,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       let y = 55 + TAB_H;
       const tableOpts = (startY) => ({
         startY,
-        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[255, 245, 242], textColor:[55,65,81]}, 1:{textColor:[26, 26, 46]} },
+        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[242, 247, 252], textColor:[55,65,81]}, 1:{textColor:[10, 26, 62]} },
         styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
         bodyStyles: { fillColor:[255,255,255] },
         alternateRowStyles: { fillColor:[255,252,250] },
@@ -325,7 +325,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         startSec(sectionKey);
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:title, colSpan:2, styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:title, colSpan:2, styles:{fillColor:[10, 26, 62],textColor:[56, 163, 224],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: filtered,
         });
         y = pdf.lastAutoTable.finalY + 5;
@@ -422,12 +422,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
       if (finRows.length || client.total_invoice) {
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[26, 26, 46],textColor:[255, 139, 90],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[10, 26, 62],textColor:[56, 163, 224],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: [...finRows, [
-            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[224, 72, 72],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
-            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[224, 72, 72],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[29, 78, 150],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[29, 78, 150],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
           ]],
-          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[255, 245, 242],textColor:[55,65,81]}, 1:{halign:'right',textColor:[26, 26, 46]} },
+          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[242, 247, 252],textColor:[55,65,81]}, 1:{halign:'right',textColor:[10, 26, 62]} },
           styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
           bodyStyles: { fillColor:[255,255,255] },
           alternateRowStyles: { fillColor:[255,252,250] },
@@ -485,7 +485,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         autoTable(pdf, {
           startY: y,
           head: [[
-            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [26, 26, 46], textColor: [255, 139, 90], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
+            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [10, 26, 62], textColor: [56, 163, 224], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
           ], [
             { content: '#' }, { content: 'Effective' }, { content: 'Type' }, { content: 'Description' },
             { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' },
@@ -526,8 +526,8 @@ const ClientDetailsModal = ({ client, onClose }) => {
         let docY = 22.5 + TAB_H + 6, docCol = 0;
 
         const addDocPageHdr = (title) => {
-          pdf.setFillColor(26, 26, 46); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(255, 139, 90);
+          pdf.setFillColor(10, 26, 62); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(56, 163, 224);
           pdf.text(title, pw/2, docY+6, {align:'center'});
           docY += 13;
         };
@@ -536,7 +536,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         for (const df of allPdfDocs) {
           if (docY + cellH > ph - 18) { pdf.addPage(); drawHeader(); docY = 28; docCol = 0; addDocPageHdr('UPLOADED DOCUMENTS (cont.)'); }
           const cx = margL + docCol*(colW+gap);
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(26, 26, 46);
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(10, 26, 62);
           pdf.text(df.label, cx, docY+5);
           const note = df.text ? client[df.text] : null;
           if (note) { pdf.setFontSize(7); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128); pdf.text(note, cx, docY+10, {maxWidth:colW}); }
@@ -585,7 +585,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         pdf.setFillColor(22,26,48); pdf.rect(0, 22.5, pw, TAB_H, 'F');
         PDF_TABS.forEach((t, idx) => {
           const tabX = idx * tabW, isAct = t.key === active;
-          if (isAct) { pdf.setFillColor(224, 72, 72); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
+          if (isAct) { pdf.setFillColor(29, 78, 150); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
           pdf.setFontSize(5.5); pdf.setFont('helvetica', isAct ? 'bold' : 'normal');
           const [r,g,b] = isAct ? [255,255,255] : [148,163,184];
           pdf.setTextColor(r,g,b);
@@ -935,9 +935,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
                 <FinancialRow label="VAT"             value={client.vat_fee} />
               </Box>
             </Box>
-            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(255, 90, 90,0.08),rgba(255, 139, 90,0.06))', border:'1px solid rgba(255, 90, 90,0.15)', mb:2 }}>
+            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(37, 94, 171,0.08),rgba(56, 163, 224,0.06))', border:'1px solid rgba(37, 94, 171,0.15)', mb:2 }}>
               <Typography sx={{ fontSize:12, color:'#9CA3AF', mb:0.5 }}>Total Premium</Typography>
-              <Typography sx={{ fontSize:24, fontWeight:800, color:'#FF5A5A' }}>
+              <Typography sx={{ fontSize:24, fontWeight:800, color:'#255EAB' }}>
                 LKR {Number(client.total_invoice || 0).toLocaleString()}
               </Typography>
             </Box>
@@ -1002,7 +1002,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
             <Box sx={{ display:'grid', gridTemplateColumns:{ xs:'1fr', sm:'1fr 1fr 1fr' }, gap:2, mb:2.5 }}>
               {[
                 { label:'Sum Insured',     orig: origSum,  delta: sumDelta,  revised: revisedSum,  color:'#059669' },
-                { label:'Total Premium',   orig: origPrem, delta: premDelta, revised: revisedPrem, color:'#FF5A5A' },
+                { label:'Total Premium',   orig: origPrem, delta: premDelta, revised: revisedPrem, color:'#255EAB' },
                 { label:'Total Commission',orig: origComm, delta: commDelta, revised: revisedComm, color:'#ec4899' },
               ].map(c => (
                 <Box key={c.label} sx={{ p:1.8, borderRadius:'12px', border:`1px solid ${c.color}22`, bgcolor:`${c.color}08` }}>
@@ -1031,14 +1031,14 @@ const ClientDetailsModal = ({ client, onClose }) => {
                         <Chip label={e.type} size="small" sx={{ height:20, fontSize:10.5, fontWeight:700, bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
                         {e.effective_date && <Typography sx={{ fontSize:11.5, color:'#6B7280' }}>Effective {e.effective_date}</Typography>}
                       </Box>
-                      {e.description && <Typography sx={{ fontSize:13, color:'#1A1A2E', mt:0.5 }}>{e.description}</Typography>}
+                      {e.description && <Typography sx={{ fontSize:13, color:'#0A1A3E', mt:0.5 }}>{e.description}</Typography>}
                       <Box sx={{ display:'flex', gap:2, mt:0.6, flexWrap:'wrap' }}>
                         {endoNum(e.basic_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>Basic {fmtSigned(endoNum(e.basic_premium_change))}</Typography>}
                         {endoNum(e.srcc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>SRCC {fmtSigned(endoNum(e.srcc_premium_change))}</Typography>}
                         {endoNum(e.tc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>TC {fmtSigned(endoNum(e.tc_premium_change))}</Typography>}
                         {endoNum(e.net_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#6366F1' }}>Net {fmtSigned(endoNum(e.net_premium_change))}</Typography>}
-                        {endoNum(e.total_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#FF5A5A' }}>Total {fmtSigned(endoNum(e.total_premium_change))}</Typography>}
-                        {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#FF5A5A' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
+                        {endoNum(e.total_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#255EAB' }}>Total {fmtSigned(endoNum(e.total_premium_change))}</Typography>}
+                        {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#255EAB' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
                         {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
                         {endoNum(e.commission_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Commission {fmtSigned(endoNum(e.commission_change))}</Typography>}
                       </Box>
@@ -1131,15 +1131,15 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       <DialogContent sx={{ p:0, overflowY:'auto' }} ref={contentRef}>
         {/* Each form section is its own clickable tab — click to see just its data. */}
-        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(255, 139, 90,0.15)' }}>
+        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(56, 163, 224,0.15)' }}>
           <Tabs
             value={tab}
             onChange={(e, v) => { setTab(v); if (contentRef.current) contentRef.current.scrollTop = 0; }}
             variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile
             sx={{ minHeight:44,
                   '& .MuiTab-root': { minHeight:44, py:1, textTransform:'none', fontSize:12.5, fontWeight:700, color:'#9CA3AF', minWidth:0, px:1.8 },
-                  '& .Mui-selected': { color:'#FF5A5A !important' },
-                  '& .MuiTabs-indicator': { backgroundColor:'#FF5A5A', height:3, borderRadius:'3px 3px 0 0' } }}>
+                  '& .Mui-selected': { color:'#255EAB !important' },
+                  '& .MuiTabs-indicator': { backgroundColor:'#255EAB', height:3, borderRadius:'3px 3px 0 0' } }}>
             {SECTION_TABS.map(t => <Tab key={t.sec} label={t.label} />)}
           </Tabs>
         </Box>
@@ -1148,7 +1148,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255, 139, 90,0.10)', flexWrap:'wrap', gap:1 }}>
+      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(56, 163, 224,0.10)', flexWrap:'wrap', gap:1 }}>
         <Button onClick={onClose} variant="outlined"
           sx={{ borderColor:'#e0e0e0', color:'#6B7280', '&:hover':{ borderColor:'#aaa' } }}>
           Close
@@ -1176,7 +1176,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
           startIcon={exporting ? <CircularProgress size={14} color="inherit" /> : <FileDownloadOutlinedIcon />}
           onClick={generatePdf}
           disabled={exporting}
-          sx={{ background:'linear-gradient(135deg,#1A1A2E,#2d2d44)', fontSize:13 }}>
+          sx={{ background:'linear-gradient(135deg,#0A1A3E,#2d2d44)', fontSize:13 }}>
           {exporting ? 'Generating PDF…' : 'Download PDF'}
         </Button>
       </DialogActions>

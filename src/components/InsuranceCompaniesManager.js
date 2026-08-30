@@ -202,7 +202,7 @@ const InsuranceCompaniesManager = () => {
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" size="small"
             onClick={() => { setBulkText(PROVIDED_INSURERS); setBulkOpen(true); }}
-            sx={{ borderColor:'rgba(255, 90, 90,0.4)', color:'#FF5A5A' }}>
+            sx={{ borderColor:'rgba(37, 94, 171,0.4)', color:'#255EAB' }}>
             Bulk Import
           </Button>
           <Button variant="contained" size="small" startIcon={<AddIcon />}
@@ -238,7 +238,7 @@ const InsuranceCompaniesManager = () => {
         <Stack spacing={1}>{[1,2,3,4].map(i=><Skeleton key={i} height={56} sx={{ borderRadius:'12px' }} />)}</Stack>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign:'center', py:5 }}>
-          <BusinessOutlinedIcon sx={{ fontSize:40, color:'rgba(255, 90, 90,0.2)', mb:1 }} />
+          <BusinessOutlinedIcon sx={{ fontSize:40, color:'rgba(37, 94, 171,0.2)', mb:1 }} />
           <Typography sx={{ color:'#9CA3AF' }}>
             {companies.length === 0 ? 'No companies yet — click "Add Company" to add your insurer contacts.' : 'No results for this filter.'}
           </Typography>
@@ -248,7 +248,7 @@ const InsuranceCompaniesManager = () => {
           {filtered.map(co => {
             const cc = catColor(co.category);
             return (
-              <Card key={co.id} sx={{ border:'1px solid rgba(255, 139, 90,0.12)' }}>
+              <Card key={co.id} sx={{ border:'1px solid rgba(56, 163, 224,0.12)' }}>
                 <CardContent sx={{ p:0, '&:last-child':{ pb:0 } }}>
                   {editId === co.id ? (
                     <Stack direction={{ xs:'column', sm:'row' }} spacing={1.5} alignItems={{ sm:'center' }} sx={{ p:2 }}>
@@ -264,9 +264,9 @@ const InsuranceCompaniesManager = () => {
                     </Stack>
                   ) : (
                     <Box sx={{ px:2.5, py:1.5, display:'flex', alignItems:'center', gap:1.5 }}>
-                      <Box sx={{ width:36, height:36, borderRadius:'10px', bgcolor:'rgba(255, 90, 90,0.08)',
+                      <Box sx={{ width:36, height:36, borderRadius:'10px', bgcolor:'rgba(37, 94, 171,0.08)',
                                  display:'flex', alignItems:'center', justifyContent:'center' }}>
-                        <BusinessOutlinedIcon sx={{ color:'#FF5A5A', fontSize:18 }} />
+                        <BusinessOutlinedIcon sx={{ color:'#255EAB', fontSize:18 }} />
                       </Box>
                       <Box sx={{ flex:1, minWidth:0 }}>
                         <Stack direction="row" spacing={1} alignItems="center">
@@ -279,7 +279,7 @@ const InsuranceCompaniesManager = () => {
                         <Typography sx={{ fontSize:12, color:'#9CA3AF' }}>{co.email}</Typography>
                       </Box>
                       <IconButton size="small" onClick={()=>{ setEditId(co.id); setForm({ name:co.name, email:co.email, category:co.category||'' }); }}
-                        sx={{ color:'#9CA3AF', '&:hover':{ color:'#FF5A5A' } }}>
+                        sx={{ color:'#9CA3AF', '&:hover':{ color:'#255EAB' } }}>
                         <EditOutlinedIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" onClick={()=>handleDelete(co.id, co.name)}
@@ -317,7 +317,7 @@ const InsuranceCompaniesManager = () => {
             placeholder={'name@insurer.lk, Company, Motor'}
             sx={{ '& textarea': { fontFamily:'monospace', fontSize:12 } }} />
         </DialogContent>
-        <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255, 139, 90,0.10)' }}>
+        <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(56, 163, 224,0.10)' }}>
           <Button onClick={()=>setBulkOpen(false)} disabled={bulkBusy} variant="outlined" sx={{ borderColor:'#e0e0e0', color:'#6B7280' }}>Cancel</Button>
           <Button variant="contained" onClick={handleBulkImport} disabled={bulkBusy}>{bulkBusy ? 'Importing…' : 'Import Insurers'}</Button>
         </DialogActions>
@@ -336,7 +336,7 @@ const InsuranceCompaniesManager = () => {
               helperText="Type any category — filter chips auto-update" />
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(255, 139, 90,0.10)' }}>
+        <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(56, 163, 224,0.10)' }}>
           <Button onClick={()=>setAddOpen(false)} variant="outlined" sx={{ borderColor:'#e0e0e0', color:'#6B7280' }}>Cancel</Button>
           <Button variant="contained" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Add Company'}</Button>
         </DialogActions>

@@ -126,7 +126,7 @@ const ModuleAccessManager = () => {
         {MODULES.map(mod => {
           const allowed = access[mod.key] || DEFAULT_MODULE_ACCESS[mod.key] || [];
           return (
-            <Card key={mod.key} sx={{ border: '1px solid rgba(255, 139, 90,0.12)' }}>
+            <Card key={mod.key} sx={{ border: '1px solid rgba(56, 163, 224,0.12)' }}>
               <CardContent sx={{ py: 1.5, px: 2.5, '&:last-child': { pb: 1.5 } }}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}>

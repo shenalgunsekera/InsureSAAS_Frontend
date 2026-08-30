@@ -37,12 +37,12 @@ const PortfolioPage    = lazy(() => import('./pages/PortfolioPage'));
 /* ── MUI theme ───────────────────────────────────────────────────────────── */
 const theme = createTheme({
   palette: {
-    primary:    { main: '#E04848', light: '#FF7373', dark: '#163C77', contrastText: '#fff' },
+    primary:    { main: '#1D4E96', light: '#2E76C4', dark: '#163C77', contrastText: '#fff' },
     secondary:  { main: '#E89A2A', light: '#E8C42A', contrastText: '#fff' },
     success:    { main: '#10B981', contrastText: '#fff' },
     error:      { main: '#DC2626' },
     background: { default: '#F9F9FB', paper: '#FFFFFF' },
-    text:       { primary: '#1A1A2E', secondary: '#6B7280' },
+    text:       { primary: '#0A1A3E', secondary: '#6B7280' },
   },
   typography: {
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -64,11 +64,11 @@ const theme = createTheme({
           transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
         },
         containedPrimary: {
-          background: 'linear-gradient(135deg, #E04848 0%, #FF7373 100%)',
-          boxShadow: '0 4px 12px rgba(224, 72, 72,0.25)',
+          background: 'linear-gradient(135deg, #1D4E96 0%, #2E76C4 100%)',
+          boxShadow: '0 4px 12px rgba(29, 78, 150,0.25)',
           '&:hover': {
             background: 'linear-gradient(135deg, #163C77 0%, #164B8F 100%)',
-            boxShadow: '0 6px 18px rgba(224, 72, 72,0.35)',
+            boxShadow: '0 6px 18px rgba(29, 78, 150,0.35)',
             transform: 'translateY(-1px)',
           },
           '&:active': { transform: 'translateY(0)' },
@@ -84,26 +84,26 @@ const theme = createTheme({
         },
         outlinedPrimary: {
           borderColor: 'rgba(46,118,196,0.45)',
-          color: '#E04848',
-          '&:hover': { borderColor: '#E04848', background: 'rgba(224, 72, 72,0.05)' },
+          color: '#1D4E96',
+          '&:hover': { borderColor: '#1D4E96', background: 'rgba(29, 78, 150,0.05)' },
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 2px 20px rgba(255, 90, 90,0.07)',
+          boxShadow: '0 2px 20px rgba(37, 94, 171,0.07)',
           borderRadius: 14,
-          border: '1px solid rgba(255, 139, 90,0.10)',
+          border: '1px solid rgba(56, 163, 224,0.10)',
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: { borderRadius: 14 },
-        elevation1: { boxShadow: '0 2px 20px rgba(255, 90, 90,0.07)' },
-        elevation2: { boxShadow: '0 4px 28px rgba(255, 90, 90,0.10)' },
-        elevation6: { boxShadow: '0 8px 40px rgba(255, 90, 90,0.14)' },
+        elevation1: { boxShadow: '0 2px 20px rgba(37, 94, 171,0.07)' },
+        elevation2: { boxShadow: '0 4px 28px rgba(37, 94, 171,0.10)' },
+        elevation6: { boxShadow: '0 8px 40px rgba(37, 94, 171,0.14)' },
       },
     },
     MuiTextField: {
@@ -111,10 +111,10 @@ const theme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             borderRadius: 10,
-            '&:hover fieldset': { borderColor: '#FF8B5A' },
-            '&.Mui-focused fieldset': { borderColor: '#FF5A5A', borderWidth: 2 },
+            '&:hover fieldset': { borderColor: '#38A3E0' },
+            '&.Mui-focused fieldset': { borderColor: '#255EAB', borderWidth: 2 },
           },
-          '& label.Mui-focused': { color: '#FF5A5A' },
+          '& label.Mui-focused': { color: '#255EAB' },
         },
       },
     },
@@ -127,7 +127,7 @@ const theme = createTheme({
       styleOverrides: {
         paper: {
           borderRadius: 18,
-          boxShadow: '0 24px 64px rgba(255, 90, 90,0.18)',
+          boxShadow: '0 24px 64px rgba(37, 94, 171,0.18)',
         },
       },
     },
@@ -160,14 +160,14 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           transition: 'background 0.15s ease',
-          '&:hover td': { background: 'rgba(255, 139, 90,0.05)' },
+          '&:hover td': { background: 'rgba(56, 163, 224,0.05)' },
         },
       },
     },
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: '1px solid rgba(255, 139, 90,0.08)',
+          borderBottom: '1px solid rgba(56, 163, 224,0.08)',
           fontSize: 13,
           padding: '12px 16px',
         },
@@ -183,9 +183,9 @@ const theme = createTheme({
         root: {
           '& .MuiPaginationItem-root': { borderRadius: 8, fontWeight: 600 },
           '& .Mui-selected': {
-            background: 'linear-gradient(135deg, #FF5A5A, #FF8B5A)',
+            background: 'linear-gradient(135deg, #255EAB, #38A3E0)',
             color: '#fff',
-            boxShadow: '0 2px 8px rgba(255, 90, 90,0.3)',
+            boxShadow: '0 2px 8px rgba(37, 94, 171,0.3)',
           },
         },
       },
@@ -221,7 +221,7 @@ function SessionGuard({ children }) {
         <DialogContent sx={{ pt: 1 }}>
           <Typography sx={{ fontSize: 14, color: '#374151', lineHeight: 1.7 }}>
             You've been inactive. Your session will automatically log out in{' '}
-            <Box component="span" sx={{ fontWeight: 800, color: '#FF5A5A', fontSize: 16 }}>
+            <Box component="span" sx={{ fontWeight: 800, color: '#255EAB', fontSize: 16 }}>
               {countdown}s
             </Box>
             .
@@ -230,7 +230,7 @@ function SessionGuard({ children }) {
             Click "Stay Logged In" to continue your session.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(255, 139, 90,0.10)' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(56, 163, 224,0.10)' }}>
           <Button onClick={logout} variant="outlined"
             sx={{ fontSize: 13, borderColor: '#e0e0e0', color: '#6B7280' }}>
             Log Out Now
@@ -358,7 +358,7 @@ function RequireAuth({ children }) {
     <Box sx={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #FF5A5A 0%, #FF8B5A 60%, #6BC0EC 100%)',
+      background: 'linear-gradient(135deg, #255EAB 0%, #38A3E0 60%, #6BC0EC 100%)',
     }}>
       <CircularProgress sx={{ color: '#fff' }} size={52} thickness={4} />
     </Box>
@@ -369,7 +369,7 @@ function RequireAuth({ children }) {
   if (deviceState === 'restricted') return (
     <Box sx={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1A1A2E 0%, #2d2d44 100%)', p: 3,
+      background: 'linear-gradient(135deg, #0A1A3E 0%, #2d2d44 100%)', p: 3,
     }}>
       <Box sx={{ maxWidth: 420, textAlign: 'center' }}>
         <Box sx={{ width: 72, height: 72, borderRadius: '20px', bgcolor: 'rgba(239,68,68,0.15)',
@@ -388,7 +388,7 @@ function RequireAuth({ children }) {
                          borderRadius: '10px', p: 1.5, fontFamily: 'monospace' }}>
           Device ID: {deviceId ? deviceId.slice(0, 18) + '…' : '…'}
         </Typography>
-        <Button variant="outlined" onClick={() => logoutWithSessionClose(auth)} sx={{ mt: 3, borderColor: 'rgba(255, 139, 90,0.4)', color: '#FF8B5A', fontSize: 13 }}>
+        <Button variant="outlined" onClick={() => logoutWithSessionClose(auth)} sx={{ mt: 3, borderColor: 'rgba(56, 163, 224,0.4)', color: '#38A3E0', fontSize: 13 }}>
           Sign Out
         </Button>
       </Box>
@@ -408,7 +408,7 @@ function ModuleGuard({ mod, children }) {
         <Box sx={{ width:72, height:72, borderRadius:'20px', bgcolor:'rgba(239,68,68,0.08)',
                    display:'flex', alignItems:'center', justifyContent:'center',
                    mb:3, fontSize:36 }}>🔒</Box>
-        <Typography variant="h5" sx={{ fontWeight:800, mb:1, color:'#1A1A2E' }}>
+        <Typography variant="h5" sx={{ fontWeight:800, mb:1, color:'#0A1A3E' }}>
           Module Restricted
         </Typography>
         <Typography sx={{ color:'#6B7280', fontSize:14, maxWidth:380, lineHeight:1.7 }}>
@@ -571,7 +571,7 @@ function App() {
 
                     {/* All other routes use sidebar layout */}
                     <Route path="/*" element={
-                      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#FFF5F2' }}>
+                      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: '#F2F7FC' }}>
                         <Sidebar />
                         <Box sx={{
                           flex: 1, display: 'flex', flexDirection: 'column',

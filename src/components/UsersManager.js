@@ -169,7 +169,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
         <Stack spacing={1}>{[1,2,3].map(i => <Skeleton key={i} height={64} sx={{ borderRadius: '12px' }} />)}</Stack>
       ) : filtered.length === 0 ? (
         <Box sx={{ textAlign: 'center', py: 5 }}>
-          <PersonOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255, 90, 90,0.2)', mb: 1 }} />
+          <PersonOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37, 94, 171,0.2)', mb: 1 }} />
           <Typography sx={{ color: '#9CA3AF' }}>No users found.</Typography>
         </Box>
       ) : (
@@ -181,7 +181,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
               const isSelf = u.id === currentUserId;
 
               return (
-                <Card key={u.id} sx={{ border: '1px solid rgba(255, 139, 90,0.12)' }}>
+                <Card key={u.id} sx={{ border: '1px solid rgba(56, 163, 224,0.12)' }}>
                   <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
                     <Box sx={{ px: 2.5, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box sx={{ width: 38, height: 38, borderRadius: '10px', bgcolor: rc.bg,
@@ -237,7 +237,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
                       {(isAdmin || isSelf) && (
                         <Tooltip title="Edit account & password">
                           <IconButton size="small" onClick={() => openEdit(u)}
-                            sx={{ color: '#9CA3AF', '&:hover': { color: '#FF5A5A' } }}>
+                            sx={{ color: '#9CA3AF', '&:hover': { color: '#255EAB' } }}>
                             <EditOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -263,7 +263,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
             <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2.5 }}>
               <Pagination count={totalPages} page={page} onChange={(_, v) => setPage(v)} size="small"
                 sx={{ '& .MuiPaginationItem-root': { fontSize: 12 },
-                      '& .Mui-selected': { bgcolor: 'rgba(255, 90, 90,0.12) !important', color: '#FF5A5A', fontWeight: 700 } }} />
+                      '& .Mui-selected': { bgcolor: 'rgba(37, 94, 171,0.12) !important', color: '#255EAB', fontWeight: 700 } }} />
             </Box>
           )}
         </>
@@ -289,7 +289,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
               </Typography>
               <Button size="small" variant="outlined" startIcon={<LockResetOutlinedIcon sx={{ fontSize: 17 }} />}
                 onClick={sendReset} disabled={resetting}
-                sx={{ borderColor: 'rgba(255, 90, 90,0.35)', color: '#FF5A5A' }}>
+                sx={{ borderColor: 'rgba(37, 94, 171,0.35)', color: '#255EAB' }}>
                 {resetting ? 'Sending…' : 'Send password reset email'}
               </Button>
             </Box>

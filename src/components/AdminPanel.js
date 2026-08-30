@@ -73,7 +73,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 const PRIORITY_COLORS = {
   Low:      { bg: 'rgba(16,185,129,0.10)', color: '#059669' },
   Medium:   { bg: 'rgba(245,158,11,0.12)', color: '#d97706' },
-  High:     { bg: 'rgba(255, 90, 90,0.12)',  color: '#FF5A5A' },
+  High:     { bg: 'rgba(37, 94, 171,0.12)',  color: '#255EAB' },
   Critical: { bg: 'rgba(139,0,0,0.12)',    color: '#8B0000' },
 };
 const STATUS_COLORS = {
@@ -493,16 +493,16 @@ function TicketCard({ ticket, onSave, onDelete }) {
     : '—';
 
   return (
-    <Card sx={{ mb: 1.5, border: '1px solid rgba(255, 139, 90,0.12)' }}>
+    <Card sx={{ mb: 1.5, border: '1px solid rgba(56, 163, 224,0.12)' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         {/* collapsed header */}
         <Box
           onClick={() => setOpen(o => !o)}
           sx={{ px: 2.5, py: 1.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1.5,
-                '&:hover': { bgcolor: 'rgba(255, 90, 90,0.02)' } }}
+                '&:hover': { bgcolor: 'rgba(37, 94, 171,0.02)' } }}
         >
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#1A1A2E', mb: 0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0A1A3E', mb: 0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {ticket.subject}
             </Typography>
             <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap">
@@ -523,7 +523,7 @@ function TicketCard({ ticket, onSave, onDelete }) {
 
         {/* expanded body */}
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5, borderTop: '1px solid rgba(255, 139, 90,0.08)' }}>
+          <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5, borderTop: '1px solid rgba(56, 163, 224,0.08)' }}>
             <Typography sx={{ fontSize: 13, color: '#374151', mb: 2, whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
               {ticket.description}
             </Typography>
@@ -959,10 +959,10 @@ const AdminPanel = () => {
         variant="scrollable"
         scrollButtons="auto"
         sx={{
-          mb: 3, borderBottom: '1px solid rgba(255, 139, 90,0.12)',
+          mb: 3, borderBottom: '1px solid rgba(56, 163, 224,0.12)',
           '& .MuiTab-root': { fontSize: 13, fontWeight: 600, textTransform: 'none', color: '#9CA3AF' },
-          '& .Mui-selected': { color: '#FF5A5A' },
-          '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)', height: 2.5 },
+          '& .Mui-selected': { color: '#255EAB' },
+          '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#255EAB,#38A3E0)', height: 2.5 },
         }}
       >
         <Tab icon={<ConfirmationNumberOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label={`Tickets${stats.open ? ` (${stats.open})` : ''}`} />
@@ -987,7 +987,7 @@ const AdminPanel = () => {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
             {[
               { label: 'Total',       val: stats.total,      color: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-              { label: 'Open',        val: stats.open,       color: '#FF5A5A', bg: 'rgba(255, 90, 90,0.08)' },
+              { label: 'Open',        val: stats.open,       color: '#255EAB', bg: 'rgba(37, 94, 171,0.08)' },
               { label: 'In Progress', val: stats.inProgress, color: '#d97706', bg: 'rgba(245,158,11,0.08)' },
               { label: 'Resolved',    val: stats.resolved,   color: '#059669', bg: 'rgba(16,185,129,0.08)' },
             ].map(s => (
@@ -1017,7 +1017,7 @@ const AdminPanel = () => {
               </Select>
             </FormControl>
             <Button size="small" variant="outlined" onClick={loadTickets}
-              sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A' }}>
+              sx={{ fontSize: 12, borderColor: 'rgba(56, 163, 224,0.3)', color: '#38A3E0' }}>
               Refresh
             </Button>
           </Stack>
@@ -1026,7 +1026,7 @@ const AdminPanel = () => {
             ? <Typography sx={{ color: '#9CA3AF', fontSize: 13 }}>Loading tickets…</Typography>
             : filteredTickets.length === 0
               ? <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <ConfirmationNumberOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255, 90, 90,0.2)', mb: 1 }} />
+                  <ConfirmationNumberOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37, 94, 171,0.2)', mb: 1 }} />
                   <Typography sx={{ color: '#9CA3AF' }}>No tickets found.</Typography>
                 </Box>
               : filteredTickets.map(t => (
@@ -1080,7 +1080,7 @@ const AdminPanel = () => {
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 <Box sx={{
                   width: 48, height: 48, borderRadius: '12px', flexShrink: 0,
-                  background: 'linear-gradient(135deg,#FF5A5A,#FF8B5A)',
+                  background: 'linear-gradient(135deg,#255EAB,#38A3E0)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   <FolderZipOutlinedIcon sx={{ color: '#fff', fontSize: 22 }} />
@@ -1099,7 +1099,7 @@ const AdminPanel = () => {
                       '📁 bulk_documents/ — all files flat',
                     ].map(t => (
                       <Chip key={t} label={t} size="small"
-                        sx={{ bgcolor: 'rgba(255, 90, 90,0.07)', color: '#FF5A5A', fontWeight: 600, fontSize: 11 }} />
+                        sx={{ bgcolor: 'rgba(37, 94, 171,0.07)', color: '#255EAB', fontWeight: 600, fontSize: 11 }} />
                     ))}
                   </Stack>
                   <Button
@@ -1121,7 +1121,7 @@ const AdminPanel = () => {
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {backupState.done
             ? <CheckCircleOutlineIcon sx={{ color: '#10B981' }} />
-            : <BackupOutlinedIcon sx={{ color: '#FF8B5A' }} />
+            : <BackupOutlinedIcon sx={{ color: '#38A3E0' }} />
           }
           {backupState.done ? 'Backup Complete' : 'Backing Up…'}
         </DialogTitle>
@@ -1130,8 +1130,8 @@ const AdminPanel = () => {
           <LinearProgress
             variant="determinate" value={backupState.progress}
             sx={{ height: 8, borderRadius: 4,
-                  '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#FF5A5A,#FF8B5A)' },
-                  bgcolor: 'rgba(255, 90, 90,0.10)' }}
+                  '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#255EAB,#38A3E0)' },
+                  bgcolor: 'rgba(37, 94, 171,0.10)' }}
           />
           <Typography sx={{ fontSize: 11, color: '#9CA3AF', mt: 1, textAlign: 'right' }}>
             {backupState.progress}%
@@ -1156,7 +1156,7 @@ const AdminPanel = () => {
               </Typography>
             </Box>
             <Button size="small" variant="outlined" onClick={loadReditRequests}
-              sx={{ borderColor: 'rgba(255, 139, 90,0.3)', color: '#FF8B5A', fontSize: 12 }}>
+              sx={{ borderColor: 'rgba(56, 163, 224,0.3)', color: '#38A3E0', fontSize: 12 }}>
               Refresh
             </Button>
           </Box>
@@ -1165,7 +1165,7 @@ const AdminPanel = () => {
             <Typography sx={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</Typography>
           ) : reditRequests.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6 }}>
-              <EditOutlinedIcon sx={{ fontSize: 40, color: 'rgba(255, 90, 90,0.2)', mb: 1 }} />
+              <EditOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37, 94, 171,0.2)', mb: 1 }} />
               <Typography sx={{ color: '#9CA3AF' }}>No re-edit requests yet.</Typography>
             </Box>
           ) : reditRequests.map(r => {
@@ -1178,7 +1178,7 @@ const AdminPanel = () => {
             const requestedAt = r.requested_at?.toDate?.()?.toLocaleString('en-GB') || '—';
 
             return (
-              <Card key={r.id} sx={{ mb: 1.5, border: '1px solid rgba(255, 139, 90,0.12)' }}>
+              <Card key={r.id} sx={{ mb: 1.5, border: '1px solid rgba(56, 163, 224,0.12)' }}>
                 <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1266,7 +1266,7 @@ const AdminPanel = () => {
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="outlined" startIcon={<RefreshIcon sx={{ fontSize: 15 }} />}
                   onClick={loadWorkSessions} disabled={workLoading}
-                  sx={{ fontSize: 12, borderColor: 'rgba(255, 139, 90,0.35)', color: '#FF8B5A' }}>
+                  sx={{ fontSize: 12, borderColor: 'rgba(56, 163, 224,0.35)', color: '#38A3E0' }}>
                   {workLoading ? 'Loading…' : 'Refresh'}
                 </Button>
                 <Button size="small" variant="outlined" startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: 15 }} />}
@@ -1296,7 +1296,7 @@ const AdminPanel = () => {
             <Stack direction={{ xs:'column', sm:'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
               {[
                 { label: 'Total Sessions', val: filtered.length, color: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-                { label: 'Total Hours', val: `${(totalMins / 60).toFixed(1)} hrs`, color: '#FF5A5A', bg: 'rgba(255, 90, 90,0.07)' },
+                { label: 'Total Hours', val: `${(totalMins / 60).toFixed(1)} hrs`, color: '#255EAB', bg: 'rgba(37, 94, 171,0.07)' },
                 { label: 'Avg Hours/Session', val: filtered.length ? `${(totalMins / filtered.length / 60).toFixed(1)} hrs` : '—', color: '#10B981', bg: 'rgba(16,185,129,0.07)' },
                 { label: 'Currently Clocked In', val: openSessions, color: '#f59e0b', bg: 'rgba(245,158,11,0.07)' },
               ].map((s, i) => (
@@ -1308,12 +1308,12 @@ const AdminPanel = () => {
             </Stack>
 
             {/* Table */}
-            <Card sx={{ border: '1px solid rgba(255, 139, 90,0.12)', overflowX: 'auto' }}>
+            <Card sx={{ border: '1px solid rgba(56, 163, 224,0.12)', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: '#1A1A2E' }}>
+                  <tr style={{ background: '#0A1A3E' }}>
                     {['Employee', 'Email', 'Date', 'Clock In', 'Clock Out', 'Duration', 'Activity / Notes'].map(h => (
-                      <th key={h} style={{ padding: '10px 14px', color: '#FF8B5A', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', fontSize: 12 }}>{h}</th>
+                      <th key={h} style={{ padding: '10px 14px', color: '#38A3E0', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', fontSize: 12 }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1331,7 +1331,7 @@ const AdminPanel = () => {
                     const dur  = s.duration_minutes != null ? `${Math.floor(s.duration_minutes / 60)}h ${s.duration_minutes % 60}m` : null;
                     const active = !co;
                     return (
-                      <tr key={s.id} style={{ background: i % 2 === 0 ? '#FFF5F2' : '#fff' }}>
+                      <tr key={s.id} style={{ background: i % 2 === 0 ? '#F2F7FC' : '#fff' }}>
                         <td style={{ padding: '9px 14px', fontWeight: 600 }}>{s.user_name || '—'}</td>
                         <td style={{ padding: '9px 14px', color: '#6B7280', fontSize: 12 }}>{s.user_email || '—'}</td>
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{s.date || '—'}</td>
@@ -1339,7 +1339,7 @@ const AdminPanel = () => {
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: active ? '#f59e0b' : 'inherit', fontWeight: active ? 700 : 400 }}>
                           {active ? 'Active ⏱' : fmtT(co)}
                         </td>
-                        <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: active ? '#f59e0b' : '#1A1A2E' }}>
+                        <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: active ? '#f59e0b' : '#0A1A3E' }}>
                           {active ? 'In progress' : (dur || '—')}
                         </td>
                         <td style={{ padding: '9px 14px', color: '#6B7280', fontSize: 12, minWidth: 240 }}>

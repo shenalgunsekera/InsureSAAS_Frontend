@@ -92,7 +92,7 @@ function replaceVars(template, client) {
 
 function TemplateCard({ tpl, onEdit, onDelete, isPreset }) {
   const typeColors = {
-    birthday:    { bg: 'rgba(255, 90, 90,0.08)',   color: '#FF5A5A' },
+    birthday:    { bg: 'rgba(37, 94, 171,0.08)',   color: '#255EAB' },
     holiday:     { bg: 'rgba(16,185,129,0.08)',  color: '#059669' },
     renewal:     { bg: 'rgba(99,102,241,0.08)',  color: '#6366f1' },
     anniversary: { bg: 'rgba(245,158,11,0.08)',  color: '#d97706' },
