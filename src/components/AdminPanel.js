@@ -13,6 +13,7 @@ import { saveAs } from 'file-saver';
 import logoUrl from '../InsureSAAS Logo.png';
 import { textFields as UW_FIELDS } from './AddClientForm';
 import { exportHeader } from '../utils/csvHeaders';
+import { buildClaimsCsv, claimDocFileName } from '../utils/claimsIo';
 import PendingApprovals from './PendingApprovals';
 import CreateAccountModal from './CreateAccountModal';
 import InsuranceCompaniesManager from './InsuranceCompaniesManager';
@@ -73,7 +74,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 const PRIORITY_COLORS = {
   Low:      { bg: 'rgba(16,185,129,0.10)', color: '#059669' },
   Medium:   { bg: 'rgba(245,158,11,0.12)', color: '#d97706' },
-  High:     { bg: 'rgba(37, 94, 171,0.12)',  color: '#255EAB' },
+  High:     { bg: 'rgba(37,94,171,0.12)',  color: '#255EAB' },
   Critical: { bg: 'rgba(139,0,0,0.12)',    color: '#8B0000' },
 };
 const STATUS_COLORS = {
@@ -493,13 +494,13 @@ function TicketCard({ ticket, onSave, onDelete }) {
     : '—';
 
   return (
-    <Card sx={{ mb: 1.5, border: '1px solid rgba(56, 163, 224,0.12)' }}>
+    <Card sx={{ mb: 1.5, border: '1px solid rgba(56,163,224,0.12)' }}>
       <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
         {/* collapsed header */}
         <Box
           onClick={() => setOpen(o => !o)}
           sx={{ px: 2.5, py: 1.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1.5,
-                '&:hover': { bgcolor: 'rgba(37, 94, 171,0.02)' } }}
+                '&:hover': { bgcolor: 'rgba(37,94,171,0.02)' } }}
         >
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography sx={{ fontWeight: 700, fontSize: 14, color: '#0A1A3E', mb: 0.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -523,7 +524,7 @@ function TicketCard({ ticket, onSave, onDelete }) {
 
         {/* expanded body */}
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5, borderTop: '1px solid rgba(56, 163, 224,0.08)' }}>
+          <Box sx={{ px: 2.5, pb: 2.5, pt: 0.5, borderTop: '1px solid rgba(56,163,224,0.08)' }}>
             <Typography sx={{ fontSize: 13, color: '#374151', mb: 2, whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
               {ticket.description}
             </Typography>
@@ -774,13 +775,15 @@ const AdminPanel = () => {
 
     try {
       // ── 1. Load all data ──────────────────────────────────────────────────
-      const [clientSnap, quoteSnap] = await Promise.all([
+      const [clientSnap, quoteSnap, claimSnap] = await Promise.all([
         getDocs(query(collection(db, 'clients'),    orderBy('created_at', 'desc'))),
         getDocs(query(collection(db, 'quotes'),     orderBy('created_at', 'desc'))),
+        getDocs(query(collection(db, 'claims'),     orderBy('created_at', 'desc'))),
       ]);
       const clients = clientSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const quotes  = quoteSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const total   = clients.length + quotes.length;
+      const claims  = claimSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const total   = clients.length + quotes.length + claims.length;
 
       setBackupState({ step: 'Loading company logo…', progress: 2, done: false });
       const logoBase64 = await fetchLogoBase64();
@@ -788,6 +791,7 @@ const AdminPanel = () => {
       const masterZip = new JSZip();
       const clientsFolder = masterZip.folder('clients');
       const quotesFolder  = masterZip.folder('quotations');
+      const claimsFolder  = masterZip.folder('claims');
       const bulkFolder    = masterZip.folder('bulk_documents');
 
       // ── 2. Clients ────────────────────────────────────────────────────────
@@ -874,6 +878,40 @@ const AdminPanel = () => {
         }
       }
 
+      // ── 3b. Claims ────────────────────────────────────────────────────────
+      for (let i = 0; i < claims.length; i++) {
+        const cl  = claims[i];
+        const ref = (cl.reference || cl.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const folder = claimsFolder.folder(ref);
+
+        setBackupState({
+          step: `Claims ${i + 1}/${claims.length}: ${cl.reference || ref}`,
+          progress: 4 + Math.round(((clients.length + quotes.length + i) / total) * 78),
+          done: false,
+        });
+
+        // Full claim record incl. tracker + document links
+        folder.file('claim_data.json', JSON.stringify({
+          ...cl,
+          created_at: cl.created_at?.toDate?.()?.toISOString() || cl.created_at || '',
+          updated_at: cl.updated_at?.toDate?.()?.toISOString() || cl.updated_at || '',
+        }, null, 2));
+
+        // Tracker documents — named {Reference}__{step}__{name} so a later
+        // Claims → Import Documents re-attaches each file to the right step.
+        const tracker = cl.process_tracker || {};
+        for (const [stepKey, stepVal] of Object.entries(tracker)) {
+          for (const d of (stepVal?.docs || [])) {
+            if (!d?.url) continue;
+            const buf = await fetchFile(d.url);
+            if (!buf) continue;
+            const fname = claimDocFileName(ref, stepKey, d.name || `file.${extFromUrl(d.url)}`);
+            folder.file(fname, buf);
+            bulkFolder.file(fname, buf);
+          }
+        }
+      }
+
       // ── 4. Root import files ──────────────────────────────────────────────
       setBackupState({ step: 'Building import files…', progress: 83, done: false });
 
@@ -882,6 +920,9 @@ const AdminPanel = () => {
 
       // QUOTATIONS_IMPORT.csv — drop into Quotations → Restore Backup (CSV)
       masterZip.file('QUOTATIONS_IMPORT.csv', buildQuotationsImportCsv(quotes));
+
+      // CLAIMS_IMPORT.csv — drop into Claims → Import CSV to restore all claims
+      masterZip.file('CLAIMS_IMPORT.csv', buildClaimsCsv(claims));
 
       // QUOTATIONS_DATA.xlsx — full quotations summary with responses
       try {
@@ -898,6 +939,7 @@ const AdminPanel = () => {
         '────────────────',
         'CLIENTS_IMPORT.csv      → Upload to Underwriting → Import CSV to restore all client records',
         'QUOTATIONS_IMPORT.csv   → Upload to Quotations → Restore Backup (CSV) to restore all quotes',
+        'CLAIMS_IMPORT.csv       → Upload to Claims → Import CSV to restore all claims (incl. tracker)',
         'QUOTATIONS_DATA.xlsx    → Full quotations summary including all insurer responses',
         'clients/{FileNo}_{Name}/',
         '  info.xlsx             → Detailed client record (formatted)',
@@ -913,6 +955,9 @@ const AdminPanel = () => {
         '  quote_data.json       → Complete quote including form values, doc URLs, and all insurer responses',
         '  response_{Insurer}.pdf → Insurer-submitted quote documents',
         '  form_{doctype}.pdf/.jpg → Quotation form documents (vehicle images, risk photos, etc.)',
+        'claims/{Reference}/',
+        '  claim_data.json       → Complete claim including the process tracker and document links',
+        '  {Reference}__{step}__{name} → Claim documents; drag these into Claims → Import Documents to restore',
         'bulk_documents/         → All documents flat-named for easy bulk access',
         '  {FileNo}_{Name}_{doctype}.{ext}',
         '',
@@ -921,9 +966,11 @@ const AdminPanel = () => {
         '1. Client data:    Underwriting → Import CSV → upload CLIENTS_IMPORT.csv',
         '2. Quotations:     Quotations → Restore Backup → upload QUOTATIONS_IMPORT.csv',
         '   (for full response data use the quote_data.json files)',
-        '3. Documents:      Already downloaded in each folder. Re-upload to Firebase Storage',
-        '                   and update the URLs in each client/quote record if needed.',
-        '4. Reference:      Use QUOTATIONS_DATA.xlsx for a full formatted quotations summary.',
+        '3. Claims:         Claims → Import CSV → upload CLAIMS_IMPORT.csv, then',
+        '                   Claims → Import Documents → drag the files from each claims/{Reference}/ folder.',
+        '4. Documents:      Already downloaded in each folder. Re-upload to Firebase Storage',
+        '                   and update the URLs in each record if needed.',
+        '5. Reference:      Use QUOTATIONS_DATA.xlsx for a full formatted quotations summary.',
       ].join('\n'));
 
       // ── 5. Generate final ZIP ─────────────────────────────────────────────
@@ -959,7 +1006,7 @@ const AdminPanel = () => {
         variant="scrollable"
         scrollButtons="auto"
         sx={{
-          mb: 3, borderBottom: '1px solid rgba(56, 163, 224,0.12)',
+          mb: 3, borderBottom: '1px solid rgba(56,163,224,0.12)',
           '& .MuiTab-root': { fontSize: 13, fontWeight: 600, textTransform: 'none', color: '#9CA3AF' },
           '& .Mui-selected': { color: '#255EAB' },
           '& .MuiTabs-indicator': { background: 'linear-gradient(90deg,#255EAB,#38A3E0)', height: 2.5 },
@@ -987,7 +1034,7 @@ const AdminPanel = () => {
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
             {[
               { label: 'Total',       val: stats.total,      color: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-              { label: 'Open',        val: stats.open,       color: '#255EAB', bg: 'rgba(37, 94, 171,0.08)' },
+              { label: 'Open',        val: stats.open,       color: '#255EAB', bg: 'rgba(37,94,171,0.08)' },
               { label: 'In Progress', val: stats.inProgress, color: '#d97706', bg: 'rgba(245,158,11,0.08)' },
               { label: 'Resolved',    val: stats.resolved,   color: '#059669', bg: 'rgba(16,185,129,0.08)' },
             ].map(s => (
@@ -1017,7 +1064,7 @@ const AdminPanel = () => {
               </Select>
             </FormControl>
             <Button size="small" variant="outlined" onClick={loadTickets}
-              sx={{ fontSize: 12, borderColor: 'rgba(56, 163, 224,0.3)', color: '#38A3E0' }}>
+              sx={{ fontSize: 12, borderColor: 'rgba(56,163,224,0.3)', color: '#38A3E0' }}>
               Refresh
             </Button>
           </Stack>
@@ -1026,7 +1073,7 @@ const AdminPanel = () => {
             ? <Typography sx={{ color: '#9CA3AF', fontSize: 13 }}>Loading tickets…</Typography>
             : filteredTickets.length === 0
               ? <Box sx={{ textAlign: 'center', py: 6 }}>
-                  <ConfirmationNumberOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37, 94, 171,0.2)', mb: 1 }} />
+                  <ConfirmationNumberOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37,94,171,0.2)', mb: 1 }} />
                   <Typography sx={{ color: '#9CA3AF' }}>No tickets found.</Typography>
                 </Box>
               : filteredTickets.map(t => (
@@ -1099,7 +1146,7 @@ const AdminPanel = () => {
                       '📁 bulk_documents/ — all files flat',
                     ].map(t => (
                       <Chip key={t} label={t} size="small"
-                        sx={{ bgcolor: 'rgba(37, 94, 171,0.07)', color: '#255EAB', fontWeight: 600, fontSize: 11 }} />
+                        sx={{ bgcolor: 'rgba(37,94,171,0.07)', color: '#255EAB', fontWeight: 600, fontSize: 11 }} />
                     ))}
                   </Stack>
                   <Button
@@ -1131,7 +1178,7 @@ const AdminPanel = () => {
             variant="determinate" value={backupState.progress}
             sx={{ height: 8, borderRadius: 4,
                   '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg,#255EAB,#38A3E0)' },
-                  bgcolor: 'rgba(37, 94, 171,0.10)' }}
+                  bgcolor: 'rgba(37,94,171,0.10)' }}
           />
           <Typography sx={{ fontSize: 11, color: '#9CA3AF', mt: 1, textAlign: 'right' }}>
             {backupState.progress}%
@@ -1156,7 +1203,7 @@ const AdminPanel = () => {
               </Typography>
             </Box>
             <Button size="small" variant="outlined" onClick={loadReditRequests}
-              sx={{ borderColor: 'rgba(56, 163, 224,0.3)', color: '#38A3E0', fontSize: 12 }}>
+              sx={{ borderColor: 'rgba(56,163,224,0.3)', color: '#38A3E0', fontSize: 12 }}>
               Refresh
             </Button>
           </Box>
@@ -1165,7 +1212,7 @@ const AdminPanel = () => {
             <Typography sx={{ color: '#9CA3AF', fontSize: 13 }}>Loading…</Typography>
           ) : reditRequests.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6 }}>
-              <EditOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37, 94, 171,0.2)', mb: 1 }} />
+              <EditOutlinedIcon sx={{ fontSize: 40, color: 'rgba(37,94,171,0.2)', mb: 1 }} />
               <Typography sx={{ color: '#9CA3AF' }}>No re-edit requests yet.</Typography>
             </Box>
           ) : reditRequests.map(r => {
@@ -1178,7 +1225,7 @@ const AdminPanel = () => {
             const requestedAt = r.requested_at?.toDate?.()?.toLocaleString('en-GB') || '—';
 
             return (
-              <Card key={r.id} sx={{ mb: 1.5, border: '1px solid rgba(56, 163, 224,0.12)' }}>
+              <Card key={r.id} sx={{ mb: 1.5, border: '1px solid rgba(56,163,224,0.12)' }}>
                 <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1266,7 +1313,7 @@ const AdminPanel = () => {
               <Stack direction="row" spacing={1}>
                 <Button size="small" variant="outlined" startIcon={<RefreshIcon sx={{ fontSize: 15 }} />}
                   onClick={loadWorkSessions} disabled={workLoading}
-                  sx={{ fontSize: 12, borderColor: 'rgba(56, 163, 224,0.35)', color: '#38A3E0' }}>
+                  sx={{ fontSize: 12, borderColor: 'rgba(56,163,224,0.35)', color: '#38A3E0' }}>
                   {workLoading ? 'Loading…' : 'Refresh'}
                 </Button>
                 <Button size="small" variant="outlined" startIcon={<FileDownloadOutlinedIcon sx={{ fontSize: 15 }} />}
@@ -1296,7 +1343,7 @@ const AdminPanel = () => {
             <Stack direction={{ xs:'column', sm:'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
               {[
                 { label: 'Total Sessions', val: filtered.length, color: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-                { label: 'Total Hours', val: `${(totalMins / 60).toFixed(1)} hrs`, color: '#255EAB', bg: 'rgba(37, 94, 171,0.07)' },
+                { label: 'Total Hours', val: `${(totalMins / 60).toFixed(1)} hrs`, color: '#255EAB', bg: 'rgba(37,94,171,0.07)' },
                 { label: 'Avg Hours/Session', val: filtered.length ? `${(totalMins / filtered.length / 60).toFixed(1)} hrs` : '—', color: '#10B981', bg: 'rgba(16,185,129,0.07)' },
                 { label: 'Currently Clocked In', val: openSessions, color: '#f59e0b', bg: 'rgba(245,158,11,0.07)' },
               ].map((s, i) => (
@@ -1308,7 +1355,7 @@ const AdminPanel = () => {
             </Stack>
 
             {/* Table */}
-            <Card sx={{ border: '1px solid rgba(56, 163, 224,0.12)', overflowX: 'auto' }}>
+            <Card sx={{ border: '1px solid rgba(56,163,224,0.12)', overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#0A1A3E' }}>

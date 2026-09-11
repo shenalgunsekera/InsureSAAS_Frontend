@@ -35,8 +35,21 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
+import LinearProgress from '@mui/material/LinearProgress';
 import UploadFileOutlinedIcon from '@mui/icons-material/UploadFileOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
+import { buildClaimsCsv, buildClaimsTemplate, parseClaimsCsv, matchClaimDoc } from '../utils/claimsIo';
+
+const BRAND_PREFIX = 'insuresaas';
+const ACCENT = '#255EAB';
+const downloadFile = (content, filename, type = 'text/csv;charset=utf-8;') => {
+  const blob = new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+};
 
 /* ── Claim process tracker: the 24-step workflow ─────────────────────────────
    Controlled component: parent owns the tracker object and decides how it is
@@ -211,16 +224,16 @@ function ClaimCard({ claim, onUpdate, onDelete, defaultOpen = false }) {
   };
 
   return (
-    <Card sx={{ mb: 1.5, border: '1px solid rgba(56, 163, 224,0.12)' }}>
+    <Card sx={{ mb: 1.5, border: '1px solid rgba(56,163,224,0.12)' }}>
       <CardContent sx={{ p:0,'&:last-child':{pb:0} }}>
         <Box sx={{ px:2.5, py:1.5, display:'flex', alignItems:'center', gap:1.5,
-                    cursor:'pointer','&:hover':{bgcolor:'rgba(37, 94, 171,0.02)'} }}
+                    cursor:'pointer','&:hover':{bgcolor:'rgba(37,94,171,0.02)'} }}
              onClick={() => setOpen(o=>!o)}>
           <Box sx={{ flex:1, minWidth:0 }}>
             <Stack direction="row" spacing={1} alignItems="center" sx={{ mb:0.3 }}>
               <Typography sx={{ fontWeight:700, fontSize:14 }}>{claim.reference}</Typography>
               {claim.claim_ref_id && (
-                <Chip label={`Ref: ${claim.claim_ref_id}`} size="small" sx={{ bgcolor:'rgba(37, 94, 171,0.10)', color:'#255EAB', fontWeight:700, fontSize:10.5 }} />
+                <Chip label={`Ref: ${claim.claim_ref_id}`} size="small" sx={{ bgcolor:'rgba(37,94,171,0.10)', color:'#255EAB', fontWeight:700, fontSize:10.5 }} />
               )}
               <Chip label={claim.status} size="small" sx={{ bgcolor:s.bg, color:s.color, fontWeight:700, fontSize:10.5 }} />
             </Stack>
@@ -234,7 +247,7 @@ function ClaimCard({ claim, onUpdate, onDelete, defaultOpen = false }) {
           {open ? <ExpandLessIcon sx={{ color:'#9CA3AF' }} /> : <ExpandMoreIcon sx={{ color:'#9CA3AF' }} />}
         </Box>
         <Collapse in={open} timeout={220} unmountOnExit>
-          <Box sx={{ px:2.5, pb:2.5, pt:0.5, borderTop:'1px solid rgba(56, 163, 224,0.08)' }}>
+          <Box sx={{ px:2.5, pb:2.5, pt:0.5, borderTop:'1px solid rgba(56,163,224,0.08)' }}>
             <Typography sx={{ fontSize:11, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:1, mb:1 }}>Claim Reference</Typography>
             <Box sx={{ mb:2 }}>
               <TextField size="small" label="Claim Ref ID" value={core.claim_ref_id} onChange={e=>setC('claim_ref_id', e.target.value)} sx={{ width:{ xs:'100%', sm:'50%' } }} />
@@ -271,7 +284,7 @@ function ClaimCard({ claim, onUpdate, onDelete, defaultOpen = false }) {
               </Button>
             </Stack>
 
-            <ClaimProcessTracker value={tracker} onChange={persistTracker} claimId={claim.id} brandPrefix="insuresaas" accent="#255EAB" />
+            <ClaimProcessTracker value={tracker} onChange={persistTracker} claimId={claim.id} brandPrefix={BRAND_PREFIX} accent={ACCENT} />
           </Box>
         </Collapse>
       </CardContent>
@@ -353,6 +366,101 @@ const ClaimsPage = () => {
     rejected: claims.filter(c=>c.status==='Rejected').length,
   };
 
+  /* ── Import / export ─────────────────────────────────────────────────── */
+  const [csvImporting,     setCsvImporting]     = useState(false);
+  const [csvErrOpen,       setCsvErrOpen]       = useState(false);
+  const [importErrors,     setImportErrors]     = useState([]);
+  const [docImportOpen,    setDocImportOpen]    = useState(false);
+  const [docImportItems,   setDocImportItems]   = useState([]);
+  const [docImportRunning, setDocImportRunning] = useState(false);
+  const [docImportProgress,setDocImportProgress]= useState({ done: 0, total: 0 });
+
+  const handleExportCsv = () => {
+    if (!claims.length) { setToast({ open:true, msg:'No claims to export.', severity:'info' }); return; }
+    downloadFile(buildClaimsCsv(claims), `Claims_Export_${new Date().toISOString().slice(0,10)}.csv`);
+  };
+  const handleDownloadTemplate = () => downloadFile(buildClaimsTemplate(), 'Claims_Import_Template.csv');
+
+  const handleImportCsv = async (file) => {
+    if (!file) return;
+    setCsvImporting(true);
+    try {
+      const text = await file.text();
+      const { rows, errors } = parseClaimsCsv(text);
+      if (!rows.length) {
+        setImportErrors(errors.length ? errors : ['No valid claim rows were found in the file.']);
+        setCsvErrOpen(true); setCsvImporting(false); return;
+      }
+      let created = 0;
+      for (const row of rows) {
+        const { process_tracker, created_at, id, ...rest } = row;   // eslint-disable-line no-unused-vars
+        const ref = rest.reference || `CLM-${Date.now().toString().slice(-6)}-${created}`;
+        const claimRef = doc(collection(db, 'claims'));
+        await setDoc(claimRef, {
+          ...rest,
+          reference:       ref,
+          status:          rest.status || 'Filed',
+          process_tracker: process_tracker || {},
+          created_by:      user?.uid || '',
+          created_by_name: rest.created_by_name || userProfile?.full_name || 'Imported',
+          created_at:      created_at && !isNaN(new Date(created_at)) ? new Date(created_at) : serverTimestamp(),
+          updated_at:      serverTimestamp(),
+        });
+        created++;
+      }
+      logActivity(`Imported ${created} claim(s) from CSV`);
+      setToast({ open:true, severity: errors.length ? 'warning' : 'success',
+        msg:`Imported ${created} claim(s).${errors.length ? ` ${errors.length} row(s) skipped.` : ''}` });
+      if (errors.length) { setImportErrors(errors); setCsvErrOpen(true); }
+      load();
+    } catch (err) {
+      setToast({ open:true, msg:`Import failed: ${err.message || err}`, severity:'error' });
+    }
+    setCsvImporting(false);
+  };
+
+  const onDocFilesSelected = (fileList) => {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+    setDocImportItems(files.map(file => {
+      const m = matchClaimDoc(file.name, claims);
+      return m
+        ? { file, matched:true, claim:m.claim, step:m.step, status:'' }
+        : { file, matched:false, reason:'No matching claim reference', status:'' };
+    }));
+    setDocImportProgress({ done:0, total:0 });
+    setDocImportOpen(true);
+  };
+
+  const runDocImport = async () => {
+    setDocImportRunning(true);
+    const items = docImportItems;
+    const toDo = items.filter(it => it.matched && it.status !== 'done');
+    const byClaim = {};
+    let done = 0;
+    for (const it of toDo) {
+      try {
+        const url = await uploadFile(it.file, `${BRAND_PREFIX}/docs/claims/${it.claim.id}/${it.step}`, undefined, it.file.name);
+        (byClaim[it.claim.id] = byClaim[it.claim.id] || { claim: it.claim, adds: {} });
+        (byClaim[it.claim.id].adds[it.step] = byClaim[it.claim.id].adds[it.step] || []).push({ url, name: it.file.name });
+        it.status = 'done';
+      } catch { it.status = 'error'; }
+      done++; setDocImportProgress({ done, total: toDo.length });
+      setDocImportItems([...items]);
+    }
+    for (const { claim, adds } of Object.values(byClaim)) {
+      const tracker = { ...(claim.process_tracker || {}) };
+      Object.entries(adds).forEach(([step, docs]) => {
+        tracker[step] = { ...(tracker[step] || {}), docs: [...(tracker[step]?.docs || []), ...docs] };
+      });
+      try { await updateDoc(doc(db, 'claims', claim.id), { process_tracker: tracker, updated_at: serverTimestamp() }); } catch { /* keep going */ }
+    }
+    setDocImportRunning(false);
+    const ok = items.filter(it => it.status === 'done').length;
+    setToast({ open:true, msg:`Attached ${ok} document(s) to claims.`, severity: ok ? 'success' : 'error' });
+    load();
+  };
+
   const filtered = claims.filter(c => {
     if (statusFilter !== 'All' && c.status !== statusFilter) return false;
     const q = search.trim().toLowerCase();
@@ -370,9 +478,23 @@ const ClaimsPage = () => {
           <Typography variant="h5" sx={{ fontWeight:800, mb:0.3 }}>Claims</Typography>
           <Typography sx={{ fontSize:13, color:'#9CA3AF' }}>Register and track insurance claims</Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openRegister} sx={{mt:{xs:1.5,sm:0}}}>
-          Register Claim
-        </Button>
+        <Box sx={{ display:'flex', flexWrap:'wrap', gap:1, mt:{xs:1.5,sm:0}, alignItems:'center' }}>
+          <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon sx={{ fontSize:16 }} />}
+            onClick={handleDownloadTemplate} sx={{ textTransform:'none' }}>CSV Template</Button>
+          <Button size="small" variant="outlined" startIcon={<FileDownloadOutlinedIcon sx={{ fontSize:16 }} />}
+            onClick={handleExportCsv} sx={{ textTransform:'none' }}>Export CSV</Button>
+          <Button size="small" variant="outlined" startIcon={<PostAddOutlinedIcon sx={{ fontSize:16 }} />}
+            disabled={csvImporting} onClick={() => document.getElementById('claims-csv-input').click()}
+            sx={{ textTransform:'none' }}>{csvImporting ? 'Importing…' : 'Import CSV'}</Button>
+          <Button size="small" variant="outlined" startIcon={<UploadFileOutlinedIcon sx={{ fontSize:16 }} />}
+            onClick={() => document.getElementById('claims-doc-input').click()}
+            sx={{ textTransform:'none' }}>Import Documents</Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openRegister}>Register Claim</Button>
+          <input id="claims-csv-input" type="file" accept=".csv,text/csv" style={{ display:'none' }}
+            onChange={e => { handleImportCsv(e.target.files[0]); e.target.value = ''; }} />
+          <input id="claims-doc-input" type="file" multiple accept="application/pdf,image/*" style={{ display:'none' }}
+            onChange={e => { onDocFilesSelected(e.target.files); e.target.value = ''; }} />
+        </Box>
       </Stack>
 
       <Stack direction={{xs:'column',sm:'row'}} spacing={1.5} sx={{mb:3}}>
@@ -453,7 +575,7 @@ const ClaimsPage = () => {
             <ClaimProcessTracker value={regTracker} onChange={setRegTracker} claimId={newClaimRef.id} brandPrefix="insuresaas" accent="#255EAB" />
           )}
         </DialogContent>
-        <DialogActions sx={{px:3,py:2,borderTop:'1px solid rgba(56, 163, 224,0.10)'}}>
+        <DialogActions sx={{px:3,py:2,borderTop:'1px solid rgba(56,163,224,0.10)'}}>
           <Button onClick={()=>setOpen(false)} variant="outlined" sx={{borderColor:'#e0e0e0',color:'#6B7280'}}>Cancel</Button>
           <Button variant="contained" onClick={handleCreate} disabled={saving}>{saving?'Saving…':'Register Claim'}</Button>
         </DialogActions>
@@ -462,6 +584,59 @@ const ClaimsPage = () => {
       <Snackbar open={toast.open} autoHideDuration={4000} onClose={()=>setToast(t=>({...t,open:false}))}>
         <Alert severity={toast.severity} variant="filled">{toast.msg}</Alert>
       </Snackbar>
+
+      {/* CSV import issues */}
+      <Dialog open={csvErrOpen} onClose={()=>setCsvErrOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight:800, fontSize:16 }}>Import notes</DialogTitle>
+        <DialogContent dividers>
+          {importErrors.map((e,i)=>(
+            <Typography key={i} sx={{ fontSize:12.5, color:'#6B7280', mb:0.6 }}>• {e}</Typography>
+          ))}
+        </DialogContent>
+        <DialogActions><Button onClick={()=>setCsvErrOpen(false)} variant="contained" size="small">Close</Button></DialogActions>
+      </Dialog>
+
+      {/* Import Documents — match files to claims by reference and attach */}
+      <Dialog open={docImportOpen} onClose={()=>!docImportRunning && setDocImportOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight:800, fontSize:16 }}>Import Documents</DialogTitle>
+        <DialogContent dividers>
+          <Typography sx={{ fontSize:12, color:'#9CA3AF', mb:1.5 }}>
+            Files are matched to a claim by its Claim Reference at the start of the file name
+            (e.g. <b>CLM-123456__documents_received__report.pdf</b>). Matched files attach to that claim's tracker.
+          </Typography>
+          {docImportProgress.total > 0 && (
+            <LinearProgress variant="determinate"
+              value={Math.round((docImportProgress.done / docImportProgress.total) * 100)}
+              sx={{ mb:1.5, borderRadius:'4px', height:6 }} />
+          )}
+          <Box sx={{ maxHeight:300, overflowY:'auto' }}>
+            {docImportItems.map((it,i)=>(
+              <Box key={i} sx={{ display:'flex', alignItems:'center', gap:1, py:0.6, borderBottom:'1px solid rgba(0,0,0,0.05)' }}>
+                <DescriptionOutlinedIcon sx={{ fontSize:16, color: it.matched ? ACCENT : '#dc2626', flexShrink:0 }} />
+                <Box sx={{ flex:1, minWidth:0 }}>
+                  <Typography sx={{ fontSize:12.5, fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{it.file.name}</Typography>
+                  <Typography sx={{ fontSize:10.5, color: it.matched ? '#059669' : '#dc2626' }}>
+                    {it.matched ? `→ ${it.claim.reference}${it.claim.client_name?` · ${it.claim.client_name}`:''}` : it.reason}
+                  </Typography>
+                </Box>
+                {it.status==='done' && <Chip label="Uploaded" size="small" sx={{ height:20, fontSize:10, bgcolor:'rgba(16,185,129,0.12)', color:'#059669' }} />}
+                {it.status==='error' && <Chip label="Failed" size="small" sx={{ height:20, fontSize:10, bgcolor:'rgba(239,68,68,0.12)', color:'#dc2626' }} />}
+              </Box>
+            ))}
+          </Box>
+          <Typography sx={{ fontSize:11.5, color:'#6B7280', mt:1.5 }}>
+            {docImportItems.filter(it=>it.matched).length} of {docImportItems.length} file(s) matched a claim.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={()=>setDocImportOpen(false)} disabled={docImportRunning} variant="outlined"
+            sx={{ borderColor:'#e0e0e0', color:'#6B7280' }}>Close</Button>
+          <Button variant="contained" onClick={runDocImport}
+            disabled={docImportRunning || docImportItems.filter(it=>it.matched && it.status!=='done').length===0}>
+            {docImportRunning ? 'Uploading…' : `Attach ${docImportItems.filter(it=>it.matched && it.status!=='done').length} file(s)`}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
