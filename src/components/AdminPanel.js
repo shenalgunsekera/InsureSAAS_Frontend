@@ -1135,14 +1135,16 @@ const AdminPanel = () => {
                 <Box>
                   <Typography sx={{ fontWeight: 700, fontSize: 15, mb: 0.5 }}>Full Data Backup</Typography>
                   <Typography sx={{ fontSize: 13, color: '#6B7280', mb: 1.5, lineHeight: 1.6 }}>
-                    Downloads a complete ZIP — clients, quotations and all documents in their original format, plus a ready-to-import CSV to restore everything.
+                    Downloads a complete ZIP — clients, quotations, claims and all documents in their original format, plus ready-to-import CSVs to restore everything.
                   </Typography>
-                  <Stack direction="row" spacing={1} sx={{ mb: 1.5 }} flexWrap="wrap">
+                  <Stack direction="row" spacing={1} sx={{ mb: 1.5 }} flexWrap="wrap" useFlexGap>
                     {[
                       '📄 CLIENTS_IMPORT.csv — direct re-import',
+                      '📄 CLAIMS_IMPORT.csv — direct re-import',
                       '📊 QUOTATIONS_DATA.xlsx — all quotes',
                       '📁 clients/ — docs in original format',
                       '📁 quotations/ — responses + docs',
+                      '📁 claims/ — tracker + docs',
                       '📁 bulk_documents/ — all files flat',
                     ].map(t => (
                       <Chip key={t} label={t} size="small"
@@ -1154,7 +1156,7 @@ const AdminPanel = () => {
                     onClick={runBackup}
                     sx={{ fontSize: 13 }}
                   >
-                    Backup All Clients
+                    Backup Everything
                   </Button>
                 </Box>
               </Box>
