@@ -207,11 +207,16 @@ function applyFilters(rows, filters, fieldList) {
         // Unknown/dynamic field — infer string vs number from the first non-empty value.
         || { key:f.field, type:(rawVal!=='' && rawVal!=null && !isNaN(String(rawVal).replace(/,/g,'')))?'number':'string' };
       if (field.type==='string') {
-        const val=(rawVal||'').toLowerCase(); const cmp=(f.value||'').toLowerCase();
-        if (f.op==='equals'&&val!==cmp) return false;
-        if (f.op==='not equals'&&val===cmp) return false;
-        if (f.op==='contains'&&!val.includes(cmp)) return false;
-        if (f.op==='starts with'&&!val.startsWith(cmp)) return false;
+        const val=(rawVal||'').toLowerCase();
+        // Value may be a single string (legacy / templates) or an array (multi-select).
+        const vals=(Array.isArray(f.value)?f.value:(f.value!=null&&f.value!==''?[f.value]:[]))
+          .map(v=>String(v).toLowerCase().trim()).filter(v=>v!=='');
+        if (vals.length){
+          if (f.op==='equals'      && !vals.includes(val)) return false;
+          if (f.op==='not equals'  &&  vals.includes(val)) return false;
+          if (f.op==='contains'    && !vals.some(v=>val.includes(v))) return false;
+          if (f.op==='starts with' && !vals.some(v=>val.startsWith(v))) return false;
+        }
       } else if (field.type==='number') {
         const a=parseNum(rawVal); const b=parseNum(f.value);
         if (f.op==='='&&a!==b) return false;
@@ -1437,11 +1442,12 @@ const ReportsPage = () => {
                                 slotProps={{textField:{size:'small',sx:{flex:1,'& input':{fontSize:12}}}}}/>
                             )
                           ) : (
-                            <Autocomplete freeSolo size="small" options={distinctValues(f.field)}
-                              inputValue={f.value||''}
-                              onInputChange={(_,val)=>setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:val}:ff))}
+                            <Autocomplete multiple freeSolo size="small" options={distinctValues(f.field)}
+                              value={Array.isArray(f.value)?f.value:(f.value?[f.value]:[])}
+                              onChange={(_,val)=>setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:val}:ff))}
                               sx={{flex:1}}
-                              renderInput={(params)=><TextField {...params} placeholder="Value — pick or type" sx={{'& input':{fontSize:12}}}/>}/>
+                              ChipProps={{ size:'small', sx:{ height:20, fontSize:11 } }}
+                              renderInput={(params)=><TextField {...params} placeholder={(Array.isArray(f.value)?f.value.length:f.value?1:0)?'':'Value — pick or type (multiple)'} sx={{'& input':{fontSize:12}}}/>}/>
                           )}
                         </Stack>
                       </Box>
