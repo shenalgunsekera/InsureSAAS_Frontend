@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { collection, addDoc, doc, updateDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, arrayUnion, increment, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadFile as uploadToCloudinary, openFile } from '../storage';
 import { logActivity } from '../utils/workSession';
 import { useAuth } from '../App';
 import { PRODUCTS } from '../config/products';
+import { rateFor } from '../utils/commissionRates';
+import { structureRate } from '../utils/commissionStructures';
 import { evaluateAutoCalc, describeAutoCalc } from '../utils/autoCalc';
 
 import Box from '@mui/material/Box';
@@ -21,6 +23,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Alert from '@mui/material/Alert';
 import Link from '@mui/material/Link';
 import Chip from '@mui/material/Chip';
+import Autocomplete from '@mui/material/Autocomplete';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
@@ -33,6 +36,9 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 
@@ -96,6 +102,7 @@ const dropdowns = {
   insurance_type: ['General', 'Life'],
   sum_insured_currency: ['LKR', 'USD', 'EUR', 'GBP', 'AUD', 'JPY', 'INR', 'SGD', 'Other'],
   main_class: MAIN_CLASSES,
+  new_renewal: ['New', 'Renewal'],
   // Auto-generated from PRODUCTS config — if a product is added there, it appears here
   product: Object.values(PRODUCTS).filter(p => !p.hidden).map(p => p.label),
   customer_type: ['Individual', 'Individual Inhouse', 'Corporate', 'Corporate Inhouse'],
@@ -119,17 +126,11 @@ const dropdowns = {
   claim_paid: ['Yes', 'No', 'Partial', 'Repudiated'],
 };
 
-/* ── Commission rate table (by Main Class) ──────────────────────────────────
-   Standard commission = basic premium × basic rate + SRCC × 7.5% + TC × 7.5%.
-   For a "Special" commission, an additional special rate (+/-) is applied to the
-   BASIC premium only; SRCC and TC rates remain fixed.                          */
-const COMMISSION_BASIC_RATES = {
-  Motor: 20, Fire: 20, Marine: 15, Health: 20,
-  Miscellaneous: 20, Individual: 20, Group: 20, Other: 20,
-};
-// SRCC and TC are 7.5% for most classes but 5% for MOTOR policies.
-const srccRateFor = (mainClass) => (mainClass === 'Motor' ? 5 : 7.5);
-const tcRateFor   = (mainClass) => (mainClass === 'Motor' ? 5 : 7.5);
+/* ── Commission ─────────────────────────────────────────────────────────────
+   Standard commission = premiums × the rate in force at the policy start date,
+   resolved from the admin Commissions tab (settings/commission_rates) with a
+   per-class fallback — see utils/commissionRates. A "Special" commission adds a
+   single flat Special Commission amount on top of the Basic/SRCC/TC.           */
 const num = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
 const roundMoney = (n) => (Number.isFinite(n) && n !== 0 ? String(Math.round(n * 100) / 100) : '');
 
@@ -146,6 +147,7 @@ export const textFields = [
   { label: 'Product',            name: 'product',            section: 'Insurance Company', dropdown: true, required: true },
   { label: 'Insurance Provider', name: 'insurance_provider', section: 'Insurance Company', dropdown: true, required: true },
   { label: 'Branch',             name: 'branch',             section: 'Insurance Company', dropdown: true },
+  { label: 'New / Renewal',      name: 'new_renewal',        section: 'Introducer', dropdown: true },
   // Proposer Details
   { label: 'Customer Type',      name: 'customer_type',      section: 'Proposer Details', dropdown: true, required: true },
   { label: 'Client Name',        name: 'client_name',        section: 'Proposer Details', required: true },
@@ -205,13 +207,14 @@ export const textFields = [
   { label: 'Debit Note Date',    name: 'debit_note_date',    section: 'Payment', date: true },
   // Commission
   { label: 'Commission Type',    name: 'commission_type',    section: 'Commission', dropdown: true },
-  { label: 'Basic Commission %', name: 'commission_pct',     section: 'Commission', type: 'number', readOnly: true },
-  { label: 'Special Rate (+/- %)', name: 'commission_special_rate', section: 'Commission', type: 'number' },
+  { label: 'Basic Commission %', name: 'commission_pct',     section: 'Commission', type: 'number' },
+  { label: 'Special Basic %', name: 'commission_special_pct',      section: 'Commission', type: 'number' },
+  { label: 'Special SRCC %',  name: 'commission_special_srcc_pct', section: 'Commission', type: 'number' },
+  { label: 'Special TC %',    name: 'commission_special_tc_pct',   section: 'Commission', type: 'number' },
   { label: 'Commission Basic',   name: 'commission_basic',   section: 'Commission', type: 'number' },
   { label: 'Commission SRCC',    name: 'commission_srcc',    section: 'Commission', type: 'number' },
   { label: 'Commission TC',      name: 'commission_tc',      section: 'Commission', type: 'number' },
-  { label: 'Special Adjustment', name: 'commission_special_amount', section: 'Commission', type: 'number', readOnly: true },
-  { label: 'Total Commission',   name: 'commission_total',   section: 'Commission', type: 'number', readOnly: true },
+  { label: 'Total Commission',   name: 'commission_total',   section: 'Commission', type: 'number' },
   { label: 'Commission Method',  name: 'commission_paid_method', section: 'Commission', dropdown: true },
   { label: 'Commission Receive Date', name: 'commission_receive_date', section: 'Commission', date: true },
   { label: 'Commission Amount Received', name: 'commission_amount_paid',  section: 'Commission', type: 'number' },
@@ -374,7 +377,7 @@ function NumericField({ value, onChange, readOnly, ...props }) {
 }
 
 /* ══════════════════════════════ MAIN FORM ═══════════════════════════════ */
-const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }) => {
+const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, onRenew }) => {
   const { user, userProfile } = useAuth();
   const isPrivileged = userProfile?.role === 'admin' || userProfile?.role === 'manager';
 
@@ -407,6 +410,22 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     });
     docFields.forEach(f => { obj[f.text] = initialData[f.text] || ''; });
     if (!obj.sum_insured_currency) obj.sum_insured_currency = 'LKR'; // sensible default
+    // Marine policies default to New when the field is blank (existing records
+    // predate this field); every other class is left blank to be set manually.
+    if (!obj.new_renewal && (obj.main_class === 'Marine' || /marine/i.test(obj.product || ''))) obj.new_renewal = 'New';
+    // Special commission is now entered as three rates (Basic / SRCC / TC %), each
+    // applied to its premium — exactly like Standard but with manual percentages.
+    // For older Special records that only stored amounts, back-derive the equivalent
+    // percentages so editing shows them (a stored amount ÷ its premium × 100).
+    if (obj.commission_type === 'Special') {
+      const pct = (amt, prem) => (num(amt) && num(prem)) ? String(Math.round(num(amt) / num(prem) * 10000) / 100) : '';
+      if (!num(obj.commission_special_pct)) {
+        obj.commission_special_pct = pct(initialData.commission_basic, obj.basic_premium)
+          || pct(initialData.commission_special || initialData.commission_special_amount, obj.basic_premium);
+      }
+      if (!num(obj.commission_special_srcc_pct)) obj.commission_special_srcc_pct = pct(initialData.commission_srcc, obj.srcc_premium);
+      if (!num(obj.commission_special_tc_pct))   obj.commission_special_tc_pct   = pct(initialData.commission_tc,   obj.tc_premium);
+    }
     return obj;
   });
 
@@ -430,15 +449,46 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
+  // ── Payments ledger ────────────────────────────────────────────────────
+  // A policy can receive several payments. Each entry carries every payment field
+  // except Payment Status (which stays policy-level). The policy's Amount Received
+  // is the derived total of the ledger PLUS any endorsement Amount Paid (kept
+  // separate but still counted). Legacy single-payment records migrate to one row.
+  const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const freshPayment = () => ({ amount_received: '', payment_date: '', payment_method: '', cheque_slip_no: '', receipt_no: '', debit_note_no: '', debit_note_date: '' });
+  const [payments, setPayments] = useState(() => {
+    if (Array.isArray(initialData.payments) && initialData.payments.length) {
+      return initialData.payments.map(p => ({ id: p.id || genId(), ...freshPayment(), ...p }));
+    }
+    const single = {
+      amount_received: initialData.amount_received || '', payment_date: initialData.payment_date || '',
+      payment_method: initialData.payment_method || '', cheque_slip_no: initialData.cheque_slip_no || '',
+      receipt_no: initialData.receipt_no || '', debit_note_no: initialData.debit_note_no || '',
+      debit_note_date: initialData.debit_note_date || '',
+    };
+    if (Object.values(single).some(v => v !== '' && v != null)) return [{ id: genId(), ...single }];
+    // Seed one blank row so the payment fields are visible immediately (matches the
+    // old single-payment form); fully-empty rows are dropped on save.
+    return [{ id: genId(), ...freshPayment() }];
+  });
+  const PAY_KEYS = ['amount_received', 'payment_date', 'payment_method', 'cheque_slip_no', 'receipt_no', 'debit_note_no', 'debit_note_date'];
+  const cleanPayments = payments.filter(p => PAY_KEYS.some(k => (p[k] ?? '') !== ''));
+  const updatePayment = (id, key, val) => setPayments(list => list.map(p => (p.id === id ? { ...p, [key]: val } : p)));
+  const addPayment    = () => setPayments(list => [...list, { id: genId(), ...freshPayment() }]);
+  const removePayment = (id) => setPayments(list => list.filter(p => p.id !== id));
+  const paymentsTotal    = payments.reduce((a, p) => a + num(p.amount_received), 0);
+
   // ── Endorsements (edit mode) ────────────────────────────────────────────
   const [endorsements, setEndorsements] = useState(() =>
     Array.isArray(initialData.endorsements) ? initialData.endorsements : []);
   const freshDraft = () => ({
     effective_date: '', type: ENDORSEMENT_TYPES[0], description: '',
     basic_premium_change: '', srcc_premium_change: '', tc_premium_change: '',
-    total_premium_change: '', sum_insured_change: '', documents: [],
+    total_premium_change: '', sum_insured_change: '', amount_paid: '', amount_paid_date: '', documents: [],
   });
   const [endoDraft, setEndoDraft] = useState(() => freshDraft());
+  // Which endorsement's Amount Paid is being edited inline ({ id, value }).
+  const [editingPaid, setEditingPaid] = useState(null);
   const [endoError, setEndoError] = useState('');
   const [endoUploading, setEndoUploading] = useState(false);
 
@@ -472,48 +522,118 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     }));
   }, [dates.policy_period_from, dates.payment_date, fields.payment_status]);
 
-  /* Auto-calculate Standard / Special commission from the rate table.
-     Runs only when a commission type is selected; manual edits are left alone
-     when no type is set. SRCC and TC rates are fixed; Special adds a +/- rate
-     applied to the basic premium only. */
-  const autoCommission = fields.commission_type === 'Standard' || fields.commission_type === 'Special';
+  /* ── Commission rate schedules (admin-managed, per product / date range) ── */
+  const [commissionSchedules, setCommissionSchedules] = useState({});
+  useEffect(() => {
+    let alive = true;
+    getDoc(doc(db, 'settings', 'commission_rates'))
+      .then(snap => { if (alive && snap.exists()) setCommissionSchedules(snap.data().products || {}); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  /* ── Commission structures (declining scales by policy year, per product) ──
+     When the policy's product has a structure, the MAIN commission % comes from
+     the scale for this policy's year — measured from the ORIGINAL policy's start
+     date — instead of the flat date-range rate. It steps down as the policy
+     renews. Configured in the Commission Structures module. */
+  const [commissionStructures, setCommissionStructures] = useState({});
+  useEffect(() => {
+    let alive = true;
+    getDoc(doc(db, 'settings', 'commission_structures'))
+      .then(snap => { if (alive && snap.exists()) setCommissionStructures(snap.data().products || {}); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  // A renewal's year is measured from the ORIGINAL (root) policy's start date, so
+  // fetch it when this record belongs to a renewal chain.
+  const [structRootStart, setStructRootStart] = useState('');
+  useEffect(() => {
+    let alive = true;
+    if (!initialData.root_policy_id) { setStructRootStart(''); return; }
+    getDoc(doc(db, 'clients', initialData.root_policy_id))
+      .then(s => { if (alive && s.exists()) setStructRootStart(s.data().policy_period_from || ''); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [initialData.root_policy_id]);
+
+  const thisStartStr = dates.policy_period_from && !isNaN(dates.policy_period_from)
+    ? dates.policy_period_from.toISOString().slice(0, 10) : '';
+  // The root start: the original policy's start for a renewal, else this policy's own
+  // start (a brand-new policy is Year 1).
+  const structRootStr = initialData.root_policy_id ? structRootStart : thisStartStr;
+  const structSegs = (() => { const v = commissionStructures[fields.product]; return (v && v.segments) || (Array.isArray(v) ? v : null); })();
+  const usesStructure = !!(structSegs && structSegs.length);
+  const structHit = usesStructure ? structureRate(structSegs, structRootStr, thisStartStr) : null;
+  // Rate for this policy year: the scale rate, 0 once the scale has ended, or null
+  // when the product has no structure (→ fall back to the normal date-range rate).
+  const structRateVal = usesStructure ? (structHit ? structHit.rate : 0) : null;
+  const structYear = structHit ? Math.floor(structHit.months / 12) + 1 : null;
+
+  /* Standard commission auto-calculates from the admin rate table for the
+     product, using the rate whose date range contains the policy START date —
+     or, for a product with a commission structure, the scale rate for this
+     policy's year. Special is entered by hand unless a structure applies. */
+  const autoCommission = fields.commission_type === 'Standard';
   useEffect(() => {
     if (!autoCommission) return;
-    const basicRate = COMMISSION_BASIC_RATES[fields.main_class] ?? 20;
-    const cb = num(fields.basic_premium) * basicRate / 100;
-    const cs = num(fields.srcc_premium)  * srccRateFor(fields.main_class) / 100;
-    const ct = num(fields.tc_premium)    * tcRateFor(fields.main_class)   / 100;
-    const specialAmt = fields.commission_type === 'Special'
-      ? num(fields.basic_premium) * num(fields.commission_special_rate) / 100
-      : 0;
+    const rate = rateFor(commissionSchedules, fields.product, fields.main_class, dates.policy_period_from);
+    // The basic % comes from the commission structure when the product has one,
+    // otherwise from the date-range rate table. SRCC / TC always use the rate table.
+    const basicPct = structRateVal != null ? structRateVal : rate.basic;
+    const cb = num(fields.basic_premium) * basicPct / 100;
+    const cs = num(fields.srcc_premium)  * rate.srcc  / 100;
+    const ct = num(fields.tc_premium)    * rate.tc    / 100;
     setFields(f => ({
       ...f,
-      commission_pct:            String(basicRate),
-      commission_basic:          roundMoney(cb),
-      commission_srcc:           roundMoney(cs),
-      commission_tc:             roundMoney(ct),
-      commission_special_amount: fields.commission_type === 'Special' ? roundMoney(specialAmt) : '',
+      commission_pct:   String(basicPct),
+      commission_basic: roundMoney(cb),
+      commission_srcc:  roundMoney(cs),
+      commission_tc:    roundMoney(ct),
     }));
-  }, [autoCommission, fields.commission_type, fields.main_class, fields.basic_premium,
-      fields.srcc_premium, fields.tc_premium, fields.commission_special_rate]);
+  }, [autoCommission, fields.commission_type, fields.main_class, fields.product, fields.basic_premium,
+      fields.srcc_premium, fields.tc_premium, dates.policy_period_from, commissionSchedules, structRateVal]);
+
+  // Special commission: each entered % × its premium → the Commission Basic/SRCC/TC
+  // amounts (like Standard, but with manually-entered rates).
+  useEffect(() => {
+    if (fields.commission_type !== 'Special') return;
+    setFields(f => ({
+      ...f,
+      commission_pct: '',
+      commission_basic: roundMoney(num(f.basic_premium) * num(f.commission_special_pct) / 100),
+      commission_srcc:  roundMoney(num(f.srcc_premium)  * num(f.commission_special_srcc_pct) / 100),
+      commission_tc:    roundMoney(num(f.tc_premium)    * num(f.commission_special_tc_pct) / 100),
+    }));
+  }, [fields.commission_type, fields.basic_premium, fields.srcc_premium, fields.tc_premium,
+      fields.commission_special_pct, fields.commission_special_srcc_pct, fields.commission_special_tc_pct]);
+
+  // A commission structure drives the Special Basic % for the policy's year.
+  useEffect(() => {
+    if (fields.commission_type !== 'Special' || structRateVal == null) return;
+    setFields(f => ({ ...f, commission_special_pct: String(structRateVal) }));
+  }, [fields.commission_type, structRateVal]);
 
   useEffect(() => {
-    const total = num(fields.commission_basic) + num(fields.commission_srcc)
-                + num(fields.commission_tc) + num(fields.commission_special_amount);
+    // Total commission = Basic + SRCC + TC (for both Standard and Special).
+    const total = num(fields.commission_basic) + num(fields.commission_srcc) + num(fields.commission_tc);
     setFields(f => ({ ...f, commission_total: total !== 0 ? String(Math.round(total * 100) / 100) : '' }));
-  }, [fields.commission_basic, fields.commission_srcc, fields.commission_tc, fields.commission_special_amount]);
+  }, [fields.commission_basic, fields.commission_srcc, fields.commission_tc]);
 
   /* ── Endorsement helpers ──────────────────────────────────────────────────
      Every field is a +/- CHANGE applied to the policy's current value. Commission
      is NOT entered — it recalculates from the new premiums using the same rate
      table + commission type; the endorsement records the resulting commission change. */
   const commissionOf = (basic, srcc, tc) => {
-    const basicRate = COMMISSION_BASIC_RATES[fields.main_class] ?? 20;
-    const cb = basic * basicRate / 100;
-    const cs = srcc  * srccRateFor(fields.main_class) / 100;
-    const ct = tc    * tcRateFor(fields.main_class)   / 100;
-    const special = fields.commission_type === 'Special' ? basic * num(fields.commission_special_rate) / 100 : 0;
-    return cb + cs + ct + special;
+    if (fields.commission_type === 'Special') {
+      // Special uses the manually-entered Special Basic / SRCC / TC rates.
+      return basic * num(fields.commission_special_pct) / 100
+           + srcc  * num(fields.commission_special_srcc_pct) / 100
+           + tc    * num(fields.commission_special_tc_pct) / 100;
+    }
+    const rate = rateFor(commissionSchedules, fields.product, fields.main_class, dates.policy_period_from);
+    const basicPct = structRateVal != null ? structRateVal : rate.basic;
+    return basic * basicPct / 100 + srcc * rate.srcc / 100 + tc * rate.tc / 100;
   };
   const endoCommissionChange = (draft) => {
     const oldC = commissionOf(num(fields.basic_premium), num(fields.srcc_premium), num(fields.tc_premium));
@@ -567,6 +687,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
       total_premium_change: String(num(endoDraft.total_premium_change)),
       sum_insured_change:   String(num(endoDraft.sum_insured_change)),
       commission_change:    String(endoCommissionChange(endoDraft)),
+      amount_paid:          String(num(endoDraft.amount_paid)),
+      amount_paid_date:     endoDraft.amount_paid_date || '',
       documents: endoDraft.documents,
       created_at: new Date().toISOString(),
       created_by: userProfile?.full_name || user?.email?.split('@')[0] || 'Unknown',
@@ -574,6 +696,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     setEndorsements(list => [...list, entry]);
     // Apply each +/- change to the policy's current values. Net premium follows
     // the premium changes automatically; total premium takes the manual change.
+    // The endorsement's Amount Paid is NOT written here — it's counted into the
+    // policy's total Amount Received (with the payments ledger) at render/save time.
     setFields(f => ({ ...f,
       basic_premium: String(num(f.basic_premium) + num(entry.basic_premium_change)),
       srcc_premium:  String(num(f.srcc_premium)  + num(entry.srcc_premium_change)),
@@ -586,8 +710,18 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     setEndoError('');
   };
 
+  // Edit an existing endorsement's Amount Paid + Paid Date. The policy total
+  // recomputes from the ledger + all endorsement payments, so nothing else changes.
+  const setEndorsementPaid = (id, raw, paidDate) =>
+    setEndorsements(list => list.map(e => (e.id === id ? { ...e, amount_paid: String(num(raw)), amount_paid_date: paidDate || '' } : e)));
+
   const deleteEndorsement = (id) =>
     setEndorsements(list => list.filter(e => e.id !== id).map((e, i) => ({ ...e, endorsement_no: i + 1 })));
+
+  // Total Amount Received = payments ledger + all endorsement Amount Paid (kept
+  // separate but both counted). This is what reports and exports read.
+  const endoPaidTotal    = endorsements.reduce((a, e) => a + num(e.amount_paid), 0);
+  const totalReceivedNum = Math.round((paymentsTotal + endoPaidTotal) * 100) / 100;
 
   /* ── custom products (Firestore) merged with built-ins ───────────────────
      Without this, a quote built on a custom product would not render any of its
@@ -762,6 +896,14 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     for (const f of textFields.filter(f => f.required && !f.readOnly)) {
       if (!fields[f.name]?.trim()) { setError(`${f.label} is required`); return; }
     }
+    // Commission is compulsory to match the chosen type: Standard needs the
+    // standard commission (Total Commission), Special needs the special commission.
+    if (fields.commission_type === 'Standard' && !num(fields.commission_total)) {
+      setError('Total Commission is required for a Standard commission'); return;
+    }
+    if (fields.commission_type === 'Special' && !num(fields.commission_total)) {
+      setError('Enter at least one Special Commission % (Basic / SRCC / TC)'); return;
+    }
     setSaving(true);
     try {
       const docUrls = {};
@@ -792,10 +934,30 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
         ...docUrls,
         endorsements,    // recorded policy endorsements (with per-endorsement docs)
         product_key: productKey || '',
+        // Renewal chain linkage — carried through from a renewal prefill / prior record
+        ...(initialData.renewal_of ? { renewal_of: initialData.renewal_of } : {}),
+        ...(initialData.root_policy_id ? { root_policy_id: initialData.root_policy_id } : {}),
       };
+      // Payments ledger — store the full list and set the policy's Amount Received to
+      // the derived total (ledger + endorsement payments). Mirror the most recent
+      // payment's details onto the top-level fields so reports / CSV / PDF that read
+      // the single payment fields keep showing a sensible value.
+      const lastPay = cleanPayments[cleanPayments.length - 1] || {};
+      payload.payments = cleanPayments;
+      payload.amount_received = totalReceivedNum ? String(totalReceivedNum) : '';
+      payload.payment_date    = lastPay.payment_date || '';
+      payload.payment_method  = lastPay.payment_method || '';
+      payload.cheque_slip_no  = lastPay.cheque_slip_no || '';
+      payload.receipt_no      = lastPay.receipt_no || '';
+      payload.debit_note_no   = lastPay.debit_note_no || '';
+      payload.debit_note_date = lastPay.debit_note_date || '';
+
       delete payload.date_added;
       delete payload.policy_year;   // derived — store only for display
       delete payload.policy_month;  // derived
+      // Clear the deprecated single Special Commission amount — Special now stores its
+      // commission in Commission Basic/SRCC/TC (from the three Special %s), like Standard.
+      if (fields.commission_type === 'Special') { payload.commission_special = ''; payload.commission_special_amount = ''; }
       const dateAdded = dates.date_added && !isNaN(dates.date_added) ? dates.date_added : null;
 
       // Convert number strings back to plain strings (keep raw for Firestore)
@@ -806,7 +968,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           ...(dateAdded ? { created_at: dateAdded } : {}),
         });
       } else {
-        await addDoc(collection(db, 'clients'), {
+        const newRef = await addDoc(collection(db, 'clients'), {
           ...payload,
           created_at:        dateAdded || serverTimestamp(),
           is_active:         true,
@@ -816,6 +978,19 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
           submitted_at:      serverTimestamp(),
           ...(initialData.source_quote_id ? { source_quote_id: initialData.source_quote_id } : {}),
         });
+        // Renewal: register this child on its parent (the original New policy) once,
+        // right here — so it can't be double-counted by the dialog and the parent
+        // always knows its renewals (for display + cascade delete).
+        const rootId = payload.root_policy_id;
+        if (rootId && rootId !== newRef.id) {
+          try {
+            await updateDoc(doc(db, 'clients', rootId), {
+              child_renewals: arrayUnion(newRef.id),
+              renewal_count: increment(1),
+              updated_at: serverTimestamp(),
+            });
+          } catch (_) { /* parent may be gone; ignore */ }
+        }
       }
       logActivity(`${isEdit ? 'Updated' : 'Added'} policy${fields.client_name ? ` for ${fields.client_name}` : ''}${fields.insuresaas_ib_file_no ? ` (${fields.insuresaas_ib_file_no})` : ''}`);
       onSuccess?.();
@@ -824,6 +999,62 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     }
     setSaving(false);
   };
+
+  /* ── Renewal — build a pre-filled copy of this policy as a new "Renewal"
+     record. Renewals are FLAT children of the original "New" policy (the root):
+     both renewal_of and root_policy_id point at that root, so renewing a renewal
+     still attaches to the same parent instead of chaining. The new record is
+     registered on the parent (child_renewals) exactly once, at save. */
+  const buildRenewal = () => {
+    const datePayload = {};
+    Object.entries(dates).forEach(([k, v]) => {
+      if (k === 'date_added') return;
+      if (v && !isNaN(v)) datePayload[k] = v.toISOString().split('T')[0];
+    });
+    // Roll the period FORWARD to the next term so the renewal automatically lands on
+    // the next policy year — this is what steps a commission-structure product to its
+    // next (lower) rate with no manual date editing. New start = current expiry; new
+    // end = start + the same term length (falls back to +1 year if the term is unknown).
+    const oldFrom = dates.policy_period_from, oldTo = dates.policy_period_to;
+    if (oldTo && !isNaN(oldTo)) {
+      const nf = new Date(oldTo);
+      let nt;
+      if (oldFrom && !isNaN(oldFrom)) nt = new Date(oldTo.getTime() + (oldTo.getTime() - oldFrom.getTime()));
+      else { nt = new Date(oldTo); nt.setFullYear(nt.getFullYear() + 1); }
+      datePayload.policy_period_from = nf.toISOString().split('T')[0];
+      datePayload.policy_period_to   = nt.toISOString().split('T')[0];
+    }
+    // The root is the original New policy: this record's own root if it has one
+    // (i.e. it's already a renewal), otherwise this record itself.
+    const root = initialData.root_policy_id || initialData.id || '';
+    return {
+      ...riskValues, ...fields, ...datePayload,
+      product_key: productKey || initialData.product_key || '',
+      new_renewal: 'Renewal',
+      renewal_of: root,
+      root_policy_id: root,
+      // A renewal is a fresh period: clear the previous period's payments and
+      // received-commission so nothing stale carries over. The earned commission
+      // (basic / special) recalculates automatically for the new policy year.
+      payments: [],
+      amount_received: '', payment_date: '', payment_method: '', cheque_slip_no: '',
+      receipt_no: '', debit_note_no: '', debit_note_date: '', payment_status: 'Unpaid',
+      commission_amount_paid: '', commission_receive_date: '', commission_paid_method: '', commission_vat: '',
+    };
+  };
+
+  // Renewal family — the original New policy (root) plus all its renewals, shown in
+  // edit mode so the parent keeps track of its children.
+  const [renewalKin, setRenewalKin] = useState([]);
+  const renewalRootId = isEdit ? (initialData.root_policy_id || initialData.id || '') : '';
+  useEffect(() => {
+    let alive = true;
+    if (!renewalRootId) { setRenewalKin([]); return; }
+    getDocs(query(collection(db, 'clients'), where('root_policy_id', '==', renewalRootId)))
+      .then(snap => { if (alive) setRenewalKin(snap.docs.filter(d => d.id !== renewalRootId).map(d => ({ id: d.id, ...d.data() }))); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [renewalRootId]);
 
   /* ── Insurance Provider dropdown — base list + user-added companies saved to
      Firestore ('insurance_providers') so they persist in the dropdown for
@@ -867,6 +1098,29 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
     setSavingProvider(false);
   };
 
+  /* ── Existing-client lookup — type a name in Proposer Details to match an
+     existing client and auto-fill their proposer / contact details. ───────── */
+  const [existingClients, setExistingClients] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    getDocs(collection(db, 'clients'))
+      .then(snap => { if (alive) setExistingClients(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => c.client_name)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const PROPOSER_COPY = ['customer_type', 'nic_proof', 'business_registration', 'svat_proof',
+    'street1', 'street2', 'city', 'district', 'province', 'postal_code',
+    'telephone', 'mobile_no', 'email', 'contact_person', 'social_media'];
+  const fillFromClient = (c) => {
+    if (!c) return;
+    set('client_name', c.client_name || '');
+    PROPOSER_COPY.forEach(k => {
+      let v = c[k];
+      if (k === 'customer_type' && v === 'Company') v = 'Corporate';
+      if (v != null && v !== '') set(k, v);
+    });
+  };
+
   /* ── render helpers ──────────────────────────────────────────────────── */
   const renderDropdown = (f, val, onChangeFn) => (
     <FormControl fullWidth size="small" key={f.name}>
@@ -883,6 +1137,38 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
 
   const renderStaticField = (f) => {
     const isReadOnly = !!f.readOnly;
+    // Client Name — suggest existing clients as you type; pick one to auto-fill
+    // all proposer / contact details from that client record.
+    if (f.name === 'client_name' && existingClients.length > 0) {
+      return (
+        <Autocomplete key={f.name} freeSolo options={existingClients}
+          getOptionLabel={(o) => (typeof o === 'string' ? o : (o.client_name || ''))}
+          filterOptions={(opts, state) => {
+            const q = (state.inputValue || '').trim().toLowerCase();
+            if (!q) return [];
+            return opts.filter(o => (o.client_name || '').toLowerCase().includes(q)).slice(0, 8);
+          }}
+          inputValue={fields.client_name || ''}
+          onInputChange={(_, val, reason) => { if (reason !== 'reset') set('client_name', val); }}
+          onChange={(_, val) => { if (val && typeof val === 'object') fillFromClient(val); }}
+          isOptionEqualToValue={(o, v) => o.id === v.id}
+          renderOption={(props, o) => (
+            <li {...props} key={o.id}>
+              <Box>
+                <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{o.client_name}</Typography>
+                <Typography sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                  {[o.nic_proof || o.business_registration, o.mobile_no || o.telephone].filter(Boolean).join(' · ') || 'Existing client'}
+                </Typography>
+              </Box>
+            </li>
+          )}
+          renderInput={(params) => (
+            <TextField {...params} size="small" fullWidth required={!!f.required}
+              label={f.label} helperText="Type to match an existing client and auto-fill their details"
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+          )} />
+      );
+    }
     if (f.dropdown && dropdowns[f.name]) return renderDropdown(f, fields[f.name], f.name === 'insurance_provider' ? handleProviderChange : set);
     if (f.date) return (
       <DatePicker key={f.name} label={f.label} value={dates[f.name]} onChange={val => handleDate(f.name, val)}
@@ -970,7 +1256,40 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
       <Box component="form" onSubmit={handleSubmit} sx={{ px: 3, py: 2.5, overflow: 'auto' }}>
 
         {/* ── Introducer ───────────────────────────────────── */}
-        <SectionHeader title="Introducer" />
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <SectionHeader title="Introducer" />
+          {isEdit && (
+            <Button variant="outlined" size="small" startIcon={<AutorenewIcon sx={{ fontSize: 18 }} />}
+              onClick={() => onRenew?.(buildRenewal())}
+              sx={{ textTransform: 'none', borderRadius: '10px', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap' }}>
+              Create Renewal
+            </Button>
+          )}
+        </Box>
+        {isEdit && (() => {
+          const isChild = !!initialData.root_policy_id && initialData.root_policy_id !== initialData.id;
+          if (!isChild && renewalKin.length === 0) return null;
+          return (
+            <Box sx={{ mb: 2, p: 1.2, borderRadius: '10px', border: '1px solid rgba(37,94,171,0.18)', bgcolor: 'rgba(37,94,171,0.04)' }}>
+              <Typography sx={{ fontSize: 10.5, fontWeight: 800, color: '#255EAB', textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.6 }}>
+                {isChild ? 'This is a renewal — part of a policy family' : `Renewals (${renewalKin.length})`}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 0.8, flexWrap: 'wrap' }}>
+                {isChild && (
+                  <Chip label="Renewal of the original policy" size="small"
+                    sx={{ height: 22, fontSize: 10.5, fontWeight: 700, bgcolor: 'rgba(124,58,237,0.12)', color: '#7c3aed' }} />
+                )}
+                {renewalKin.map(k => (
+                  <Chip key={k.id} label={k.insuresaas_ib_file_no || k.policy_no || k.client_name || k.id.slice(0, 6)} size="small"
+                    sx={{ height: 22, fontSize: 10.5, fontWeight: 700, bgcolor: 'rgba(37,94,171,0.10)', color: '#255EAB' }} />
+                ))}
+              </Box>
+              <Typography sx={{ fontSize: 10.5, color: '#9CA3AF', mt: 0.6 }}>
+                Deleting the original policy also deletes its renewals.
+              </Typography>
+            </Box>
+          );
+        })()}
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           <Grid item xs={12} sm={6} md={4}>
             <TextField label="InsureSAAS IB File No." value={fields.insuresaas_ib_file_no}
@@ -989,6 +1308,9 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
               onChange={e => set('introducer_code', e.target.value)}
               fullWidth size="small"
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+          </Grid>
+          <Grid item xs={12} sm={6} md={4}>
+            {renderStaticField(textFields.find(f => f.name === 'new_renewal'))}
           </Grid>
         </Grid>
 
@@ -1206,23 +1528,43 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
 
         {/* ── Commission ───────────────────────────────────── */}
         <SectionHeader title="Commission" />
-        {autoCommission && (
-          <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: '8px', bgcolor: 'rgba(236,72,153,0.06)', border: '1px solid rgba(236,72,153,0.18)' }}>
-            <Typography sx={{ fontSize: 12, color: '#9d174d', fontWeight: 600 }}>
-              {fields.commission_type === 'Special'
-                ? `Auto-calculated: Standard (${fields.main_class || '—'} basic ${COMMISSION_BASIC_RATES[fields.main_class] ?? 20}%, SRCC ${srccRateFor(fields.main_class)}%, TC ${tcRateFor(fields.main_class)}%) with the Special Rate applied to the basic premium.`
-                : `Auto-calculated from the rate table: ${fields.main_class || '—'} basic ${COMMISSION_BASIC_RATES[fields.main_class] ?? 20}%, SRCC ${srccRateFor(fields.main_class)}%, TC ${tcRateFor(fields.main_class)}% (× the entered premiums).`}
+        {usesStructure && (
+          <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: '8px', bgcolor: 'rgba(8,145,178,0.07)', border: '1px solid rgba(8,145,178,0.22)' }}>
+            <Typography sx={{ fontSize: 12, color: '#0e7490', fontWeight: 700 }}>
+              Commission Structure — {fields.product}: {structHit ? `Year ${structYear} rate ${structRateVal}%` : 'past the end of the scale (0%)'} (declining scale, from the original policy start date).
+              {' '}{fields.commission_type === 'Special' ? 'Used as the Special Basic %; set SRCC / TC % by hand.' : 'Used as the Basic Commission %; SRCC / TC from the rate table.'}
+            </Typography>
+          </Box>
+        )}
+        {autoCommission && !usesStructure && (() => {
+          const rate = rateFor(commissionSchedules, fields.product, fields.main_class, dates.policy_period_from);
+          return (
+            <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: '8px', bgcolor: 'rgba(236,72,153,0.06)', border: '1px solid rgba(236,72,153,0.18)' }}>
+              <Typography sx={{ fontSize: 12, color: '#9d174d', fontWeight: 600 }}>
+                Auto-calculated for {fields.product || 'this product'} using the rate that applies on the policy start date — Basic {rate.basic}%, SRCC {rate.srcc}%, TC {rate.tc}% (× the entered premiums). Manage periods in Admin → Commissions.
+              </Typography>
+            </Box>
+          );
+        })()}
+        {fields.commission_type === 'Special' && !usesStructure && (
+          <Box sx={{ mb: 1.5, px: 1.5, py: 1, borderRadius: '8px', bgcolor: 'rgba(37,94,171,0.06)', border: '1px solid rgba(37,94,171,0.18)' }}>
+            <Typography sx={{ fontSize: 12, color: '#255EAB', fontWeight: 600 }}>
+              Enter your Special rates — Basic %, SRCC % and TC %. Each is applied to its premium to work out the Commission Basic / SRCC / TC. Total = Basic + SRCC + TC.
             </Typography>
           </Box>
         )}
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           {textFields.filter(f => f.section === 'Commission')
-            // Special-only fields hidden unless a Special commission is selected
-            .filter(f => (f.name === 'commission_special_rate' || f.name === 'commission_special_amount')
-              ? fields.commission_type === 'Special' : true)
+            // The three Special rate fields show only for a Special type.
+            .filter(f => ['commission_special_pct', 'commission_special_srcc_pct', 'commission_special_tc_pct'].includes(f.name) ? fields.commission_type === 'Special' : true)
+            // Basic Commission % is a Standard-only rate — hidden for Special, which
+            // uses its own Special Basic % instead.
+            .filter(f => f.name === 'commission_pct' ? fields.commission_type !== 'Special' : true)
             .map(f => {
-              // When a commission type is chosen the breakdown is auto-derived, so lock those inputs
-              const locked = autoCommission && ['commission_basic', 'commission_srcc', 'commission_tc'].includes(f.name);
+              // Commission Basic/SRCC/TC/Total are always derived (from admin rates for
+              // Standard, or the Special %s). A structure also locks the Special Basic %.
+              const locked = ['commission_basic', 'commission_srcc', 'commission_tc', 'commission_pct', 'commission_total'].includes(f.name)
+                || (usesStructure && f.name === 'commission_special_pct');
               return (
                 <Grid item xs={12} sm={6} md={4} key={f.name}>
                   {renderStaticField(locked ? { ...f, readOnly: true } : f)}
@@ -1233,13 +1575,72 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
 
         {/* ── Payment ──────────────────────────────────────── */}
         <SectionHeader title="Payment" />
-        <Grid container spacing={2} sx={{ mb: 2.5 }}>
-          {textFields.filter(f => f.section === 'Payment').map(f => (
-            <Grid item xs={12} sm={6} md={4} key={f.name}>
-              {renderStaticField(f)}
-            </Grid>
-          ))}
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          {/* Payment Status stays policy-level; the rest is a per-payment ledger. */}
+          <Grid item xs={12} sm={6} md={4}>
+            {renderStaticField(textFields.find(f => f.name === 'payment_status'))}
+          </Grid>
+          <Grid item xs={12} sm={6} md={8}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', height: '100%' }}>
+              <Box sx={{ px: 1.5, py: 0.8, borderRadius: '10px', bgcolor: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.22)' }}>
+                <Typography sx={{ fontSize: 10.5, color: '#6B7280', fontWeight: 700 }}>Total Amount Received</Typography>
+                <Typography sx={{ fontSize: 16, fontWeight: 800, color: '#059669' }}>LKR {totalReceivedNum.toLocaleString()}</Typography>
+              </Box>
+              <Typography sx={{ fontSize: 11, color: '#9CA3AF' }}>
+                {payments.length} payment{payments.length === 1 ? '' : 's'} (LKR {paymentsTotal.toLocaleString()})
+                {endoPaidTotal ? ` + endorsements LKR ${endoPaidTotal.toLocaleString()}` : ''}
+              </Typography>
+            </Box>
+          </Grid>
         </Grid>
+
+        <Box sx={{ mb: 2.5 }}>
+          {payments.length === 0 ? (
+            <Typography sx={{ color: '#9CA3AF', fontSize: 13, mb: 1 }}>No payments recorded yet.</Typography>
+          ) : payments.map((p, idx) => (
+            <Box key={p.id} sx={{ p: 1.5, mb: 1, borderRadius: '10px', border: '1px solid rgba(56,163,224,0.18)', bgcolor: 'rgba(56,163,224,0.03)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Box sx={{ width: 24, height: 24, flexShrink: 0, borderRadius: '50%', bgcolor: '#255EAB', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>{idx + 1}</Box>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, color: '#255EAB' }}>Payment {idx + 1}</Typography>
+                <Box sx={{ flex: 1 }} />
+                <IconButton size="small" onClick={() => removePayment(p.id)} sx={{ color: '#dc2626' }}><DeleteOutlineIcon sx={{ fontSize: 18 }} /></IconButton>
+              </Box>
+              <Grid container spacing={1.5}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <NumericField label="Amount Received" value={p.amount_received} onChange={e => updatePayment(p.id, 'amount_received', e.target.value)} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField type="date" label="Payment Date" InputLabelProps={{ shrink: true }} value={p.payment_date} onChange={e => updatePayment(p.id, 'payment_date', e.target.value)} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel sx={{ fontSize: 13 }}>Payment Method</InputLabel>
+                    <Select label="Payment Method" value={p.payment_method} onChange={e => updatePayment(p.id, 'payment_method', e.target.value)} sx={{ borderRadius: '10px', fontSize: 13 }}>
+                      <MenuItem value="" sx={{ fontSize: 13 }}><em>—</em></MenuItem>
+                      {dropdowns.payment_method.map(m => <MenuItem key={m} value={m} sx={{ fontSize: 13 }}>{m}</MenuItem>)}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField label="Cheque / Slip No." value={p.cheque_slip_no} onChange={e => updatePayment(p.id, 'cheque_slip_no', e.target.value)} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField label="Receipt No." value={p.receipt_no} onChange={e => updatePayment(p.id, 'receipt_no', e.target.value)} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField label="Debit Note No." value={p.debit_note_no} onChange={e => updatePayment(p.id, 'debit_note_no', e.target.value)} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField type="date" label="Debit Note Date" InputLabelProps={{ shrink: true }} value={p.debit_note_date} onChange={e => updatePayment(p.id, 'debit_note_date', e.target.value)} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+              </Grid>
+            </Box>
+          ))}
+          <Button onClick={addPayment} startIcon={<AddCircleOutlineIcon />} variant="outlined" size="small"
+            sx={{ textTransform: 'none', borderRadius: '10px', fontSize: 12.5, fontWeight: 600, borderColor: '#255EAB', color: '#255EAB' }}>
+            Add Payment
+          </Button>
+        </Box>
 
         {/* ── Claims ───────────────────────────────────────── */}
         <SectionHeader title="Claims" />
@@ -1350,6 +1751,30 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                               ))}
                             </Box>
                           )}
+                          {/* Amount Paid + Paid Date — editable; rolls into the policy's Amount Received */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.8, flexWrap: 'wrap' }}>
+                            {editingPaid && editingPaid.id === e.id ? (
+                              <>
+                                <NumericField label="Amount Paid" value={editingPaid.value} autoFocus
+                                  onChange={ev => setEditingPaid(p => ({ ...p, value: ev.target.value }))}
+                                  size="small" sx={{ maxWidth: 150, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: 12.5 } }} />
+                                <TextField type="date" label="Paid Date" InputLabelProps={{ shrink: true }} value={editingPaid.date}
+                                  onChange={ev => setEditingPaid(p => ({ ...p, date: ev.target.value }))}
+                                  size="small" sx={{ maxWidth: 160, '& .MuiOutlinedInput-root': { borderRadius: '8px', fontSize: 12.5 } }} />
+                                <IconButton size="small" onClick={() => { setEndorsementPaid(e.id, editingPaid.value, editingPaid.date); setEditingPaid(null); }} sx={{ color: '#059669' }}><CheckCircleOutlinedIcon sx={{ fontSize: 18 }} /></IconButton>
+                                <IconButton size="small" onClick={() => setEditingPaid(null)} sx={{ color: '#9CA3AF' }}><CloseIcon sx={{ fontSize: 17 }} /></IconButton>
+                              </>
+                            ) : (
+                              <>
+                                <Box sx={{ px: 1, py: 0.4, borderRadius: '7px', bgcolor: num(e.amount_paid) ? 'rgba(5,150,105,0.08)' : 'rgba(148,163,184,0.10)', border: `1px solid ${num(e.amount_paid) ? 'rgba(5,150,105,0.25)' : 'rgba(148,163,184,0.25)'}` }}>
+                                  <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: num(e.amount_paid) ? '#059669' : '#9CA3AF' }}>
+                                    Paid: LKR {num(e.amount_paid).toLocaleString()}{e.amount_paid_date ? ` · ${e.amount_paid_date}` : ''}
+                                  </Typography>
+                                </Box>
+                                <IconButton size="small" onClick={() => setEditingPaid({ id: e.id, value: e.amount_paid || '', date: e.amount_paid_date || '' })} sx={{ color: '#7c3aed' }}><EditOutlinedIcon sx={{ fontSize: 16 }} /></IconButton>
+                              </>
+                            )}
+                          </Box>
                           {e.created_by && <Typography sx={{ fontSize: 10, color: '#9CA3AF', mt: 0.4 }}>Recorded by {e.created_by}</Typography>}
                         </Box>
                         <IconButton size="small" onClick={() => deleteEndorsement(e.id)} sx={{ color: '#dc2626' }}><DeleteOutlineIcon sx={{ fontSize: 18 }} /></IconButton>
@@ -1398,6 +1823,16 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false }
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
                   <NumericField label="Sum Insured Change (+/-)" value={endoDraft.sum_insured_change} onChange={e => setEndoDraft(d => ({ ...d, sum_insured_change: e.target.value }))} fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <NumericField label="Amount Paid (optional)" value={endoDraft.amount_paid} onChange={e => setEndoDraft(d => ({ ...d, amount_paid: e.target.value }))} fullWidth size="small"
+                    helperText="Adds to the policy's Amount Received"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField type="date" label="Paid Date" InputLabelProps={{ shrink: true }} value={endoDraft.amount_paid_date}
+                    onChange={e => setEndoDraft(d => ({ ...d, amount_paid_date: e.target.value }))} fullWidth size="small"
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } }} />
                 </Grid>
                 <Grid item xs={12}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>

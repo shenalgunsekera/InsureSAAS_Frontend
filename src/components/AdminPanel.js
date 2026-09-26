@@ -22,6 +22,7 @@ import DevicesManager from './DevicesManager';
 import UsersManager from './UsersManager';
 import ProductsManager from './ProductsManager';
 import CustomersManager from './CustomersManager';
+import CommissionRatesManager from './CommissionRatesManager';
 import MarketersManager from './MarketersManager';
 
 import Box from '@mui/material/Box';
@@ -67,6 +68,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import DevicesOtherIcon from '@mui/icons-material/DevicesOther';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import PercentIcon from '@mui/icons-material/Percent';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
@@ -1025,6 +1027,7 @@ const AdminPanel = () => {
         <Tab icon={<CategoryOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Products" />
         <Tab icon={<PeopleAltOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Customers" />
         <Tab icon={<CampaignOutlinedIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Marketers" />
+        <Tab icon={<PercentIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Commissions" />
       </Tabs>
 
       {/* ── TICKETS TAB ── */}
@@ -1424,6 +1427,7 @@ const AdminPanel = () => {
 
       {/* ── MARKETERS TAB ── */}
       {tab === 11 && <MarketersManager />}
+      {tab === 12 && <CommissionRatesManager />}
 
       <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast(t => ({ ...t, open: false }))}>
         <Alert severity={toast.severity} variant="filled" sx={{ width: '100%' }}>{toast.msg}</Alert>

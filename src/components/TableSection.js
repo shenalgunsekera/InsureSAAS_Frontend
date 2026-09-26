@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
-  collection, getDocs, deleteDoc, doc, writeBatch, updateDoc
+  collection, getDocs, getDoc, doc, writeBatch, updateDoc, query, where, arrayRemove
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { confirmTypedDelete } from '../utils/confirmDelete';
@@ -11,6 +11,7 @@ import AddClientForm, { textFields as UW_FIELDS } from './AddClientForm';
 import ClientDetailsModal from './ClientDetailsModal';
 import { exportHeader, normaliseImportRow } from '../utils/csvHeaders';
 import { liveOsDays } from '../utils/osDays';
+import { rateFor } from '../utils/commissionRates';
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -329,7 +330,7 @@ function SkeletonRow() {
     <TableRow>
       {[180, 120, 120, 120, 90, 100].map((w, i) => (
         <TableCell key={i}>
-          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(37, 94, 171,0.06)' }} />
+          <Skeleton variant="text" width={w} height={18} sx={{ bgcolor: 'rgba(37,94,171,0.06)' }} />
         </TableCell>
       ))}
     </TableRow>
@@ -362,6 +363,8 @@ const TableSection = () => {
   const [filterType,   setFilterType]   = useState('all');
   const [filterYear,   setFilterYear]   = useState('all');
   const [filterMonth,  setFilterMonth]  = useState('all');
+  const [filterDateBasis, setFilterDateBasis] = useState('either'); // which policy date the period filter uses
+  const [sortBy, setSortBy] = useState('default'); // list sort order
 
   // ── Document import state ─────────────────────────────────────────────
   const [docImportOpen,     setDocImportOpen]     = useState(false);
@@ -492,10 +495,8 @@ const TableSection = () => {
   /* Available years derived from actual client data */
   const availableYears = useMemo(() => {
     const years = new Set();
-    clients.forEach(c => {
-      const d = c.created_at?.toDate ? c.created_at.toDate() : c.created_at ? new Date(c.created_at) : null;
-      if (d && !isNaN(d)) years.add(d.getFullYear());
-    });
+    const add = (v) => { const d = v ? new Date(v) : null; if (d && !isNaN(d)) years.add(d.getFullYear()); };
+    clients.forEach(c => { add(c.policy_period_from); add(c.policy_period_to); });
     return [...years].sort((a, b) => b - a);
   }, [clients]);
 
@@ -509,15 +510,20 @@ const TableSection = () => {
     let list = clients;
     if (filterType !== 'all') list = list.filter(c => normCustType(c.customer_type) === filterType);
 
-    // Date Added filters
+    // Policy period filters — match the selected year / month against the policy's
+    // start date, expiry date, or either (the basis chosen alongside the filter).
     if (filterYear !== 'all' || filterMonth !== 'all') {
-      list = list.filter(c => {
-        const d = c.created_at?.toDate ? c.created_at.toDate() : c.created_at ? new Date(c.created_at) : null;
+      const inSel = (v) => {
+        const d = v ? new Date(v) : null;
         if (!d || isNaN(d)) return false;
-        if (filterYear  !== 'all' && d.getFullYear()  !== Number(filterYear))  return false;
-        if (filterMonth !== 'all' && d.getMonth()     !== Number(filterMonth)) return false;
+        if (filterYear  !== 'all' && d.getFullYear() !== Number(filterYear))  return false;
+        if (filterMonth !== 'all' && d.getMonth()    !== Number(filterMonth)) return false;
         return true;
-      });
+      };
+      list = list.filter(c =>
+        filterDateBasis === 'from' ? inSel(c.policy_period_from)
+        : filterDateBasis === 'to' ? inSel(c.policy_period_to)
+        : inSel(c.policy_period_from) || inSel(c.policy_period_to));
     }
 
     if (searchQuery) {
@@ -531,8 +537,22 @@ const TableSection = () => {
         (c.email             || '').toLowerCase().includes(q)
       );
     }
+
+    // Sort — by policy period From / To dates (blank dates sink to the bottom).
+    if (sortBy !== 'default') {
+      const field = sortBy.startsWith('from') ? 'policy_period_from' : 'policy_period_to';
+      const dir   = sortBy.endsWith('desc') ? -1 : 1;
+      const t = (c) => { const d = new Date(c[field]); return isNaN(d) ? null : d.getTime(); };
+      list = [...list].sort((a, b) => {
+        const ta = t(a), tb = t(b);
+        if (ta === null && tb === null) return 0;
+        if (ta === null) return 1;   // blanks last
+        if (tb === null) return -1;
+        return (ta - tb) * dir;
+      });
+    }
     return list;
-  }, [clients, filterType, filterYear, filterMonth, searchQuery]);
+  }, [clients, filterType, filterYear, filterMonth, filterDateBasis, searchQuery, sortBy]);
 
   /* paginate */
   const pageCount    = Math.ceil(filtered.length / rowsPerPage);
@@ -542,10 +562,33 @@ const TableSection = () => {
   /* delete single */
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    if (!confirmTypedDelete('Delete this client and their records?')) return;
+    const t = deleteTarget;
+    const isRoot = !t.root_policy_id || t.root_policy_id === t.id;
+    // Find this policy's child renewals (queried live so it's robust even if the
+    // stored child_renewals array is stale). Deleting the parent cascades to them.
+    let childCount = 0;
     try {
-      await deleteDoc(doc(db, 'clients', deleteTarget.id));
-      toast('Client deleted');
+      const kids = isRoot
+        ? (await getDocs(query(collection(db, 'clients'), where('root_policy_id', '==', t.id)))).docs.filter(d => d.id !== t.id)
+        : [];
+      childCount = kids.length;
+      const msg = childCount > 0
+        ? `Delete this policy AND its ${childCount} renewal${childCount > 1 ? 's' : ''}? This cannot be undone.`
+        : 'Delete this client and their records?';
+      if (!confirmTypedDelete(msg)) return;
+
+      const batch = writeBatch(db);
+      batch.delete(doc(db, 'clients', t.id));
+      kids.forEach(k => batch.delete(k.ref));
+      await batch.commit();
+
+      // If we deleted a renewal (child), detach it from its parent's record.
+      if (!isRoot && t.root_policy_id) {
+        try {
+          await updateDoc(doc(db, 'clients', t.root_policy_id), { child_renewals: arrayRemove(t.id) });
+        } catch (_) { /* parent may be gone; ignore */ }
+      }
+      toast(childCount > 0 ? `Deleted policy + ${childCount} renewal${childCount > 1 ? 's' : ''}` : 'Client deleted');
       _cachedClients = null; fetchClients(true);
     } catch {
       toast('Failed to delete client', 'error');
@@ -615,6 +658,11 @@ const TableSection = () => {
           setCsvImporting(false); return;
         }
         let imported = 0, errors = [];
+        // Commission rate schedules (per-product, per-date-range) from the admin
+        // Commissions tab, so imported rows auto-calc with the rate in force at
+        // each policy's start date — matching the underwriting form.
+        let schedules = {};
+        try { const rSnap = await getDoc(doc(db, 'settings', 'commission_rates')); if (rSnap.exists()) schedules = rSnap.data().products || {}; } catch { /* fall back to defaults */ }
         // Firestore batches are capped at 500 writes — commit in chunks so large
         // registers (hundreds/thousands of rows) import without hitting the limit.
         const CHUNK = 450;
@@ -632,15 +680,14 @@ const TableSection = () => {
             // record shows complete totals without anyone re-saving it.
             const n = (v) => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
             // Auto-calculate commission the same way the underwriting form does when the
-            // CSV doesn't supply it: basic × class rate, SRCC/TC × 5% (Motor) or 7.5%.
-            const BASIC_RATES = { Motor:20, Fire:20, Marine:15, Health:20, Miscellaneous:20, Individual:20, Group:20, Other:20 };
-            const basicRate = BASIC_RATES[clean.main_class] != null ? BASIC_RATES[clean.main_class] : 20;
-            const stRate = clean.main_class === 'Motor' ? 5 : 7.5;
-            if (!clean.commission_pct)                             clean.commission_pct   = String(basicRate);
-            if (!clean.commission_basic && n(clean.basic_premium)) clean.commission_basic = String(Math.round(n(clean.basic_premium) * basicRate) / 100);
-            if (!clean.commission_srcc  && n(clean.srcc_premium))  clean.commission_srcc  = String(Math.round(n(clean.srcc_premium)  * stRate)   / 100);
-            if (!clean.commission_tc    && n(clean.tc_premium))    clean.commission_tc    = String(Math.round(n(clean.tc_premium)    * stRate)   / 100);
-            const commTotal = n(clean.commission_basic) + n(clean.commission_srcc) + n(clean.commission_tc) + n(clean.commission_special_amount);
+            // CSV doesn't supply it: premiums × the rate in force at the policy start
+            // date (from the admin Commissions tab), falling back to per-class defaults.
+            const rate = rateFor(schedules, clean.product, clean.main_class, clean.policy_period_from);
+            if (!clean.commission_pct)                             clean.commission_pct   = String(rate.basic);
+            if (!clean.commission_basic && n(clean.basic_premium)) clean.commission_basic = String(Math.round(n(clean.basic_premium) * rate.basic) / 100);
+            if (!clean.commission_srcc  && n(clean.srcc_premium))  clean.commission_srcc  = String(Math.round(n(clean.srcc_premium)  * rate.srcc)  / 100);
+            if (!clean.commission_tc    && n(clean.tc_premium))    clean.commission_tc    = String(Math.round(n(clean.tc_premium)    * rate.tc)    / 100);
+            const commTotal = n(clean.commission_basic) + n(clean.commission_srcc) + n(clean.commission_tc) + n(clean.commission_special) + n(clean.commission_special_amount);
             if (commTotal !== 0) clean.commission_total = String(Math.round(commTotal * 100) / 100);
             if (clean.policy_period_from && clean.policy_period_to && !clean.policy_days) {
               const a = new Date(clean.policy_period_from), b = new Date(clean.policy_period_to);
@@ -688,9 +735,9 @@ const TableSection = () => {
                   fontWeight: 600, fontSize: 12,
                   background: filterType === t
                     ? 'linear-gradient(135deg,#255EAB,#38A3E0)'
-                    : 'rgba(37, 94, 171,0.07)',
+                    : 'rgba(37,94,171,0.07)',
                   color: filterType === t ? '#fff' : '#255EAB',
-                  border: filterType === t ? 'none' : '1px solid rgba(37, 94, 171,0.20)',
+                  border: filterType === t ? 'none' : '1px solid rgba(37,94,171,0.20)',
                   transition: 'all 0.2s ease',
                   '&:hover': { opacity: 0.88 },
                 }}
@@ -698,24 +745,41 @@ const TableSection = () => {
             ))}
           </Stack>
 
-          {/* Date Added filter row */}
+          {/* Policy period filter row (by policy From / To dates) */}
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>Date Added:</Typography>
+            <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>Policy Period:</Typography>
             <Select size="small" value={filterYear} onChange={e => { setFilterYear(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56, 163, 224,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 90, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56,163,224,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Years</MenuItem>
               {availableYears.map(y => <MenuItem key={y} value={y} sx={{ fontSize: 12 }}>{y}</MenuItem>)}
             </Select>
             <Select size="small" value={filterMonth} onChange={e => { setFilterMonth(e.target.value); setPage(1); }}
-              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56, 163, 224,0.25)' } }}>
+              sx={{ fontSize: 12, height: 30, minWidth: 110, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56,163,224,0.25)' } }}>
               <MenuItem value="all" sx={{ fontSize: 12 }}>All Months</MenuItem>
               {['January','February','March','April','May','June','July','August','September','October','November','December']
                 .map((m, i) => <MenuItem key={i} value={i} sx={{ fontSize: 12 }}>{m}</MenuItem>)}
             </Select>
+            <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600, ml: 0.5 }}>by</Typography>
+            <Select size="small" value={filterDateBasis} onChange={e => { setFilterDateBasis(e.target.value); setPage(1); }}
+              sx={{ fontSize: 12, height: 30, minWidth: 120, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56,163,224,0.25)' } }}>
+              <MenuItem value="from"   sx={{ fontSize: 12 }}>Policy From</MenuItem>
+              <MenuItem value="to"     sx={{ fontSize: 12 }}>Policy To</MenuItem>
+              <MenuItem value="either" sx={{ fontSize: 12 }}>From or To</MenuItem>
+            </Select>
             {(filterYear !== 'all' || filterMonth !== 'all') && (
-              <Chip label="Clear" size="small" clickable onClick={() => { setFilterYear('all'); setFilterMonth('all'); setPage(1); }}
+              <Chip label="Clear" size="small" clickable onClick={() => { setFilterYear('all'); setFilterMonth('all'); setFilterDateBasis('either'); setPage(1); }}
                 sx={{ fontSize: 11, height: 24, bgcolor: 'rgba(239,68,68,0.08)', color: '#ef4444' }} />
             )}
+            <Box sx={{ flexGrow: 1 }} />
+            <Typography sx={{ fontSize: 11.5, color: '#9CA3AF', fontWeight: 600 }}>Sort:</Typography>
+            <Select size="small" value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }}
+              sx={{ fontSize: 12, height: 30, minWidth: 150, '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(56,163,224,0.25)' } }}>
+              <MenuItem value="default"   sx={{ fontSize: 12 }}>Newest added</MenuItem>
+              <MenuItem value="from_asc"  sx={{ fontSize: 12 }}>Policy From ↑ (oldest)</MenuItem>
+              <MenuItem value="from_desc" sx={{ fontSize: 12 }}>Policy From ↓ (newest)</MenuItem>
+              <MenuItem value="to_asc"    sx={{ fontSize: 12 }}>Policy To ↑ (soonest)</MenuItem>
+              <MenuItem value="to_desc"   sx={{ fontSize: 12 }}>Policy To ↓ (latest)</MenuItem>
+            </Select>
             {(filterYear !== 'all' || filterMonth !== 'all') && (
               <Typography sx={{ fontSize: 11.5, color: '#6B7280' }}>
                 {filtered.length} result{filtered.length !== 1 ? 's' : ''}
@@ -730,8 +794,8 @@ const TableSection = () => {
             size="small" variant="outlined"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={handleDownloadTemplate}
-            sx={{ borderColor: 'rgba(56, 163, 224,0.35)', color: '#38A3E0', fontSize: 12,
-                  '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56, 163, 224,0.07)' } }}
+            sx={{ borderColor: 'rgba(56,163,224,0.35)', color: '#38A3E0', fontSize: 12,
+                  '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56,163,224,0.07)' } }}
           >
             CSV Template
           </Button>
@@ -749,8 +813,8 @@ const TableSection = () => {
             startIcon={<FileUploadOutlinedIcon />}
             onClick={() => document.getElementById('csv-input').click()}
             disabled={csvImporting}
-            sx={{ borderColor: 'rgba(56, 163, 224,0.35)', color: '#38A3E0', fontSize: 12,
-                  '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56, 163, 224,0.07)' } }}
+            sx={{ borderColor: 'rgba(56,163,224,0.35)', color: '#38A3E0', fontSize: 12,
+                  '&:hover': { borderColor: '#38A3E0', bgcolor: 'rgba(56,163,224,0.07)' } }}
           >
             {csvImporting ? 'Importing…' : 'Import CSV'}
           </Button>
@@ -790,7 +854,7 @@ const TableSection = () => {
       </Box>
 
       {/* ── table ────────────────────────────────────────────── */}
-      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(56, 163, 224,0.10)' }}>
+      <Paper elevation={1} sx={{ overflow: 'hidden', borderRadius: '14px', border: '1px solid rgba(56,163,224,0.10)' }}>
         <TableContainer>
           <Table sx={{ minWidth: 680 }}>
             <TableHead>
@@ -811,7 +875,7 @@ const TableSection = () => {
                     <TableRow>
                       <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(37, 94, 171,0.25)' }} />
+                          <PeopleOutlineIcon sx={{ fontSize: 42, color: 'rgba(37,94,171,0.25)' }} />
                           <Typography sx={{ color: '#9CA3AF', fontWeight: 500 }}>
                             {searchQuery ? 'No clients match your search' : 'No clients yet — add your first client!'}
                           </Typography>
@@ -830,7 +894,7 @@ const TableSection = () => {
                         key={client.id}
                         className={rowClass}
                         sx={{
-                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(242, 247, 252,0.7)',
+                          bgcolor: idx % 2 === 0 ? '#fff' : 'rgba(242,247,252,0.7)',
                           animation: `stagger 0.3s ease both`,
                           animationDelay: `${Math.min(idx * 0.04, 0.4)}s`,
                         }}
@@ -859,7 +923,7 @@ const TableSection = () => {
                             label={client.product || '—'}
                             size="small"
                             sx={{ fontSize: 11, fontWeight: 600,
-                                  bgcolor: 'rgba(56, 163, 224,0.10)', color: '#1D4E96' }}
+                                  bgcolor: 'rgba(56,163,224,0.10)', color: '#1D4E96' }}
                           />
                         </TableCell>
                         <TableCell sx={{ fontSize: 13, fontFamily: 'monospace', letterSpacing: 0.3 }}>
@@ -888,7 +952,7 @@ const TableSection = () => {
                               <>
                                 <Tooltip title="Edit">
                                   <IconButton size="small" onClick={() => setEditClient(client)}
-                                    sx={{ color: '#38A3E0', '&:hover': { bgcolor: 'rgba(56, 163, 224,0.10)' } }}>
+                                    sx={{ color: '#38A3E0', '&:hover': { bgcolor: 'rgba(56,163,224,0.10)' } }}>
                                     <EditOutlinedIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
@@ -915,7 +979,7 @@ const TableSection = () => {
           <Box sx={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             px: 2.5, py: 1.5, flexWrap: 'wrap', gap: 1,
-            borderTop: '1px solid rgba(56, 163, 224,0.08)',
+            borderTop: '1px solid rgba(56,163,224,0.08)',
           }}>
             <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>
               Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, filtered.length)} of {filtered.length} clients
@@ -943,11 +1007,16 @@ const TableSection = () => {
       <Dialog open={addOpen} onClose={() => setAddOpen(false)} maxWidth="md" fullWidth
         PaperProps={{ sx: { maxHeight: '92vh' } }}>
         <DialogTitle>
-          {Object.keys(prefillData).length > 0 ? 'New Client — Pre-filled from Quote' : 'Add New Client'}
+          {prefillData.new_renewal === 'Renewal' ? 'New Policy — Renewal'
+            : Object.keys(prefillData).length > 0 ? 'New Client — Pre-filled from Quote' : 'Add New Client'}
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           <AddClientForm
-            onSuccess={() => { handleAddClient(); setPrefillData({}); }}
+            onSuccess={() => {
+              // The renewal↔parent linkage (child_renewals + count) is written inside
+              // AddClientForm itself, so nothing extra is needed here.
+              handleAddClient(); setPrefillData({});
+            }}
             onCancel={() => { setAddOpen(false); setPrefillData({}); }}
             initialData={prefillData}
           />
@@ -964,6 +1033,11 @@ const TableSection = () => {
               isEdit
               onSuccess={handleEditClient}
               onCancel={() => setEditClient(null)}
+              onRenew={(renewalData) => {
+                setEditClient(null);
+                setPrefillData(renewalData);
+                setAddOpen(true);
+              }}
             />
           )}
         </DialogContent>
@@ -976,6 +1050,15 @@ const TableSection = () => {
           <Typography>
             Are you sure you want to delete <strong>{deleteTarget?.client_name}</strong>? This cannot be undone.
           </Typography>
+          {(() => {
+            const n = Array.isArray(deleteTarget?.child_renewals) ? deleteTarget.child_renewals.length : (Number(deleteTarget?.renewal_count) || 0);
+            const root = deleteTarget && (!deleteTarget.root_policy_id || deleteTarget.root_policy_id === deleteTarget.id);
+            return root && n > 0 ? (
+              <Typography sx={{ mt: 1, fontSize: 12.5, fontWeight: 700, color: '#e04040' }}>
+                Its {n} renewal{n > 1 ? 's' : ''} will be deleted too.
+              </Typography>
+            ) : null;
+          })()}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button onClick={() => setDeleteTarget(null)} variant="outlined" sx={{ color: '#6B7280', borderColor: '#e0e0e0' }}>

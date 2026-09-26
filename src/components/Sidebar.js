@@ -28,6 +28,7 @@ import AutorenewIcon from '@mui/icons-material/Autorenew';
 import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
+import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
 import RaiseTicketModal from './RaiseTicketModal';
 
 const DRAWER_W = 260;
@@ -39,6 +40,7 @@ const navItems = [
   { label: 'Portfolio',     path: '/portfolio',     icon: <AccountTreeOutlinedIcon />,  mod: 'portfolio'    },
   { label: 'Claims',        path: '/claims',        icon: <GavelOutlinedIcon />,        mod: 'claims'       },
   { label: 'Renewals',      path: '/renewals',      icon: <AutorenewIcon />,            mod: 'renewals'     },
+  { label: 'Commission Structures', path: '/commission-structures', icon: <TrendingDownOutlinedIcon />, mod: 'commstructures' },
   { label: 'Reports',       path: '/reports',       icon: <BarChartIcon />,             mod: 'reports'      },
 ];
 
@@ -203,10 +205,10 @@ function DrawerContent({ onClose }) {
           sx={{
             mx: 1.5, borderRadius: '10px', px: 1.5, py: 1,
             transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-            '&:hover': { background: 'rgba(56, 163, 224,0.12)', transform: 'translateX(3px)' },
+            '&:hover': { background: 'rgba(56,163,224,0.12)', transform: 'translateX(3px)' },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(56, 163, 224,0.7)', '& svg': { fontSize: 20 } }}>
+          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(56,163,224,0.7)', '& svg': { fontSize: 20 } }}>
             <MenuBookOutlinedIcon />
           </ListItemIcon>
           <ListItemText
@@ -222,10 +224,10 @@ function DrawerContent({ onClose }) {
           sx={{
             mx: 1.5, borderRadius: '10px', px: 1.5, py: 1,
             transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
-            '&:hover': { background: 'rgba(56, 163, 224,0.12)', transform: 'translateX(3px)' },
+            '&:hover': { background: 'rgba(56,163,224,0.12)', transform: 'translateX(3px)' },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(56, 163, 224,0.7)', '& svg': { fontSize: 20 } }}>
+          <ListItemIcon sx={{ minWidth: 36, color: 'rgba(56,163,224,0.7)', '& svg': { fontSize: 20 } }}>
             <ConfirmationNumberOutlinedIcon />
           </ListItemIcon>
           <ListItemText
@@ -265,7 +267,7 @@ function DrawerContent({ onClose }) {
               onClick={handleLogout}
               sx={{
                 color: 'rgba(255,255,255,0.35)', flexShrink: 0,
-                '&:hover': { color: '#1D4E96', bgcolor: 'rgba(29, 78, 150,0.12)' },
+                '&:hover': { color: '#1D4E96', bgcolor: 'rgba(29,78,150,0.12)' },
                 transition: 'all 0.2s ease',
               }}
             >
@@ -289,7 +291,7 @@ const Sidebar = () => {
         sx={{
           display: { xs: 'flex', md: 'none' },
           position: 'fixed', top: 12, left: 12, zIndex: 1300,
-          bgcolor: 'white', boxShadow: '0 2px 12px rgba(37, 94, 171,0.20)',
+          bgcolor: 'white', boxShadow: '0 2px 12px rgba(37,94,171,0.20)',
           color: '#255EAB', borderRadius: '12px', p: 0.8,
           '&:hover': { bgcolor: 'white', transform: 'scale(1.05)' },
           transition: 'all 0.2s ease',
@@ -306,7 +308,7 @@ const Sidebar = () => {
           '& .MuiDrawer-paper': {
             width: DRAWER_W,
             border: 'none',
-            boxShadow: '4px 0 24px rgba(37, 94, 171,0.08)',
+            boxShadow: '4px 0 24px rgba(37,94,171,0.08)',
           },
         }}
         open
@@ -325,7 +327,7 @@ const Sidebar = () => {
           '& .MuiDrawer-paper': {
             width: DRAWER_W,
             border: 'none',
-            boxShadow: '4px 0 40px rgba(37, 94, 171,0.18)',
+            boxShadow: '4px 0 40px rgba(37,94,171,0.18)',
           },
         }}
       >

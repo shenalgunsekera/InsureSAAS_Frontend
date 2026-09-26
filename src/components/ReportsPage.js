@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { collection, getDocs, query, orderBy, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { confirmTypedDelete } from '../utils/confirmDelete';
 import { liveOsDays, policyStatus } from '../utils/osDays';
@@ -32,6 +32,8 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import InputAdornment from '@mui/material/InputAdornment';
+import SearchIcon from '@mui/icons-material/Search';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -75,10 +77,11 @@ const CHART_COLORS = ['#255EAB','#6366f1','#10B981','#f59e0b','#0ea5e9','#8b5cf6
 const uwType = (f) => (f.type === 'number' || f.type === 'currency') ? 'number' : (f.date ? 'date' : 'string');
 // keys that exist on a client doc but aren't editable form fields
 const CLIENT_SYSTEM_FIELDS = [
-  { key: 'created_at',  label: 'Date Added',  type: 'date'   },
-  { key: 'insurer',     label: 'Insurer',     type: 'string' },
-  { key: 'main_class',  label: 'Main Class',  type: 'string' },
-  { key: 'status',      label: 'Status',      type: 'string' },
+  { key: 'created_at',    label: 'Date Added',      type: 'date'   },
+  { key: 'insurer',       label: 'Insurer',         type: 'string' },
+  { key: 'main_class',    label: 'Main Class',      type: 'string' },
+  { key: 'status',        label: 'Status',          type: 'string' },
+  { key: 'renewal_count', label: 'Renewals',        type: 'number' },
 ];
 // Base = every underwriting form field (so the report can use ALL of them) + system fields.
 // Excludes derived/non-stored keys (date_added becomes created_at; year/month are derived).
@@ -108,6 +111,9 @@ const CLAIM_FIELDS = [
   { key: 'cause',             label: 'Cause of Loss',     type: 'string' },
   { key: 'loss_amount',       label: 'Estimated Loss',    type: 'number' },
   { key: 'settlement_amount', label: 'Settlement Amount', type: 'number' },
+  { key: 'documents_count',   label: 'Documents',         type: 'number' },
+  { key: 'links_count',       label: 'Links',             type: 'number' },
+  { key: 'tracker_notes',     label: 'Tracker Notes',     type: 'string' },
   { key: 'created_by_name',   label: 'Registered By',     type: 'string' },
   { key: 'created_at',        label: 'Registered On',     type: 'date'   },
 ];
@@ -150,6 +156,58 @@ const QUOTE_FIELDS = [
   { key: 'days_outstanding',   label: 'Days Outstanding',   type: 'number' },
   { key: 'created_by_name',    label: 'Created By',          type: 'string' },
   { key: 'created_at',         label: 'Date Created',        type: 'date'   },
+];
+
+// Endorsement report fields — one row per endorsement across all policies, built
+// in loadData() from each policy's endorsements[] array (with policy context).
+const ENDORSEMENT_FIELDS = [
+  // Policy context
+  { key: 'policy_client_name', label: 'Client Name',        type: 'string' },
+  { key: 'policy_no',          label: 'Policy No',          type: 'string' },
+  { key: 'insuresaas_ib_file_no', label: 'InsureSAAS IB File No.',type: 'string' },
+  { key: 'product',            label: 'Product',            type: 'string' },
+  { key: 'main_class',         label: 'Main Class',         type: 'string' },
+  { key: 'insurance_provider', label: 'Insurer',            type: 'string' },
+  // Endorsement
+  { key: 'endorsement_no',     label: 'Endorsement No',     type: 'number' },
+  { key: 'effective_date',     label: 'Effective Date',     type: 'date'   },
+  { key: 'type',               label: 'Type',               type: 'string' },
+  { key: 'description',        label: 'Description',         type: 'string' },
+  // Changes
+  { key: 'basic_premium_change', label: 'Basic Premium Δ',  type: 'number' },
+  { key: 'srcc_premium_change',  label: 'SRCC Premium Δ',   type: 'number' },
+  { key: 'tc_premium_change',    label: 'TC Premium Δ',     type: 'number' },
+  { key: 'net_premium_change',   label: 'Net Premium Δ',    type: 'number' },
+  { key: 'total_premium_change', label: 'Total Premium Δ',  type: 'number' },
+  { key: 'sum_insured_change',   label: 'Sum Insured Δ',    type: 'number' },
+  { key: 'commission_change',    label: 'Commission Δ',     type: 'number' },
+  { key: 'amount_paid',          label: 'Amount Paid',      type: 'number' },
+  { key: 'amount_paid_date',     label: 'Paid Date',        type: 'date'   },
+  { key: 'documents_count',      label: 'Documents',        type: 'number' },
+  // Audit
+  { key: 'created_by',         label: 'Recorded By',        type: 'string' },
+  { key: 'created_at',         label: 'Recorded On',        type: 'date'   },
+];
+
+// Payment report fields — one row per payment across all policies (from each
+// policy's payments[] ledger, or its single-payment fields for older records).
+const PAYMENT_FIELDS = [
+  { key: 'policy_client_name', label: 'Client Name',        type: 'string' },
+  { key: 'policy_no',          label: 'Policy No',          type: 'string' },
+  { key: 'insuresaas_ib_file_no', label: 'InsureSAAS IB File No.',type: 'string' },
+  { key: 'product',            label: 'Product',            type: 'string' },
+  { key: 'main_class',         label: 'Main Class',         type: 'string' },
+  { key: 'insurance_provider', label: 'Insurer',            type: 'string' },
+  { key: 'payment_status',     label: 'Payment Status',     type: 'string' },
+  { key: 'payment_no',         label: 'Payment No',         type: 'number' },
+  { key: 'amount_received',    label: 'Amount Received',    type: 'number' },
+  { key: 'payment_date',       label: 'Payment Date',       type: 'date'   },
+  { key: 'payment_method',     label: 'Payment Method',     type: 'string' },
+  { key: 'cheque_slip_no',     label: 'Cheque / Slip No.',  type: 'string' },
+  { key: 'receipt_no',         label: 'Receipt No.',        type: 'string' },
+  { key: 'debit_note_no',      label: 'Debit Note No.',     type: 'string' },
+  { key: 'debit_note_date',    label: 'Debit Note Date',    type: 'date'   },
+  { key: 'source_type',        label: 'Payment Source',     type: 'string' },
 ];
 
 const NUMBER_OPS = ['sum','avg','min','max','count'];
@@ -337,8 +395,8 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
   const pageW=pdf.internal.pageSize.getWidth(); const pageH=pdf.internal.pageSize.getHeight();
   const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
 
-  pdf.setFillColor(37, 94, 171); pdf.rect(0,0,pageW,26,'F');
-  pdf.setFillColor(10, 26, 62);  pdf.rect(0,26,pageW,10,'F');
+  pdf.setFillColor(37,94,171); pdf.rect(0,0,pageW,26,'F');
+  pdf.setFillColor(10,26,62);  pdf.rect(0,26,pageW,10,'F');
   pdf.setTextColor(255,255,255);
   pdf.setFontSize(15); pdf.setFont('helvetica','bold');
   pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd',pageW/2,11,{align:'center'});
@@ -355,9 +413,9 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
     numCols.forEach((c,i)=>{
       const total=rows.filter(r=>!r._type||r._type==='data').reduce((a,r)=>a+parseNum(r[c.key]),0);
       const x=10+i*boxW;
-      pdf.setFillColor(242, 247, 252); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
-      pdf.setDrawColor(56, 163, 224); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
-      pdf.setTextColor(37, 94, 171); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
+      pdf.setFillColor(242,247,252); pdf.roundedRect(x,Y,boxW-3,18,2,2,'F');
+      pdf.setDrawColor(56,163,224); pdf.setLineWidth(0.3); pdf.roundedRect(x,Y,boxW-3,18,2,2,'S');
+      pdf.setTextColor(37,94,171); pdf.setFontSize(12); pdf.setFont('helvetica','bold');
       pdf.text(fmtNum(total),x+(boxW-3)/2,Y+10,{align:'center'});
       pdf.setTextColor(107,114,128); pdf.setFontSize(7.5); pdf.setFont('helvetica','normal');
       pdf.text(c.label,x+(boxW-3)/2,Y+16,{align:'center'});
@@ -396,15 +454,15 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
         return String(v);
       });
     }),
-    headStyles:{fillColor:[10, 26, 62],textColor:[255,255,255],fontStyle:'bold',fontSize:9,cellPadding:3},
-    alternateRowStyles:{fillColor:[242, 247, 252]},
-    styles:{fontSize:8.5,cellPadding:2.5,textColor:[10, 26, 62]},
+    headStyles:{fillColor:[10,26,62],textColor:[255,255,255],fontStyle:'bold',fontSize:9,cellPadding:3},
+    alternateRowStyles:{fillColor:[242,247,252]},
+    styles:{fontSize:8.5,cellPadding:2.5,textColor:[10,26,62]},
     columnStyles:columns.reduce((acc,c,i)=>{if(c.type==='number')acc[i]={halign:'right'};return acc;},{}),
     didParseCell:(d)=>{
       const r=rows[d.row.index];
       if (!r) return;
       if (r._type==='subtotal'){d.cell.styles.fillColor=[230,230,255];d.cell.styles.fontStyle='bold';d.cell.styles.textColor=[60,60,200];}
-      if (r._type==='grandtotal'){d.cell.styles.fillColor=[10, 26, 62];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}
+      if (r._type==='grandtotal'){d.cell.styles.fillColor=[10,26,62];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold';}
     },
     didDrawPage:()=>{
       pdf.setFontSize(7); pdf.setTextColor(180,180,180);
@@ -759,7 +817,7 @@ function ReportChart({ chartCfg, data, groupByLabel, innerRef, onRemove, onUpdat
   const ChIcon = type==='pie'?PieChartOutlineIcon:type==='line'?ShowChartIcon:BarChartIcon;
   const yLabel = label || '';
   return (
-    <Card sx={{ border:'1px solid rgba(56, 163, 224,0.12)', mb:2 }}>
+    <Card sx={{ border:'1px solid rgba(56,163,224,0.12)', mb:2 }}>
       <CardContent ref={innerRef} sx={{ p:2.5 }}>
         <Stack direction={{ xs:'column', sm:'row' }} spacing={1} alignItems={{ sm:'center' }} sx={{ mb:1.5 }} flexWrap="wrap">
           <ChIcon sx={{ color:'#6366f1', fontSize:18, flexShrink:0 }} />
@@ -840,6 +898,8 @@ const ReportsPage = () => {
   const [clients,    setClients]    = useState([]);
   const [claims,     setClaims]     = useState([]);
   const [quotes,     setQuotes]     = useState([]);
+  const [endoRows,   setEndoRows]   = useState([]);
+  const [payRows,    setPayRows]    = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   // Time period (by record creation date) — applied to whichever source is active.
   const [periodFrom, setPeriodFrom] = useState(null);
@@ -853,6 +913,8 @@ const ReportsPage = () => {
   const [source,       setSource]       = useState('clients');
   const [selFields,    setSelFields]    = useState(['client_name','insurance_provider','net_premium','total_invoice']);
   const [summaryFields, setSummaryFields] = useState([]); // numeric fields featured in the top stat cards
+  const [fieldSearch,   setFieldSearch]   = useState('');
+  const [summarySearch, setSummarySearch] = useState('');
   const [groupBy,      setGroupBy]      = useState('');
   const [aggregations, setAggregations] = useState([]);
   const [filters,      setFilters]      = useState([]);
@@ -884,15 +946,71 @@ const ReportsPage = () => {
 
   const loadData = useCallback(async()=>{
     setLoading(true);
-    const [cS,clS,qS]=await Promise.all([
+    const [cS,clS,qS,rateSnap]=await Promise.all([
       getDocs(query(collection(db,'clients'),orderBy('created_at','desc'))),
       getDocs(query(collection(db,'claims'), orderBy('created_at','desc'))),
       getDocs(query(collection(db,'quotes'), orderBy('created_at','desc'))),
+      getDoc(doc(db,'settings','commission_rates')),
     ]);
+    // Commission rate schedules (per-product, per-date-range) from the admin
+    // Commissions tab; passed to liveCommission so reports use the rate that was
+    // in force at each policy's start date. Falls back to per-class defaults.
+    const schedules = (rateSnap.exists() && rateSnap.data().products) || {};
     // Compute O/S Days live (counts up from policy start, 0 once paid) so reports
     // never show the stale stored snapshot or a leftover value on paid policies.
-    setClients(cS.docs.map(d=>{ const c={id:d.id,...d.data()}; return {...c, ...liveCommission(c), os_days: liveOsDays(c), policy_status: policyStatus(c), customer_type: normCustomerType(c.customer_type)}; }));
-    setClaims(clS.docs.map(d=>({id:d.id,...d.data()})));
+    setClients(cS.docs.map(d=>{ const c={id:d.id,...d.data()}; return {...c, ...liveCommission(c, schedules), os_days: liveOsDays(c), policy_status: policyStatus(c), customer_type: normCustomerType(c.customer_type), new_renewal: c.new_renewal || ((c.main_class==='Marine'||/marine/i.test(c.product||''))?'New':'')}; }));
+    // Flatten every policy's endorsements into their own report rows (with policy
+    // context) so endorsements can be filtered / grouped / summed / charted.
+    const eNum = (v)=>{ const x=parseFloat(String(v??'').replace(/,/g,'')); return isNaN(x)?'':x; };
+    const eRows=[];
+    cS.docs.forEach(d=>{
+      const c=d.data(); const list=Array.isArray(c.endorsements)?c.endorsements:[];
+      list.forEach(e=>eRows.push({
+        id:`${d.id}_${e.id||e.endorsement_no}`,
+        policy_client_name:c.client_name||'', policy_no:c.policy_no||'', insuresaas_ib_file_no:c.insuresaas_ib_file_no||'',
+        product:c.product||'', main_class:c.main_class||'', insurance_provider:c.insurance_provider||'',
+        endorsement_no:e.endorsement_no||'', effective_date:e.effective_date||'', type:e.type||'', description:e.description||'',
+        basic_premium_change:eNum(e.basic_premium_change), srcc_premium_change:eNum(e.srcc_premium_change),
+        tc_premium_change:eNum(e.tc_premium_change), net_premium_change:eNum(e.net_premium_change),
+        total_premium_change:(eNum(e.total_premium_change)||0)+(eNum(e.premium_change)||0)||'',
+        sum_insured_change:eNum(e.sum_insured_change), commission_change:eNum(e.commission_change),
+        amount_paid:eNum(e.amount_paid), amount_paid_date:e.amount_paid_date||'', documents_count:Array.isArray(e.documents)?e.documents.length:0,
+        created_by:e.created_by||'', created_at:e.created_at||'',
+      }));
+    });
+    setEndoRows(eRows);
+    // Flatten every payment into its own report row: policy ledger payments (or the
+    // single-payment fields for older records) plus endorsement payments, so all
+    // money received is reportable with full policy context.
+    const pRows=[];
+    cS.docs.forEach(d=>{
+      const c=d.data();
+      const ctx={ policy_client_name:c.client_name||'', policy_no:c.policy_no||'', insuresaas_ib_file_no:c.insuresaas_ib_file_no||'',
+        product:c.product||'', main_class:c.main_class||'', insurance_provider:c.insurance_provider||'', payment_status:c.payment_status||'' };
+      const ledger=Array.isArray(c.payments)&&c.payments.length ? c.payments
+        : ([{ amount_received:c.amount_received, payment_date:c.payment_date, payment_method:c.payment_method, cheque_slip_no:c.cheque_slip_no, receipt_no:c.receipt_no, debit_note_no:c.debit_note_no, debit_note_date:c.debit_note_date }]
+            .filter(p=>Object.values(p).some(v=>v!==''&&v!=null)));
+      ledger.forEach((p,i)=>pRows.push({
+        id:`${d.id}_pay_${p.id||i}`, ...ctx, source_type:'Policy', payment_no:i+1,
+        amount_received:eNum(p.amount_received), payment_date:p.payment_date||'', payment_method:p.payment_method||'',
+        cheque_slip_no:p.cheque_slip_no||'', receipt_no:p.receipt_no||'', debit_note_no:p.debit_note_no||'', debit_note_date:p.debit_note_date||'',
+      }));
+      (Array.isArray(c.endorsements)?c.endorsements:[]).forEach(e=>{
+        if(!eNum(e.amount_paid)) return;
+        pRows.push({ id:`${d.id}_endopay_${e.id||e.endorsement_no}`, ...ctx, source_type:`Endorsement #${e.endorsement_no||''}`.trim(),
+          payment_no:'', amount_received:eNum(e.amount_paid), payment_date:e.amount_paid_date||e.effective_date||e.created_at||'',
+          payment_method:'', cheque_slip_no:'', receipt_no:'', debit_note_no:'', debit_note_date:'' });
+      });
+    });
+    setPayRows(pRows);
+    setClaims(clS.docs.map(d=>{
+      const c={id:d.id,...d.data()};
+      // Surface the process-tracker richness (per-step notes, uploaded docs and
+      // pasted links) as flat, reportable fields.
+      const tr=c.process_tracker||{}; let docs=0, links=0; const notes=[];
+      Object.values(tr).forEach(st=>{ docs+=(st?.docs?.length||0); links+=(st?.links?.length||0); if(st?.note && String(st.note).trim()) notes.push(String(st.note).trim()); });
+      return {...c, documents_count:docs, links_count:links, tracker_notes:notes.join(' | ')};
+    }));
     // Flatten quotes into report-friendly rows (a quote is "finalised" once
     // the broker converts it — status 'confirmed').
     setQuotes(qS.docs.map(d=>{
@@ -971,13 +1089,14 @@ const ReportsPage = () => {
     return [...CLIENT_FIELDS, ...extras];
   }, [clients]);
 
-  const fieldsFor = (src) => src === 'clients' ? clientFields : src === 'claims' ? CLAIM_FIELDS : QUOTE_FIELDS;
+  const fieldsFor = (src) => src === 'clients' ? clientFields : src === 'claims' ? CLAIM_FIELDS : src === 'endorsements' ? ENDORSEMENT_FIELDS : src === 'payments' ? PAYMENT_FIELDS : QUOTE_FIELDS;
   const sourceFields = fieldsFor(source);
+  const datasetFor = (src) => src === 'clients' ? clients : src === 'claims' ? claims : src === 'endorsements' ? endoRows : src === 'payments' ? payRows : quotes;
 
   // Distinct values actually present in the data for a field, so filter values
   // can be picked from a dropdown instead of typed blind.
   const distinctValues = useCallback((fieldKey) => {
-    const base = source === 'clients' ? clients : source === 'claims' ? claims : quotes;
+    const base = source === 'clients' ? clients : source === 'claims' ? claims : source === 'endorsements' ? endoRows : source === 'payments' ? payRows : quotes;
     const set = new Set();
     for (const row of base) {
       let v = row?.[fieldKey];
@@ -990,17 +1109,20 @@ const ReportsPage = () => {
     // Customer type always offers the full canonical set, even if some aren't in the data yet.
     if (fieldKey === 'customer_type') CUSTOMER_TYPES.forEach(t => set.add(t));
     return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [source, clients, claims, quotes]);
+  }, [source, clients, claims, quotes, endoRows, payRows]);
 
   // Compute report results from an explicit config + the current datasets/period.
   // Used by both the Run button and by running a template directly, so a template
   // run never depends on React state that hasn't updated yet.
   const buildResults = (cfg) => {
-    const base = cfg.source==='clients'?clients:cfg.source==='claims'?claims:quotes;
+    const base = datasetFor(cfg.source);
     const from = periodFrom ? new Date(new Date(periodFrom).setHours(0,0,0,0)) : null;
     const to   = periodTo   ? new Date(new Date(periodTo).setHours(23,59,59,999)) : null;
-    // Clients can filter on policy dates; claims/quotes only have a creation date.
-    const dateField = cfg.source==='clients' ? (cfg.periodField||periodField) : 'created_at';
+    // Clients filter on policy dates, endorsements on their effective date,
+    // payments on their payment date, the rest on their creation date.
+    const dateField = cfg.source==='clients' ? (cfg.periodField||periodField)
+      : cfg.source==='endorsements' ? 'effective_date'
+      : cfg.source==='payments' ? 'payment_date' : 'created_at';
     const raw = (from||to) ? base.filter(r=>{
       const v=r[dateField]; const d=v?.toDate?v.toDate():(v?new Date(v):null);
       if(!d||isNaN(d)) return false;
@@ -1181,7 +1303,7 @@ const ReportsPage = () => {
   const rowSx = (row) => {
     if (row._type==='grandtotal') return { bgcolor:'#0A1A3E','& td':{color:'#fff',fontWeight:800,borderBottom:'none'} };
     if (row._type==='subtotal')   return { bgcolor:'rgba(99,102,241,0.08)','& td':{color:'#4338ca',fontWeight:700,fontStyle:'italic'} };
-    return { '&:nth-of-type(even)':{ bgcolor:'rgba(242, 247, 252,0.6)' }, '&:hover':{ bgcolor:'rgba(37, 94, 171,0.04)' } };
+    return { '&:nth-of-type(even)':{ bgcolor:'rgba(242,247,252,0.6)' }, '&:hover':{ bgcolor:'rgba(37,94,171,0.04)' } };
   };
 
   const totalDataRows = results ? results.filter(r=>!r._type||r._type==='data').length : 0;
@@ -1198,7 +1320,7 @@ const ReportsPage = () => {
         </Box>
         <Stack direction="row" spacing={1} flexWrap="wrap">
           <Button size="small" variant="outlined" startIcon={<RefreshIcon/>} onClick={loadData} disabled={loading}
-            sx={{fontSize:12,borderColor:'rgba(56, 163, 224,0.35)',color:'#38A3E0'}}>{loading?'Loading…':'Refresh'}</Button>
+            sx={{fontSize:12,borderColor:'rgba(56,163,224,0.35)',color:'#38A3E0'}}>{loading?'Loading…':'Refresh'}</Button>
           {results&&<>
             <Button size="small" variant="outlined" startIcon={<PictureAsPdfOutlinedIcon/>}
               onClick={()=>exportPDF(displayCols,results,saveName||'Report',allChartEls())}
@@ -1214,7 +1336,7 @@ const ReportsPage = () => {
         </Stack>
       </Stack>
 
-      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(56, 163, 224,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#255EAB'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#255EAB,#38A3E0)',height:2.5}}}>
+      <Tabs value={tab} onChange={(_,v)=>setTab(v)} sx={{mb:2.5,borderBottom:'1px solid rgba(56,163,224,0.12)','& .MuiTab-root':{fontSize:13,fontWeight:600,textTransform:'none',color:'#9CA3AF'},'& .Mui-selected':{color:'#255EAB'},'& .MuiTabs-indicator':{background:'linear-gradient(90deg,#255EAB,#38A3E0)',height:2.5}}}>
         <Tab icon={<BookmarkIcon sx={{fontSize:17}}/>} iconPosition="start" label={`Templates (${BUILTIN_TEMPLATES.length+savedTemplates.length})`}/>
         <Tab icon={<TuneIcon sx={{fontSize:17}}/>} iconPosition="start" label="Report Builder"/>
       </Tabs>
@@ -1224,7 +1346,7 @@ const ReportsPage = () => {
 
           {/* ── Config panel ── */}
           <Box sx={{width:{xs:'100%',lg:340},flexShrink:0}}>
-            <Card sx={{border:'1px solid rgba(56, 163, 224,0.12)',mb:2}}>
+            <Card sx={{border:'1px solid rgba(56,163,224,0.12)',mb:2}}>
               <CardContent sx={{p:2.5}}>
 
                 {/* Source */}
@@ -1232,6 +1354,8 @@ const ReportsPage = () => {
                 <FormControl fullWidth size="small" sx={{mb:2.5}}>
                   <Select value={source} onChange={e=>{setSource(e.target.value);setSelFields([]);setGroupBy('');setAggregations([]);setFilters([]);setResults(null);setPivotData(null);}}>
                     <MenuItem value="clients">Underwriting (Clients)</MenuItem>
+                    <MenuItem value="endorsements">Endorsements</MenuItem>
+                    <MenuItem value="payments">Payments</MenuItem>
                     <MenuItem value="claims">Claims</MenuItem>
                     <MenuItem value="quotes">Quotations</MenuItem>
                   </Select>
@@ -1270,9 +1394,12 @@ const ReportsPage = () => {
 
                 {/* Fields */}
                 <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Fields to Show</Typography>
+                <TextField size="small" fullWidth placeholder="Search fields…" value={fieldSearch} onChange={e=>setFieldSearch(e.target.value)}
+                  InputProps={{startAdornment:(<InputAdornment position="start"><SearchIcon sx={{fontSize:16,color:'#9CA3AF'}}/></InputAdornment>)}}
+                  sx={{mb:1,'& .MuiOutlinedInput-root':{fontSize:12,borderRadius:'8px'}}}/>
                 <Box sx={{maxHeight:180,overflowY:'auto',border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px',p:1,mb:1}}>
-                  {sourceFields.map(f=>(
-                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={selFields.includes(f.key)} onChange={()=>setSelFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#38A3E0','&.Mui-checked':{color:'#255EAB'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
+                  {sourceFields.filter(f=>f.label.toLowerCase().includes(fieldSearch.trim().toLowerCase())).map(f=>(
+                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={selFields.includes(f.key)} onChange={()=>setSelFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#38A3E0','&.Mui-checked':{color:'#255EAB'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'flex',alignItems:'center',m:0,py:0.2}}/>
                   ))}
                 </Box>
                 <Stack direction="row" spacing={1} sx={{mb:2.5}}>
@@ -1282,9 +1409,12 @@ const ReportsPage = () => {
 
                 {/* Summary cards — choose which numeric totals appear in the top boxes */}
                 <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Summary Cards (totals)</Typography>
+                <TextField size="small" fullWidth placeholder="Search totals…" value={summarySearch} onChange={e=>setSummarySearch(e.target.value)}
+                  InputProps={{startAdornment:(<InputAdornment position="start"><SearchIcon sx={{fontSize:16,color:'#9CA3AF'}}/></InputAdornment>)}}
+                  sx={{mb:1,'& .MuiOutlinedInput-root':{fontSize:12,borderRadius:'8px'}}}/>
                 <Box sx={{maxHeight:140,overflowY:'auto',border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px',p:1,mb:0.5}}>
-                  {sourceFields.filter(f=>f.type==='number').map(f=>(
-                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={summaryFields.includes(f.key)} onChange={()=>setSummaryFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#6366f1','&.Mui-checked':{color:'#6366f1'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'block',m:0,py:0.2}}/>
+                  {sourceFields.filter(f=>f.type==='number'&&f.label.toLowerCase().includes(summarySearch.trim().toLowerCase())).map(f=>(
+                    <FormControlLabel key={f.key} control={<Checkbox size="small" checked={summaryFields.includes(f.key)} onChange={()=>setSummaryFields(p=>p.includes(f.key)?p.filter(k=>k!==f.key):[...p,f.key])} sx={{color:'#6366f1','&.Mui-checked':{color:'#6366f1'},p:0.5}}/>} label={<Typography sx={{fontSize:12}}>{f.label}</Typography>} sx={{display:'flex',alignItems:'center',m:0,py:0.2}}/>
                   ))}
                 </Box>
                 <Typography sx={{fontSize:10.5,color:'#9CA3AF',mb:2.5}}>
@@ -1410,7 +1540,12 @@ const ReportsPage = () => {
                     return(
                       <Box key={i} sx={{p:1.5,border:'1px solid rgba(0,0,0,0.08)',borderRadius:'8px'}}>
                         <Stack direction="row" spacing={0.5} alignItems="center" sx={{mb:0.8}}>
-                          <FormControl size="small" sx={{flex:1}}><Select value={f.field} onChange={e=>setFilters(p=>p.map((ff,idx)=>idx===i?{field:e.target.value,op:'equals',value:''}:ff))}>{sourceFields.map(sf=><MenuItem key={sf.key} value={sf.key} sx={{fontSize:12}}>{sf.label}</MenuItem>)}</Select></FormControl>
+                          <Autocomplete size="small" disableClearable options={sourceFields}
+                            getOptionLabel={o=>o.label||''} value={fd||null}
+                            isOptionEqualToValue={(o,v)=>o.key===v.key}
+                            onChange={(_,val)=>{ if(val) setFilters(p=>p.map((ff,idx)=>idx===i?{field:val.key,op:'equals',value:''}:ff)); }}
+                            sx={{flex:1}}
+                            renderInput={(params)=><TextField {...params} placeholder="Search field…" sx={{'& input':{fontSize:12}}}/>}/>
                           <IconButton size="small" onClick={()=>setFilters(p=>p.filter((_,idx)=>idx!==i))} sx={{color:'#9CA3AF'}}><DeleteOutlineIcon fontSize="small"/></IconButton>
                         </Stack>
                         <Stack direction="row" spacing={0.5} flexWrap="wrap">
@@ -1492,7 +1627,7 @@ const ReportsPage = () => {
             {!dataLoaded&&<Stack spacing={1}>{[1,2,3].map(i=><Skeleton key={i} height={56} sx={{borderRadius:'10px'}}/>)}</Stack>}
 
             {dataLoaded&&!results&&(
-              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(37, 94, 171,0.03)',borderRadius:'16px',border:'1px dashed rgba(56, 163, 224,0.20)'}}>
+              <Box sx={{textAlign:'center',py:8,bgcolor:'rgba(37,94,171,0.03)',borderRadius:'16px',border:'1px dashed rgba(56,163,224,0.20)'}}>
                 <Typography sx={{fontSize:40,mb:1}}>📊</Typography>
                 <Typography sx={{fontWeight:700,fontSize:15,color:'#0A1A3E',mb:0.5}}>Configure and run your report</Typography>
                 <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Select fields, set a view mode, add filters, then click Run Report</Typography>
@@ -1514,7 +1649,7 @@ const ReportsPage = () => {
                       ...chosen.map(c=>({
                         label:c.label,
                         val:fmtNum(dataRows.reduce((a,r)=>a+parseNum(r[c.key]),0)),
-                        color:'#255EAB',bg:'rgba(37, 94, 171,0.05)',
+                        color:'#255EAB',bg:'rgba(37,94,171,0.05)',
                       })),
                     ];
                   })().map((s,i)=>(
@@ -1551,9 +1686,9 @@ const ReportsPage = () => {
 
                 {/* Pivot Table */}
                 {viewMode==='pivot'&&pivotData&&(
-                  <Card sx={{border:'1px solid rgba(56, 163, 224,0.12)',mb:2}}>
+                  <Card sx={{border:'1px solid rgba(56,163,224,0.12)',mb:2}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(56, 163, 224,0.08)'}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(56,163,224,0.08)'}}>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Pivot: {sourceFields.find(f=>f.key===groupBy)?.label} × {sourceFields.find(f=>f.key===pivotColField)?.label} → {sourceFields.find(f=>f.key===pivotValField)?.label} ({pivotValOp})
                         </Typography>
@@ -1570,8 +1705,8 @@ const ReportsPage = () => {
                           <TableBody>
                             {pivotData.pivotRows.map((row,i)=>(
                               <TableRow key={i} sx={row._type==='pivottotal'?{bgcolor:'#0A1A3E','& td':{color:'#fff',fontWeight:800}}:{
-                                '&:nth-of-type(even)':{bgcolor:'rgba(242, 247, 252,0.6)'},
-                                '&:hover':{bgcolor:'rgba(37, 94, 171,0.04)'},
+                                '&:nth-of-type(even)':{bgcolor:'rgba(242,247,252,0.6)'},
+                                '&:hover':{bgcolor:'rgba(37,94,171,0.04)'},
                               }}>
                                 <TableCell sx={{fontSize:12.5,fontWeight:row._type==='pivottotal'?800:600,py:1,whiteSpace:'nowrap'}}>{row._rowLabel}</TableCell>
                                 {pivotData.colValues.map(cv=><TableCell key={cv} sx={{fontSize:12.5,py:1,textAlign:'right',fontFamily:'monospace'}}>{fmtNum(row[`_p_${cv}`])}</TableCell>)}
@@ -1587,9 +1722,9 @@ const ReportsPage = () => {
 
                 {/* Flat / Subtotals / Aggregated table */}
                 {viewMode!=='pivot'&&(
-                  <Card sx={{border:'1px solid rgba(56, 163, 224,0.12)'}}>
+                  <Card sx={{border:'1px solid rgba(56,163,224,0.12)'}}>
                     <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
-                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(56, 163, 224,0.08)',display:'flex',alignItems:'center',gap:1}}>
+                      <Box sx={{px:2.5,py:1.5,borderBottom:'1px solid rgba(56,163,224,0.08)',display:'flex',alignItems:'center',gap:1}}>
                         <TableChartOutlinedIcon sx={{color:'#9CA3AF',fontSize:18}}/>
                         <Typography sx={{fontWeight:700,fontSize:14}}>
                           Data ({totalDataRows} rows{viewMode==='subtotals'&&groupBy?', with subtotals':''})
@@ -1606,7 +1741,7 @@ const ReportsPage = () => {
                             {pagedResults.map((row,i)=>(
                               <TableRow key={i} sx={rowSx(row)}>
                                 {displayCols.map(c=>(
-                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(56, 163, 224,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
+                                  <TableCell key={c.key} sx={{fontSize:12.5,py:1,borderBottom:'1px solid rgba(56,163,224,0.07)',textAlign:c.type==='number'?'right':'left',fontFamily:c.type==='number'?'monospace':'inherit'}}>
                                     {row._type==='subtotal'&&c===displayCols[0]?`↳ Subtotal: ${row[c.key]||''}`:
                                      row._type==='grandtotal'&&c===displayCols[0]?'GRAND TOTAL':
                                      renderCell(c,row)}
@@ -1620,7 +1755,7 @@ const ReportsPage = () => {
                       {viewMode!=='subtotals'&&results.length>R_PER_PAGE&&(
                         <Box sx={{display:'flex',justifyContent:'center',py:1.5}}>
                           <Pagination count={Math.ceil(results.length/R_PER_PAGE)} page={rPage} onChange={(_,v)=>setRPage(v)} size="small"
-                            sx={{'& .Mui-selected':{bgcolor:'rgba(37, 94, 171,0.12) !important',color:'#255EAB',fontWeight:700}}}/>
+                            sx={{'& .Mui-selected':{bgcolor:'rgba(37,94,171,0.12) !important',color:'#255EAB',fontWeight:700}}}/>
                         </Box>
                       )}
                     </CardContent>
@@ -1638,7 +1773,7 @@ const ReportsPage = () => {
           <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:1,mb:1.5}}>Built-in Reports</Typography>
           <Stack spacing={1.5} sx={{mb:3}}>
             {BUILTIN_TEMPLATES.map(tpl=>(
-              <Card key={tpl.id} sx={{border:'1px solid rgba(56, 163, 224,0.12)'}}>
+              <Card key={tpl.id} sx={{border:'1px solid rgba(56,163,224,0.12)'}}>
                 <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                   <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                     <Typography sx={{fontSize:22}}>{tpl.icon}</Typography>
@@ -1659,14 +1794,14 @@ const ReportsPage = () => {
           </Stack>
           {savedTemplates.length===0?(
             <Box sx={{textAlign:'center',py:6,border:'1px dashed rgba(0,0,0,0.12)',borderRadius:'12px'}}>
-              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(37, 94, 171,0.2)',mb:1}}/>
+              <BookmarkOutlinedIcon sx={{fontSize:42,color:'rgba(37,94,171,0.2)',mb:1}}/>
               <Typography sx={{fontWeight:700,color:'#374151',mb:0.5}}>No saved templates yet</Typography>
               <Typography sx={{fontSize:13,color:'#9CA3AF'}}>Open the Report Builder, design a report and click "Save Template" — it will appear here.</Typography>
             </Box>
           ):(
             <Stack spacing={1.5}>
               {savedTemplates.map(tpl=>(
-                <Card key={tpl.id} sx={{border:'1px solid rgba(56, 163, 224,0.12)'}}>
+                <Card key={tpl.id} sx={{border:'1px solid rgba(56,163,224,0.12)'}}>
                   <CardContent sx={{p:0,'&:last-child':{pb:0}}}>
                     <Box sx={{px:2.5,py:1.5,display:'flex',alignItems:'center',gap:1.5}}>
                       <Box sx={{flex:1,minWidth:0}}>
@@ -1674,7 +1809,7 @@ const ReportsPage = () => {
                         {tpl.description&&<Typography sx={{fontSize:12,color:'#9CA3AF'}}>{tpl.description}</Typography>}
                         <Stack direction="row" spacing={0.8} sx={{mt:0.5}} flexWrap="wrap">
                           <Chip label={tpl.source} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>
-                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(37, 94, 171,0.08)',color:'#255EAB'}}/>
+                          <Chip label={tpl.viewMode||'flat'} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(37,94,171,0.08)',color:'#255EAB'}}/>
                           {tpl.groupBy&&<Chip label={`By ${tpl.groupBy}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(16,185,129,0.08)',color:'#059669'}}/>}
                           {tpl.charts?.length>0&&<Chip label={`${tpl.charts.length} chart${tpl.charts.length!==1?'s':''}`} size="small" sx={{fontSize:10,height:18,bgcolor:'rgba(99,102,241,0.08)',color:'#6366f1'}}/>}
                         </Stack>

@@ -30,6 +30,7 @@ const QuoteResponsePage= lazy(() => import('./pages/QuoteResponsePage'));
 const QuoteSelectPage     = lazy(() => import('./pages/QuoteSelectPage'));
 const ComparisonPdfPage   = lazy(() => import('./pages/ComparisonPdfPage'));
 const RenewalsPage     = lazy(() => import('./pages/RenewalsPage'));
+const CommissionStructuresPage = lazy(() => import('./pages/CommissionStructuresPage'));
 const ClaimsPage       = lazy(() => import('./pages/ClaimsPage'));
 const MarketingPage    = lazy(() => import('./pages/MarketingPage'));
 const PortfolioPage    = lazy(() => import('./pages/PortfolioPage'));
@@ -65,10 +66,10 @@ const theme = createTheme({
         },
         containedPrimary: {
           background: 'linear-gradient(135deg, #1D4E96 0%, #2E76C4 100%)',
-          boxShadow: '0 4px 12px rgba(29, 78, 150,0.25)',
+          boxShadow: '0 4px 12px rgba(29,78,150,0.25)',
           '&:hover': {
             background: 'linear-gradient(135deg, #163C77 0%, #164B8F 100%)',
-            boxShadow: '0 6px 18px rgba(29, 78, 150,0.35)',
+            boxShadow: '0 6px 18px rgba(29,78,150,0.35)',
             transform: 'translateY(-1px)',
           },
           '&:active': { transform: 'translateY(0)' },
@@ -85,25 +86,25 @@ const theme = createTheme({
         outlinedPrimary: {
           borderColor: 'rgba(46,118,196,0.45)',
           color: '#1D4E96',
-          '&:hover': { borderColor: '#1D4E96', background: 'rgba(29, 78, 150,0.05)' },
+          '&:hover': { borderColor: '#1D4E96', background: 'rgba(29,78,150,0.05)' },
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 2px 20px rgba(37, 94, 171,0.07)',
+          boxShadow: '0 2px 20px rgba(37,94,171,0.07)',
           borderRadius: 14,
-          border: '1px solid rgba(56, 163, 224,0.10)',
+          border: '1px solid rgba(56,163,224,0.10)',
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: { borderRadius: 14 },
-        elevation1: { boxShadow: '0 2px 20px rgba(37, 94, 171,0.07)' },
-        elevation2: { boxShadow: '0 4px 28px rgba(37, 94, 171,0.10)' },
-        elevation6: { boxShadow: '0 8px 40px rgba(37, 94, 171,0.14)' },
+        elevation1: { boxShadow: '0 2px 20px rgba(37,94,171,0.07)' },
+        elevation2: { boxShadow: '0 4px 28px rgba(37,94,171,0.10)' },
+        elevation6: { boxShadow: '0 8px 40px rgba(37,94,171,0.14)' },
       },
     },
     MuiTextField: {
@@ -127,7 +128,7 @@ const theme = createTheme({
       styleOverrides: {
         paper: {
           borderRadius: 18,
-          boxShadow: '0 24px 64px rgba(37, 94, 171,0.18)',
+          boxShadow: '0 24px 64px rgba(37,94,171,0.18)',
         },
       },
     },
@@ -160,14 +161,14 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           transition: 'background 0.15s ease',
-          '&:hover td': { background: 'rgba(56, 163, 224,0.05)' },
+          '&:hover td': { background: 'rgba(56,163,224,0.05)' },
         },
       },
     },
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: '1px solid rgba(56, 163, 224,0.08)',
+          borderBottom: '1px solid rgba(56,163,224,0.08)',
           fontSize: 13,
           padding: '12px 16px',
         },
@@ -185,7 +186,7 @@ const theme = createTheme({
           '& .Mui-selected': {
             background: 'linear-gradient(135deg, #255EAB, #38A3E0)',
             color: '#fff',
-            boxShadow: '0 2px 8px rgba(37, 94, 171,0.3)',
+            boxShadow: '0 2px 8px rgba(37,94,171,0.3)',
           },
         },
       },
@@ -230,7 +231,7 @@ function SessionGuard({ children }) {
             Click "Stay Logged In" to continue your session.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(56, 163, 224,0.10)' }}>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid rgba(56,163,224,0.10)' }}>
           <Button onClick={logout} variant="outlined"
             sx={{ fontSize: 13, borderColor: '#e0e0e0', color: '#6B7280' }}>
             Log Out Now
@@ -388,7 +389,7 @@ function RequireAuth({ children }) {
                          borderRadius: '10px', p: 1.5, fontFamily: 'monospace' }}>
           Device ID: {deviceId ? deviceId.slice(0, 18) + '…' : '…'}
         </Typography>
-        <Button variant="outlined" onClick={() => logoutWithSessionClose(auth)} sx={{ mt: 3, borderColor: 'rgba(56, 163, 224,0.4)', color: '#38A3E0', fontSize: 13 }}>
+        <Button variant="outlined" onClick={() => logoutWithSessionClose(auth)} sx={{ mt: 3, borderColor: 'rgba(56,163,224,0.4)', color: '#38A3E0', fontSize: 13 }}>
           Sign Out
         </Button>
       </Box>
@@ -587,6 +588,7 @@ function App() {
                               <Route path="/admin"         element={<AdminPanel />} />
                               <Route path="/quotations"    element={<ModuleGuard mod="quotations"><QuotationsPage /></ModuleGuard>} />
                               <Route path="/renewals"      element={<ModuleGuard mod="renewals"><RenewalsPage /></ModuleGuard>} />
+                              <Route path="/commission-structures" element={<ModuleGuard mod="commstructures"><CommissionStructuresPage /></ModuleGuard>} />
                               <Route path="/claims"        element={<ModuleGuard mod="claims"><ClaimsPage /></ModuleGuard>} />
                               <Route path="/marketing"     element={<ModuleGuard mod="marketing"><MarketingPage /></ModuleGuard>} />
                               <Route path="/portfolio"     element={<ModuleGuard mod="portfolio"><PortfolioPage /></ModuleGuard>} />

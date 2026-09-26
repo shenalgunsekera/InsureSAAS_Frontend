@@ -1771,6 +1771,7 @@ export const MODULES = [
   { key: 'accounting',   label: 'Accounting',         icon: '💰', description: 'Premiums, commissions and payments' },
   { key: 'reports',      label: 'Reports',            icon: '📊', description: 'Analytics and data exports' },
   { key: 'renewals',     label: 'Renewals Tracker',   icon: '🔄', description: 'Upcoming renewals and alerts' },
+  { key: 'commstructures', label: 'Commission Structures', icon: '📉', description: 'Declining commission scales by policy year' },
   { key: 'marketing',    label: 'Marketing',          icon: '📣', description: 'WhatsApp bulk campaigns and client messaging' },
   { key: 'portfolio',    label: 'Portfolio Review',   icon: '🗂️', description: 'Customer portfolio risk assessment and recommendations' },
 ];
@@ -1782,6 +1783,7 @@ export const DEFAULT_MODULE_ACCESS = {
   accounting:   ['admin', 'manager', 'employee'],
   reports:      ['admin', 'manager', 'employee'],
   renewals:     ['admin', 'manager', 'employee'],
+  commstructures: ['admin', 'manager'],
   marketing:    ['admin', 'manager', 'employee'],
   portfolio:    ['admin', 'manager', 'employee'],
 };

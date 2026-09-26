@@ -4,7 +4,7 @@ import { liveOsDays } from '../utils/osDays';
 import { liveCommission } from '../utils/commission';
 import { PRODUCTS } from '../config/products';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -25,6 +25,8 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import HistoryEduOutlinedIcon from '@mui/icons-material/HistoryEduOutlined';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import Collapse from '@mui/material/Collapse';
 
 const docFields = [
   { label:'Policyholder',     doc:'policyholder_doc_url',     text:'policyholder_text' },
@@ -89,7 +91,7 @@ function SubHeader({ title }) {
       <Typography sx={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.8, mb: -0.5, mt: 0.5 }}>
         {title}
       </Typography>
-      <Divider sx={{ mb: 1, borderColor: 'rgba(56, 163, 224,0.15)' }} />
+      <Divider sx={{ mb: 1, borderColor: 'rgba(56,163,224,0.15)' }} />
     </Grid>
   );
 }
@@ -97,7 +99,7 @@ function SubHeader({ title }) {
 function FinancialRow({ label, value }) {
   const fmt = v => fmtLKRv(v);
   return (
-    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(56, 163, 224,0.08)' }}>
+    <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center', py:1, borderBottom:'1px solid rgba(56,163,224,0.08)' }}>
       <Typography sx={{ fontSize:13, color:'#6B7280' }}>{label}</Typography>
       <Typography sx={{ fontSize:13, fontWeight:700, color:'#0A1A3E' }}>{fmt(value)}</Typography>
     </Box>
@@ -108,10 +110,10 @@ function DocCard({ label, url, description }) {
   return (
     <Box sx={{
       p:1.5, borderRadius:'12px',
-      border:`1px solid ${url ? 'rgba(56, 163, 224,0.25)' : 'rgba(0,0,0,0.06)'}`,
-      bgcolor: url ? 'rgba(242, 247, 252,0.8)' : '#FAFAFA',
+      border:`1px solid ${url ? 'rgba(56,163,224,0.25)' : 'rgba(0,0,0,0.06)'}`,
+      bgcolor: url ? 'rgba(242,247,252,0.8)' : '#FAFAFA',
       transition:'all 0.2s ease',
-      '&:hover': url ? { boxShadow:'0 4px 16px rgba(37, 94, 171,0.10)', transform:'translateY(-1px)' } : {},
+      '&:hover': url ? { boxShadow:'0 4px 16px rgba(37,94,171,0.10)', transform:'translateY(-1px)' } : {},
     }}>
       <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', mb:0.5 }}>
         <Typography sx={{ fontSize:12, fontWeight:700, color:'#374151' }}>{label}</Typography>
@@ -152,6 +154,8 @@ const ClientDetailsModal = ({ client, onClose }) => {
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const contentRef = React.useRef(null);
   const [tab, setTab] = useState(0);
+  const [expandedEndos, setExpandedEndos] = useState({}); // per-endorsement detail dropdown
+  const toggleEndo = (id) => setExpandedEndos(m => ({ ...m, [id]: !m[id] }));
 
   // Endorsements — kept in local state so the modal (and its PDF/Excel) reflect
   // edits immediately; each change is also persisted to the client document.
@@ -172,6 +176,42 @@ const ClientDetailsModal = ({ client, onClose }) => {
     }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Commission rate schedules (per-product, per-date-range) from the admin
+  // Commissions tab; passed to liveCommission so the displayed standard
+  // commission uses the rate in force at this policy's start date.
+  const [commissionSchedules, setCommissionSchedules] = useState({});
+  React.useEffect(() => {
+    let alive = true;
+    getDoc(doc(db, 'settings', 'commission_rates')).then(snap => {
+      if (alive && snap.exists()) setCommissionSchedules(snap.data().products || {});
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Renewal family — the original "New" policy (root) plus all its renewals, so the
+  // view can show and link the whole chain regardless of which one is open.
+  const [renewalKin, setRenewalKin] = useState([]);
+  const rootId = client ? (client.root_policy_id || client.id) : '';
+  React.useEffect(() => {
+    let alive = true;
+    if (!rootId) { setRenewalKin([]); return; }
+    (async () => {
+      try {
+        const [rootSnap, kidsSnap] = await Promise.all([
+          getDoc(doc(db, 'clients', rootId)),
+          getDocs(query(collection(db, 'clients'), where('root_policy_id', '==', rootId))),
+        ]);
+        const map = {};
+        if (rootSnap.exists()) map[rootSnap.id] = { id: rootSnap.id, ...rootSnap.data() };
+        kidsSnap.docs.forEach(d => { if (d.id !== rootId) map[d.id] = { id: d.id, ...d.data() }; });
+        const fam = Object.values(map).sort((a, b) =>
+          (a.id === rootId ? -1 : b.id === rootId ? 1 : String(a.created_at?.seconds || a.created_at || '').localeCompare(String(b.created_at?.seconds || b.created_at || ''))));
+        if (alive) setRenewalKin(fam);
+      } catch { if (alive) setRenewalKin([]); }
+    })();
+    return () => { alive = false; };
+  }, [rootId]);
 
   if (!client) return null;
 
@@ -264,9 +304,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
       };
 
       const drawHeader = () => {
-        pdf.setFillColor(10, 26, 62);  pdf.rect(0,0,pw,20,'F');
-        pdf.setFillColor(29, 78, 150); pdf.rect(0,20,pw,2.5,'F');
-        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(56, 163, 224);
+        pdf.setFillColor(10,26,62);  pdf.rect(0,0,pw,20,'F');
+        pdf.setFillColor(29,78,150); pdf.rect(0,20,pw,2.5,'F');
+        pdf.setFontSize(11); pdf.setFont('helvetica','bold'); pdf.setTextColor(56,163,224);
         pdf.text('INSURESAAS INSURANCE BROKERS (PVT) LTD', pw/2, 9, {align:'center'});
         pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(148,163,184);
         pdf.text('INSURANCE BROKING & RISK MANAGEMENT  ·  SRI LANKA', pw/2, 15.5, {align:'center'});
@@ -275,9 +315,9 @@ const ClientDetailsModal = ({ client, onClose }) => {
       const drawFooter = () => {
         const pn = pdf.internal.getCurrentPageInfo().pageNumber;
         const tp = pdf.internal.getNumberOfPages();
-        pdf.setFillColor(10, 26, 62);  pdf.rect(0, ph-14, pw, 14, 'F');
-        pdf.setFillColor(29, 78, 150); pdf.rect(0, ph-14, pw, 1,  'F');
-        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(56, 163, 224);
+        pdf.setFillColor(10,26,62);  pdf.rect(0, ph-14, pw, 14, 'F');
+        pdf.setFillColor(29,78,150); pdf.rect(0, ph-14, pw, 1,  'F');
+        pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(56,163,224);
         pdf.text('InsureSAAS Insurance Brokers (Pvt) Ltd', 12, ph-8);
         pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(107,114,128);
         pdf.text(`Page ${pn} / ${tp}`, pw-12, ph-8, {align:'right'});
@@ -287,13 +327,13 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       drawHeader();
       pdf.setFillColor(249,250,251); pdf.rect(0, 22.5+TAB_H, pw, 13, 'F');
-      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(10, 26, 62);
+      pdf.setFontSize(10); pdf.setFont('helvetica','bold'); pdf.setTextColor(10,26,62);
       pdf.text('UNDERWRITING RECORD', 14, 30.5+TAB_H);
       pdf.setFontSize(7.5); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128);
       const fileRef = [client.insuresaas_ib_file_no && `File: ${client.insuresaas_ib_file_no}`, client.policy_no && `Policy: ${client.policy_no}`].filter(Boolean).join('   ·   ');
       if (fileRef) pdf.text(fileRef, pw-14, 30.5+TAB_H, {align:'right'});
 
-      pdf.setFillColor(29, 78, 150); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
+      pdf.setFillColor(29,78,150); pdf.rect(0, 35.5+TAB_H, pw, 15, 'F');
       pdf.setFontSize(13); pdf.setFont('helvetica','bold'); pdf.setTextColor(255,255,255);
       pdf.text(client.client_name || '—', 14, 44.5+TAB_H);
       const tags = [client.main_class, client.product, client.customer_type].filter(Boolean);
@@ -311,7 +351,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
       let y = 55 + TAB_H;
       const tableOpts = (startY) => ({
         startY,
-        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[242, 247, 252], textColor:[55,65,81]}, 1:{textColor:[10, 26, 62]} },
+        columnStyles: { 0:{cellWidth:58, fontStyle:'bold', fillColor:[242,247,252], textColor:[55,65,81]}, 1:{textColor:[10,26,62]} },
         styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
         bodyStyles: { fillColor:[255,255,255] },
         alternateRowStyles: { fillColor:[255,252,250] },
@@ -325,7 +365,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         startSec(sectionKey);
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:title, colSpan:2, styles:{fillColor:[10, 26, 62],textColor:[56, 163, 224],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:title, colSpan:2, styles:{fillColor:[10,26,62],textColor:[56,163,224],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: filtered,
         });
         y = pdf.lastAutoTable.finalY + 5;
@@ -422,12 +462,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
       if (finRows.length || client.total_invoice) {
         autoTable(pdf, {
           ...tableOpts(y),
-          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[10, 26, 62],textColor:[56, 163, 224],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
+          head: [[{ content:'PREMIUM', colSpan:2, styles:{fillColor:[10,26,62],textColor:[56,163,224],fontStyle:'bold',fontSize:8.5,cellPadding:{top:3.5,bottom:3.5,left:6,right:6}} }]],
           body: [...finRows, [
-            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[29, 78, 150],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
-            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[29, 78, 150],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content:'TOTAL PREMIUM', styles:{fontStyle:'bold',fontSize:10.5,fillColor:[29,78,150],textColor:[255,255,255],cellPadding:{top:5,bottom:5,left:6,right:6}} },
+            { content: fmtLKR(client.total_invoice), styles:{fontStyle:'bold',fontSize:10.5,fillColor:[29,78,150],textColor:[255,255,255],halign:'right',cellPadding:{top:5,bottom:5,left:6,right:6}} },
           ]],
-          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[242, 247, 252],textColor:[55,65,81]}, 1:{halign:'right',textColor:[10, 26, 62]} },
+          columnStyles: { 0:{cellWidth:65,fontStyle:'bold',fillColor:[242,247,252],textColor:[55,65,81]}, 1:{halign:'right',textColor:[10,26,62]} },
           styles: { fontSize:9, cellPadding:{top:3,bottom:3,left:6,right:6}, lineColor:[255,220,200], lineWidth:0.1 },
           bodyStyles: { fillColor:[255,255,255] },
           alternateRowStyles: { fillColor:[255,252,250] },
@@ -485,10 +525,10 @@ const ClientDetailsModal = ({ client, onClose }) => {
         autoTable(pdf, {
           startY: y,
           head: [[
-            { content: 'ENDORSEMENT LOG', colSpan: 7, styles: { fillColor: [10, 26, 62], textColor: [56, 163, 224], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
+            { content: 'ENDORSEMENT LOG', colSpan: 9, styles: { fillColor: [10,26,62], textColor: [56,163,224], fontStyle: 'bold', fontSize: 8.5, cellPadding: { top:3.5, bottom:3.5, left:6, right:6 } } },
           ], [
             { content: '#' }, { content: 'Effective' }, { content: 'Type' }, { content: 'Description' },
-            { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' },
+            { content: 'Sum Insured' }, { content: 'Premium' }, { content: 'Commission' }, { content: 'Paid' }, { content: 'Paid Date' },
           ]],
           body: endorsements.map(e => {
             const premChange = endoNum(e.total_premium_change) + endoNum(e.premium_change);
@@ -500,10 +540,12 @@ const ClientDetailsModal = ({ client, onClose }) => {
               endoNum(e.sum_insured_change) ? fmtSigned(endoNum(e.sum_insured_change)) : '—',
               premChange ? fmtSigned(premChange) : '—',
               endoNum(e.commission_change) ? fmtSigned(endoNum(e.commission_change)) : '—',
+              endoNum(e.amount_paid) ? fmtLKR(endoNum(e.amount_paid)) : '—',
+              e.amount_paid_date || '—',
             ];
           }),
           headStyles: { fillColor: [124,58,237], textColor: [255,255,255], fontStyle: 'bold', fontSize: 7.5 },
-          columnStyles: { 0:{cellWidth:8, halign:'center'}, 1:{cellWidth:24}, 2:{cellWidth:30}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right'} },
+          columnStyles: { 0:{cellWidth:8, halign:'center'}, 1:{cellWidth:20}, 2:{cellWidth:26}, 4:{halign:'right'}, 5:{halign:'right'}, 6:{halign:'right'}, 7:{halign:'right'}, 8:{cellWidth:20} },
           styles: { fontSize: 8, cellPadding: { top:3, bottom:3, left:5, right:5 }, lineColor: [225,215,245], lineWidth: 0.1, overflow: 'linebreak' },
           bodyStyles: { fillColor: [255,255,255] },
           alternateRowStyles: { fillColor: [250,248,255] },
@@ -526,8 +568,8 @@ const ClientDetailsModal = ({ client, onClose }) => {
         let docY = 22.5 + TAB_H + 6, docCol = 0;
 
         const addDocPageHdr = (title) => {
-          pdf.setFillColor(10, 26, 62); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(56, 163, 224);
+          pdf.setFillColor(10,26,62); pdf.rect(margL, docY, pw-margL*2, 9, 'F');
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(56,163,224);
           pdf.text(title, pw/2, docY+6, {align:'center'});
           docY += 13;
         };
@@ -536,7 +578,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         for (const df of allPdfDocs) {
           if (docY + cellH > ph - 18) { pdf.addPage(); drawHeader(); docY = 28; docCol = 0; addDocPageHdr('UPLOADED DOCUMENTS (cont.)'); }
           const cx = margL + docCol*(colW+gap);
-          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(10, 26, 62);
+          pdf.setFontSize(8.5); pdf.setFont('helvetica','bold'); pdf.setTextColor(10,26,62);
           pdf.text(df.label, cx, docY+5);
           const note = df.text ? client[df.text] : null;
           if (note) { pdf.setFontSize(7); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128); pdf.text(note, cx, docY+10, {maxWidth:colW}); }
@@ -585,7 +627,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
         pdf.setFillColor(22,26,48); pdf.rect(0, 22.5, pw, TAB_H, 'F');
         PDF_TABS.forEach((t, idx) => {
           const tabX = idx * tabW, isAct = t.key === active;
-          if (isAct) { pdf.setFillColor(29, 78, 150); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
+          if (isAct) { pdf.setFillColor(29,78,150); pdf.rect(tabX, 22.5+TAB_H-1.5, tabW, 1.5, 'F'); }
           pdf.setFontSize(5.5); pdf.setFont('helvetica', isAct ? 'bold' : 'normal');
           const [r,g,b] = isAct ? [255,255,255] : [148,163,184];
           pdf.setTextColor(r,g,b);
@@ -708,14 +750,14 @@ const ClientDetailsModal = ({ client, onClose }) => {
         es.columns = [
           { header: '#', width: 6 }, { header: 'Effective Date', width: 16 }, { header: 'Type', width: 24 },
           { header: 'Description', width: 50 }, { header: 'Sum Insured Δ', width: 16 }, { header: 'Premium Δ', width: 16 },
-          { header: 'Commission Δ', width: 16 }, { header: 'Recorded By', width: 20 },
+          { header: 'Commission Δ', width: 16 }, { header: 'Amount Paid', width: 16 }, { header: 'Paid Date', width: 16 }, { header: 'Recorded By', width: 20 },
         ];
         es.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
         es.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF7C3AED' } };
         endorsements.forEach(e => {
           es.addRow([
             e.endorsement_no, e.effective_date || '', e.type || '', e.description || '',
-            endoNum(e.sum_insured_change) || '', (endoNum(e.total_premium_change) + endoNum(e.premium_change)) || '', endoNum(e.commission_change) || '', e.created_by || '',
+            endoNum(e.sum_insured_change) || '', (endoNum(e.total_premium_change) + endoNum(e.premium_change)) || '', endoNum(e.commission_change) || '', endoNum(e.amount_paid) || '', e.amount_paid_date || '', e.created_by || '',
           ]);
         });
         es.addRow([]);
@@ -935,7 +977,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
                 <FinancialRow label="VAT"             value={client.vat_fee} />
               </Box>
             </Box>
-            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(37, 94, 171,0.08),rgba(56, 163, 224,0.06))', border:'1px solid rgba(37, 94, 171,0.15)', mb:2 }}>
+            <Box sx={{ p:2, borderRadius:'12px', background:'linear-gradient(135deg,rgba(37,94,171,0.08),rgba(56,163,224,0.06))', border:'1px solid rgba(37,94,171,0.15)', mb:2 }}>
               <Typography sx={{ fontSize:12, color:'#9CA3AF', mb:0.5 }}>Total Premium</Typography>
               <Typography sx={{ fontSize:24, fontWeight:800, color:'#255EAB' }}>
                 LKR {Number(client.total_invoice || 0).toLocaleString()}
@@ -953,16 +995,23 @@ const ClientDetailsModal = ({ client, onClose }) => {
           </Box>
         );
       case 6: { /* Commission */
-        const lc = liveCommission(client);
+        const lc = liveCommission(client, commissionSchedules);
+        const isSpecial = client.commission_type === 'Special';
         return (
           <Grid container spacing={2.5}>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Type"         value={client.commission_type} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Basic Commission %"      value={lc.commission_pct} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Special Rate (+/- %)"    value={client.commission_special_rate} /></Grid>
+            {isSpecial ? (
+              <>
+                <Grid item xs={12} sm={6} md={4}><Field label="Special Basic %" value={client.commission_special_pct ? `${client.commission_special_pct}%` : ''} /></Grid>
+                <Grid item xs={12} sm={6} md={4}><Field label="Special SRCC %"  value={client.commission_special_srcc_pct ? `${client.commission_special_srcc_pct}%` : ''} /></Grid>
+                <Grid item xs={12} sm={6} md={4}><Field label="Special TC %"    value={client.commission_special_tc_pct ? `${client.commission_special_tc_pct}%` : ''} /></Grid>
+              </>
+            ) : (
+              <Grid item xs={12} sm={6} md={4}><Field label="Basic Commission %"    value={lc.commission_pct} /></Grid>
+            )}
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Basic"        value={fmtLKR(lc.commission_basic)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission SRCC"         value={fmtLKR(lc.commission_srcc)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission TC"           value={fmtLKR(lc.commission_tc)} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Special Adjustment"      value={fmtLKR(client.commission_special_amount)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Total Commission"        value={fmtLKR(lc.commission_total)} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Commission Method"       value={client.commission_paid_method} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Receive Date"            value={client.commission_receive_date} /></Grid>
@@ -971,19 +1020,48 @@ const ClientDetailsModal = ({ client, onClose }) => {
           </Grid>
         );
       }
-      case 12: /* Payment */
+      case 12: { /* Payment — ledger of one or more payments */
+        const payList = Array.isArray(client.payments) && client.payments.length
+          ? client.payments
+          : ([{ amount_received: client.amount_received, payment_date: client.payment_date, payment_method: client.payment_method, cheque_slip_no: client.cheque_slip_no, receipt_no: client.receipt_no, debit_note_no: client.debit_note_no, debit_note_date: client.debit_note_date }]
+              .filter(p => Object.values(p).some(v => v !== '' && v != null && v !== undefined)));
+        const payTotal = payList.reduce((a, p) => a + endoNum(p.amount_received), 0);
+        const endoPaid = endorsements.reduce((a, e) => a + endoNum(e.amount_paid), 0);
         return (
-          <Grid container spacing={2.5}>
-            <Grid item xs={12} sm={6} md={4}><Field label="Payment Status"    value={client.payment_status} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Amount Received"   value={fmtLKR(client.amount_received)} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Payment Date"      value={client.payment_date} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Payment Method"    value={client.payment_method} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Cheque / Slip No." value={client.cheque_slip_no} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Receipt No."       value={client.receipt_no} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Debit Note No."    value={client.debit_note_no} /></Grid>
-            <Grid item xs={12} sm={6} md={4}><Field label="Debit Note Date"   value={client.debit_note_date} /></Grid>
-          </Grid>
+          <Box>
+            <Grid container spacing={2.5} sx={{ mb: 1 }}>
+              <Grid item xs={12} sm={6} md={4}><Field label="Payment Status"  value={client.payment_status} /></Grid>
+              <Grid item xs={12} sm={6} md={4}><Field label="Total Received"  value={fmtLKR(client.amount_received || (payTotal + endoPaid))} /></Grid>
+              <Grid item xs={12} sm={6} md={4}><Field label="Payments"        value={`${payList.length}${endoPaid ? ` + endorsements ${fmtLKR(endoPaid)}` : ''}`} /></Grid>
+            </Grid>
+            <SubHeader title={`Payments (${payList.length})`} />
+            {payList.length === 0 ? (
+              <Typography sx={{ color:'#9CA3AF', fontSize:13, mb:2 }}>No payments recorded yet.</Typography>
+            ) : (
+              <Box sx={{ mb:2 }}>
+                {payList.map((p, i) => (
+                  <Box key={i} sx={{ display:'flex', gap:1.5, alignItems:'flex-start', p:1.5, mb:1, borderRadius:'10px', border:'1px solid rgba(37,94,171,0.18)', bgcolor:'rgba(37,94,171,0.04)' }}>
+                    <Box sx={{ width:24, height:24, flexShrink:0, borderRadius:'50%', bgcolor:'#255EAB', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800 }}>{i + 1}</Box>
+                    <Box sx={{ flex:1, minWidth:0 }}>
+                      <Box sx={{ display:'flex', gap:2, flexWrap:'wrap', alignItems:'baseline' }}>
+                        <Typography sx={{ fontSize:14, fontWeight:800, color:'#059669' }}>{fmtLKR(p.amount_received)}</Typography>
+                        {p.payment_date && <Typography sx={{ fontSize:12, color:'#6B7280' }}>{p.payment_date}</Typography>}
+                        {p.payment_method && <Chip label={p.payment_method} size="small" sx={{ height:20, fontSize:10.5, fontWeight:700, bgcolor:'rgba(37,94,171,0.10)', color:'#255EAB' }} />}
+                      </Box>
+                      <Box sx={{ display:'flex', gap:2, mt:0.4, flexWrap:'wrap' }}>
+                        {p.cheque_slip_no && <Typography sx={{ fontSize:11.5, color:'#374151' }}>Cheque/Slip: {p.cheque_slip_no}</Typography>}
+                        {p.receipt_no && <Typography sx={{ fontSize:11.5, color:'#374151' }}>Receipt: {p.receipt_no}</Typography>}
+                        {p.debit_note_no && <Typography sx={{ fontSize:11.5, color:'#374151' }}>Debit Note: {p.debit_note_no}</Typography>}
+                        {p.debit_note_date && <Typography sx={{ fontSize:11.5, color:'#374151' }}>DN Date: {p.debit_note_date}</Typography>}
+                      </Box>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
         );
+      }
       case 7: /* Claims */
         return (
           <Grid container spacing={2.5}>
@@ -1021,40 +1099,76 @@ const ClientDetailsModal = ({ client, onClose }) => {
               <Typography sx={{ color:'#9CA3AF', fontSize:13, mb:2 }}>No endorsements recorded yet.</Typography>
             ) : (
               <Box sx={{ mb:2 }}>
-                {endorsements.map(e => (
-                  <Box key={e.id} sx={{ display:'flex', gap:1.5, alignItems:'flex-start', p:1.5, mb:1, borderRadius:'10px', border:'1px solid rgba(124,58,237,0.18)', bgcolor:'rgba(124,58,237,0.04)' }}>
-                    <Box sx={{ width:26, height:26, flexShrink:0, borderRadius:'50%', bgcolor:'#7c3aed', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>
-                      {e.endorsement_no}
-                    </Box>
-                    <Box sx={{ flex:1, minWidth:0 }}>
-                      <Box sx={{ display:'flex', gap:1, alignItems:'center', flexWrap:'wrap' }}>
-                        <Chip label={e.type} size="small" sx={{ height:20, fontSize:10.5, fontWeight:700, bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
-                        {e.effective_date && <Typography sx={{ fontSize:11.5, color:'#6B7280' }}>Effective {e.effective_date}</Typography>}
+                {endorsements.map(e => {
+                  const open = !!expandedEndos[e.id];
+                  const premChange = endoNum(e.total_premium_change) + endoNum(e.premium_change);
+                  // Full field list for the expanded detail — only non-empty rows show.
+                  const detail = [
+                    ['Basic Premium Δ',  endoNum(e.basic_premium_change), '#374151'],
+                    ['SRCC Premium Δ',   endoNum(e.srcc_premium_change),  '#374151'],
+                    ['TC Premium Δ',     endoNum(e.tc_premium_change),    '#374151'],
+                    ['Net Premium Δ',    endoNum(e.net_premium_change),   '#6366F1'],
+                    ['Total Premium Δ',  premChange,                      '#255EAB'],
+                    ['Sum Insured Δ',    endoNum(e.sum_insured_change),   '#0891b2'],
+                    ['Commission Δ',     endoNum(e.commission_change),    '#059669'],
+                    ['Amount Paid',      endoNum(e.amount_paid),          '#059669'],
+                  ];
+                  return (
+                  <Box key={e.id} sx={{ mb:1, borderRadius:'10px', border:'1px solid rgba(124,58,237,0.18)', bgcolor:'rgba(124,58,237,0.04)', overflow:'hidden' }}>
+                    <Box onClick={() => toggleEndo(e.id)} sx={{ display:'flex', gap:1.5, alignItems:'flex-start', p:1.5, cursor:'pointer', '&:hover': { bgcolor:'rgba(124,58,237,0.06)' } }}>
+                      <Box sx={{ width:26, height:26, flexShrink:0, borderRadius:'50%', bgcolor:'#7c3aed', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800 }}>
+                        {e.endorsement_no}
                       </Box>
-                      {e.description && <Typography sx={{ fontSize:13, color:'#0A1A3E', mt:0.5 }}>{e.description}</Typography>}
-                      <Box sx={{ display:'flex', gap:2, mt:0.6, flexWrap:'wrap' }}>
-                        {endoNum(e.basic_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>Basic {fmtSigned(endoNum(e.basic_premium_change))}</Typography>}
-                        {endoNum(e.srcc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>SRCC {fmtSigned(endoNum(e.srcc_premium_change))}</Typography>}
-                        {endoNum(e.tc_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#374151' }}>TC {fmtSigned(endoNum(e.tc_premium_change))}</Typography>}
-                        {endoNum(e.net_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#6366F1' }}>Net {fmtSigned(endoNum(e.net_premium_change))}</Typography>}
-                        {endoNum(e.total_premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#255EAB' }}>Total {fmtSigned(endoNum(e.total_premium_change))}</Typography>}
-                        {endoNum(e.premium_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#255EAB' }}>Premium {fmtSigned(endoNum(e.premium_change))}</Typography>}
-                        {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
-                        {endoNum(e.commission_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Commission {fmtSigned(endoNum(e.commission_change))}</Typography>}
-                      </Box>
-                      {Array.isArray(e.documents) && e.documents.length > 0 && (
-                        <Box sx={{ display:'flex', gap:1, mt:0.8, flexWrap:'wrap' }}>
-                          {e.documents.map((d, i) => (
-                            <Chip key={i} label={d.name || `Document ${i + 1}`} size="small"
-                              onClick={() => d.url && window.open(d.url, '_blank')}
-                              sx={{ height:22, fontSize:10.5, cursor:'pointer', bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
-                          ))}
+                      <Box sx={{ flex:1, minWidth:0 }}>
+                        <Box sx={{ display:'flex', gap:1, alignItems:'center', flexWrap:'wrap' }}>
+                          <Chip label={e.type} size="small" sx={{ height:20, fontSize:10.5, fontWeight:700, bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
+                          {e.effective_date && <Typography sx={{ fontSize:11.5, color:'#6B7280' }}>Effective {e.effective_date}</Typography>}
                         </Box>
-                      )}
-                      {e.created_by && <Typography sx={{ fontSize:10, color:'#9CA3AF', mt:0.4 }}>Recorded by {e.created_by}</Typography>}
+                        {e.description && <Typography sx={{ fontSize:13, color:'#0A1A3E', mt:0.5 }}>{e.description}</Typography>}
+                        {/* Condensed summary line (full breakdown in the dropdown) */}
+                        <Box sx={{ display:'flex', gap:2, mt:0.6, flexWrap:'wrap' }}>
+                          {premChange !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#255EAB' }}>Premium {fmtSigned(premChange)}</Typography>}
+                          {endoNum(e.sum_insured_change) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:600, color:'#0891b2' }}>Sum Insured {fmtSigned(endoNum(e.sum_insured_change))}</Typography>}
+                          {endoNum(e.amount_paid) !== 0 && <Typography sx={{ fontSize:11.5, fontWeight:700, color:'#059669' }}>Paid {fmtLKR(endoNum(e.amount_paid))}{e.amount_paid_date ? ` · ${e.amount_paid_date}` : ''}</Typography>}
+                        </Box>
+                      </Box>
+                      <ExpandMoreIcon sx={{ fontSize:22, color:'#7c3aed', flexShrink:0, transition:'transform .2s', transform: open ? 'rotate(180deg)' : 'none' }} />
                     </Box>
+                    <Collapse in={open} timeout="auto" unmountOnExit>
+                      <Box sx={{ px:1.5, pb:1.5, pl:5.3 }}>
+                        <Box sx={{ height:'1px', bgcolor:'rgba(124,58,237,0.15)', mb:1.2 }} />
+                        <Box sx={{ display:'grid', gridTemplateColumns:{ xs:'1fr 1fr', sm:'1fr 1fr 1fr 1fr' }, gap:1.2 }}>
+                          {detail.filter(([, v]) => v !== 0).map(([label, v, color]) => (
+                            <Box key={label}>
+                              <Typography sx={{ fontSize:9.5, fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:0.4 }}>{label}</Typography>
+                              <Typography sx={{ fontSize:12.5, fontWeight:700, color }}>{label === 'Amount Paid' ? fmtLKR(v) : fmtSigned(v)}</Typography>
+                            </Box>
+                          ))}
+                          {e.amount_paid_date && (
+                            <Box>
+                              <Typography sx={{ fontSize:9.5, fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:0.4 }}>Paid Date</Typography>
+                              <Typography sx={{ fontSize:12.5, fontWeight:700, color:'#059669' }}>{e.amount_paid_date}</Typography>
+                            </Box>
+                          )}
+                        </Box>
+                        {Array.isArray(e.documents) && e.documents.length > 0 && (
+                          <Box sx={{ display:'flex', gap:1, mt:1.2, flexWrap:'wrap' }}>
+                            {e.documents.map((d, i) => (
+                              <Chip key={i} label={d.name || `Document ${i + 1}`} size="small"
+                                onClick={() => d.url && window.open(d.url, '_blank')}
+                                sx={{ height:22, fontSize:10.5, cursor:'pointer', bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
+                            ))}
+                          </Box>
+                        )}
+                        <Typography sx={{ fontSize:10, color:'#9CA3AF', mt:1 }}>
+                          {e.created_by ? `Recorded by ${e.created_by}` : ''}
+                          {e.created_at ? `${e.created_by ? ' · ' : ''}${new Date(e.created_at).toLocaleString()}` : ''}
+                        </Typography>
+                      </Box>
+                    </Collapse>
                   </Box>
-                ))}
+                  );
+                })}
               </Box>
             )}
           </Box>
@@ -1131,7 +1245,7 @@ const ClientDetailsModal = ({ client, onClose }) => {
 
       <DialogContent sx={{ p:0, overflowY:'auto' }} ref={contentRef}>
         {/* Each form section is its own clickable tab — click to see just its data. */}
-        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(56, 163, 224,0.15)' }}>
+        <Box sx={{ position:'sticky', top:0, zIndex:3, bgcolor:'#fff', borderBottom:'1px solid rgba(56,163,224,0.15)' }}>
           <Tabs
             value={tab}
             onChange={(e, v) => { setTab(v); if (contentRef.current) contentRef.current.scrollTop = 0; }}
@@ -1143,12 +1257,40 @@ const ClientDetailsModal = ({ client, onClose }) => {
             {SECTION_TABS.map(t => <Tab key={t.sec} label={t.label} />)}
           </Tabs>
         </Box>
+        {renewalKin.length > 1 && (
+          <Box sx={{ px:3, pt:2 }}>
+            <Box sx={{ p:1.5, borderRadius:'10px', border:'1px solid rgba(37,94,171,0.18)', bgcolor:'rgba(37,94,171,0.04)' }}>
+              <Typography sx={{ fontSize:10.5, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:0.5, mb:0.8 }}>
+                Renewal Family · {renewalKin.length} policies
+              </Typography>
+              <Box sx={{ display:'flex', flexDirection:'column', gap:0.6 }}>
+                {renewalKin.map(k => {
+                  const isNew = !k.root_policy_id || k.root_policy_id === k.id;
+                  const current = k.id === client.id;
+                  return (
+                    <Box key={k.id} sx={{ display:'flex', alignItems:'center', gap:1, flexWrap:'wrap',
+                      px:1, py:0.6, borderRadius:'8px', bgcolor: current ? 'rgba(37,94,171,0.10)' : 'transparent',
+                      border: current ? '1px solid rgba(37,94,171,0.25)' : '1px solid transparent' }}>
+                      <Chip label={isNew ? 'New' : 'Renewal'} size="small"
+                        sx={{ height:19, fontSize:10, fontWeight:700, bgcolor: isNew ? 'rgba(5,150,105,0.14)' : 'rgba(124,58,237,0.14)', color: isNew ? '#059669' : '#7c3aed' }} />
+                      <Typography sx={{ fontSize:12, fontWeight:700, color:'#0A1A3E' }}>{k.insuresaas_ib_file_no || k.policy_no || k.client_name || k.id.slice(0,6)}</Typography>
+                      {(k.policy_period_from || k.policy_period_to) && (
+                        <Typography sx={{ fontSize:11, color:'#6B7280' }}>{k.policy_period_from || '—'} → {k.policy_period_to || '—'}</Typography>
+                      )}
+                      {current && <Typography sx={{ fontSize:10, fontWeight:800, color:'#255EAB' }}>· viewing</Typography>}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          </Box>
+        )}
         <Box key={tab} className="anim-fade-in" sx={{ p:3 }}>
           {renderSection(SECTION_TABS[tab]?.sec ?? 0)}
         </Box>
       </DialogContent>
 
-      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(56, 163, 224,0.10)', flexWrap:'wrap', gap:1 }}>
+      <DialogActions sx={{ px:3, py:2, borderTop:'1px solid rgba(56,163,224,0.10)', flexWrap:'wrap', gap:1 }}>
         <Button onClick={onClose} variant="outlined"
           sx={{ borderColor:'#e0e0e0', color:'#6B7280', '&:hover':{ borderColor:'#aaa' } }}>
           Close
