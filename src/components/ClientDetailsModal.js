@@ -192,6 +192,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
   // Renewal family — the original "New" policy (root) plus all its renewals, so the
   // view can show and link the whole chain regardless of which one is open.
   const [renewalKin, setRenewalKin] = useState([]);
+  const [famExpanded, setFamExpanded] = useState(null); // null = auto (collapsed when big)
   const rootId = client ? (client.root_policy_id || client.id) : '';
   React.useEffect(() => {
     let alive = true;
@@ -379,6 +380,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
         ['InsureSAAS IB File No.', client.insuresaas_ib_file_no],
         ['Manager',            client.manager],
         ['Introducer Code',    client.introducer_code],
+        ['New / Renewal',      client.new_renewal || ((client.main_class === 'Marine' || /marine/i.test(client.product || '')) ? 'New' : '')],
       ]);
       addSection('overview', 'INSURANCE COMPANY', [
         ['Insurance Type',     client.insurance_type],
@@ -693,6 +695,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
 
       addSheetSection('INTRODUCER', [
         ['InsureSAAS IB File No.', client.insuresaas_ib_file_no], ['Manager', client.manager], ['Introducer Code', client.introducer_code],
+        ['New / Renewal', client.new_renewal || ((client.main_class === 'Marine' || /marine/i.test(client.product || '')) ? 'New' : '')],
       ]);
       addSheetSection('INSURANCE COMPANY', [
         ['Insurance Type', client.insurance_type], ['Main Class', client.main_class], ['Product', client.product],
@@ -797,6 +800,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
             <Grid item xs={12} sm={6} md={4}><Field label="InsureSAAS IB File No." value={client.insuresaas_ib_file_no} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Manager"            value={client.manager} /></Grid>
             <Grid item xs={12} sm={6} md={4}><Field label="Introducer Code"    value={client.introducer_code} /></Grid>
+            <Grid item xs={12} sm={6} md={4}><Field label="New / Renewal"      value={client.new_renewal || ((client.main_class === 'Marine' || /marine/i.test(client.product || '')) ? 'New' : '')} /></Grid>
           </Grid>
         );
       case 11: /* Insurance Company */
@@ -1271,19 +1275,29 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
           const displayList = parent ? [parent, ...renewals] : renewalKin;
           const nameOf = (k) => k.insuresaas_ib_file_no || k.policy_no || k.client_name || (k.id || '').slice(0, 6);
           const viewingParent = client.id === parentId;
+          // Collapse a long family: when there are more than 5 renewals, show only the
+          // parent + the one being viewed, with a toggle to reveal the rest.
+          const big = renewals.length > 5;
+          const expanded = famExpanded === null ? !big : famExpanded;
+          const shown = (!big || expanded) ? displayList
+            : displayList.filter(k => k.id === parentId || k.id === client.id);
           return (
           <Box sx={{ px:3, pt:2 }}>
             <Box sx={{ p:1.5, borderRadius:'10px', border:'1px solid rgba(37,94,171,0.18)', bgcolor:'rgba(37,94,171,0.04)' }}>
-              <Typography sx={{ fontSize:10.5, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:0.5, mb:0.3 }}>
-                Renewal Family · 1 parent + {renewals.length} renewal{renewals.length === 1 ? '' : 's'}
-              </Typography>
+              <Box onClick={big ? () => setFamExpanded(!expanded) : undefined}
+                sx={{ display:'flex', alignItems:'center', gap:0.5, mb:0.3, cursor: big ? 'pointer' : 'default' }}>
+                <Typography sx={{ fontSize:10.5, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:0.5, flex:1 }}>
+                  Renewal Family · 1 parent + {renewals.length} renewal{renewals.length === 1 ? '' : 's'}
+                </Typography>
+                {big && <ExpandMoreIcon sx={{ fontSize:20, color:'#255EAB', transition:'transform .2s', transform: expanded ? 'rotate(180deg)' : 'none' }} />}
+              </Box>
               <Typography sx={{ fontSize:10.5, color:'#9CA3AF', mb:0.8 }}>
                 {viewingParent
                   ? <>You're viewing the <b>parent</b> policy. Its renewals are listed below — click any to open it.</>
                   : <>You're viewing a <b>renewal</b>. Its parent is <b>{nameOf(parent)}</b> — click any row to open it.</>}
               </Typography>
               <Box sx={{ display:'flex', flexDirection:'column', gap:0.6 }}>
-                {displayList.map(k => {
+                {shown.map(k => {
                   const isParent = k.id === parentId;
                   const current = k.id === client.id;
                   const clickable = !current && !!onOpenClient;
@@ -1309,6 +1323,13 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
                   );
                 })}
               </Box>
+              {big && (
+                <Typography onClick={() => setFamExpanded(!expanded)}
+                  sx={{ mt:0.8, fontSize:11, fontWeight:700, color:'#255EAB', cursor:'pointer', textAlign:'center',
+                        '&:hover':{ textDecoration:'underline' } }}>
+                  {expanded ? 'Show less' : `Show all ${renewals.length} renewals`}
+                </Typography>
+              )}
             </Box>
           </Box>
           );
