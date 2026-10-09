@@ -12,8 +12,8 @@ import Typography from '@mui/material/Typography';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
 import { onAuthStateChanged } from 'firebase/auth';
-import { setActiveWorkSession, closeActiveWorkSession, logoutWithSessionClose } from './utils/workSession';
-import { doc, getDoc, getDocFromServer, setDoc, addDoc, collection, getDocs, limit, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { setActiveWorkSession, closeActiveWorkSession, logoutWithSessionClose, openWorkSession } from './utils/workSession';
+import { doc, getDoc, getDocFromServer, setDoc, collection, getDocs, limit, query, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { getOrCreateDeviceId, collectDeviceInfo, fetchLocationInfo } from './utils/deviceFingerprint';
 import { PRODUCTS, DEFAULT_MODULE_ACCESS } from './config/products';
@@ -466,37 +466,20 @@ function App() {
         }
 
         // ── Auto open work session ────────────────────────────────────────────
+        // openWorkSession first reconciles (closes) this user's stale / previous-day
+        // open sessions, then reuses a still-live session for today or opens a new one.
         if (!workSessionRef.current || workSessionRef.current.userId !== firebaseUser.uid) {
-          const today = new Date().toISOString().slice(0, 10);
           try {
-            const existing = await getDocs(query(
-              collection(db, 'work_sessions'),
-              where('user_id',   '==', firebaseUser.uid),
-              where('date',      '==', today),
-              where('clock_out', '==', null),
-            ));
-            if (!existing.empty) {
-              const d = existing.docs[0];
-              const ts = d.data().clock_in?.toDate?.()?.getTime() || Date.now();
-              workSessionRef.current = { id: d.id, clockInTs: ts, userId: firebaseUser.uid };
-            } else {
-              const ref = await addDoc(collection(db, 'work_sessions'), {
-                user_id:          firebaseUser.uid,
-                user_email:       firebaseUser.email || '',
-                user_name:        profile?.full_name || firebaseUser.email?.split('@')[0] || '',
-                date:             today,
-                clock_in:         serverTimestamp(),
-                clock_out:        null,
-                duration_minutes: null,
-                notes:            '',
-              });
-              workSessionRef.current = { id: ref.id, clockInTs: Date.now(), userId: firebaseUser.uid };
-            }
+            workSessionRef.current = await openWorkSession(
+              firebaseUser.uid,
+              firebaseUser.email || '',
+              profile?.full_name || firebaseUser.email?.split('@')[0] || '',
+            );
           } catch (_) {}
         }
-        // Register the active session so every logout path can close it while
-        // still authenticated (closing after signOut is rejected by the rules).
-        setActiveWorkSession(workSessionRef.current);
+        // Register the active session (starts the heartbeat) so logout can close it
+        // while still authenticated, and last_seen keeps updating while the tab lives.
+        if (workSessionRef.current) setActiveWorkSession(workSessionRef.current);
       } else {
         // Logout paths close the session BEFORE signOut; this is a best-effort
         // fallback that no-ops if it was already closed.

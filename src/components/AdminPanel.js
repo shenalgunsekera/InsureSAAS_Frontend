@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { confirmTypedDelete } from '../utils/confirmDelete';
+import { isSessionActive } from '../utils/workSession';
 import { useAuth } from '../App';
 import { useNavigate } from 'react-router-dom';
 import ExcelJS from 'exceljs';
@@ -1306,7 +1307,7 @@ const AdminPanel = () => {
         });
         const employees = [...new Set(workSessions.map(s => s.user_name || s.user_email || s.user_id))].sort();
         const totalMins = filtered.reduce((a, s) => a + (s.duration_minutes || 0), 0);
-        const openSessions = filtered.filter(s => !s.clock_out).length;
+        const openSessions = filtered.filter(s => isSessionActive(s)).length;
 
         return (
           <Box>
@@ -1379,9 +1380,15 @@ const AdminPanel = () => {
                   {filtered.map((s, i) => {
                     const ci = s.clock_in?.toDate ? s.clock_in.toDate() : null;
                     const co = s.clock_out?.toDate ? s.clock_out.toDate() : null;
+                    const ls = s.last_seen?.toDate ? s.last_seen.toDate() : null;
                     const fmtT = d => d ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
-                    const dur  = s.duration_minutes != null ? `${Math.floor(s.duration_minutes / 60)}h ${s.duration_minutes % 60}m` : null;
-                    const active = !co;
+                    const active = isSessionActive(s);
+                    // A still-open session that's gone stale (user left without logging out)
+                    // is shown as ended at its last activity, not "in progress forever".
+                    const endD = co || (!active && ls ? ls : null);
+                    const mins = s.duration_minutes != null ? s.duration_minutes
+                      : (!active && ls && ci ? Math.max(0, Math.round((ls - ci) / 60000)) : null);
+                    const dur = mins != null ? `${Math.floor(mins / 60)}h ${mins % 60}m${(!co && !active) ? ' (left)' : ''}` : null;
                     return (
                       <tr key={s.id} style={{ background: i % 2 === 0 ? '#F2F7FC' : '#fff' }}>
                         <td style={{ padding: '9px 14px', fontWeight: 600 }}>{s.user_name || '—'}</td>
@@ -1389,7 +1396,7 @@ const AdminPanel = () => {
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{s.date || '—'}</td>
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap' }}>{fmtT(ci)}</td>
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', color: active ? '#f59e0b' : 'inherit', fontWeight: active ? 700 : 400 }}>
-                          {active ? 'Active ⏱' : fmtT(co)}
+                          {active ? 'Active ⏱' : fmtT(endD)}
                         </td>
                         <td style={{ padding: '9px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: active ? '#f59e0b' : '#0A1A3E' }}>
                           {active ? 'In progress' : (dur || '—')}

@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { confirmTypedDelete } from '../utils/confirmDelete';
+import { logActivity } from '../utils/workSession';
 import { useAuth } from '../App';
 import { uploadFile as uploadToCloudinary } from '../storage';
 import AddClientForm, { textFields as UW_FIELDS } from './AddClientForm';
@@ -591,6 +592,7 @@ const TableSection = () => {
           await updateDoc(doc(db, 'clients', t.root_policy_id), { child_renewals: arrayRemove(t.id) });
         } catch (_) { /* parent may be gone; ignore */ }
       }
+      logActivity(`Deleted ${isRenewal ? 'renewal' : 'policy'} for ${t.client_name || 'unknown'}${t.policy_no ? ` (${t.policy_no})` : ''}${childCount > 0 ? ` + ${childCount} renewal${childCount > 1 ? 's' : ''}` : ''}`);
       toast(childCount > 0 ? `Deleted main policy + ${childCount} renewal${childCount > 1 ? 's' : ''}` : (isRenewal ? 'Renewal deleted' : 'Client deleted'));
       _cachedClients = null; fetchClients(true);
     } catch {
@@ -606,6 +608,7 @@ const TableSection = () => {
       const batch = writeBatch(db);
       snap.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
+      logActivity(`Deleted ALL ${snap.size} policies`);
       toast(`Deleted ${snap.size} clients`);
       _cachedClients = null; fetchClients(true);
     } catch {
