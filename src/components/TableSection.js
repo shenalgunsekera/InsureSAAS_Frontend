@@ -436,7 +436,7 @@ const TableSection = () => {
     try {
       const snap = await getDocs(collection(db, 'clients'));
       const all = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
+        .map(d => ({ ...d.data(), id: d.id })) // real doc id must win over any stored `id` field
         .sort((a, b) => clientAddedMillis(b) - clientAddedMillis(a)); // newest added first
 
       // Employees only see approved clients + their own pending/rejected

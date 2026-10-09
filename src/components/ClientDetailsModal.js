@@ -203,14 +203,18 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
           getDocs(query(collection(db, 'clients'), where('root_policy_id', '==', rootId))),
         ]);
         const map = {};
-        if (rootSnap.exists()) map[rootSnap.id] = { id: rootSnap.id, ...rootSnap.data() };
-        kidsSnap.docs.forEach(d => { if (d.id !== rootId) map[d.id] = { id: d.id, ...d.data() }; });
-        const fam = Object.values(map).sort((a, b) =>
-          (a.id === rootId ? -1 : b.id === rootId ? 1 : String(a.created_at?.seconds || a.created_at || '').localeCompare(String(b.created_at?.seconds || b.created_at || ''))));
+        // NOTE: doc id must win over any stored `id` field, so spread data first.
+        if (rootSnap.exists()) map[rootSnap.id] = { ...rootSnap.data(), id: rootSnap.id };
+        kidsSnap.docs.forEach(d => { map[d.id] = { ...d.data(), id: d.id }; });
+        if (client) map[client.id] = { ...(map[client.id] || {}), ...client, id: client.id }; // ensure the open one is included
+        // Order the family by policy start date (then created_at) — earliest = the original.
+        const keyOf = (k) => k.policy_period_from || (k.created_at?.seconds ? String(k.created_at.seconds).padStart(12, '0') : String(k.created_at || ''));
+        const fam = Object.values(map).sort((a, b) => String(keyOf(a)).localeCompare(String(keyOf(b))));
         if (alive) setRenewalKin(fam);
       } catch { if (alive) setRenewalKin([]); }
     })();
     return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootId]);
 
   if (!client) return null;
@@ -1257,33 +1261,45 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
             {SECTION_TABS.map(t => <Tab key={t.sec} label={t.label} />)}
           </Tabs>
         </Box>
-        {renewalKin.length > 1 && (
+        {renewalKin.length > 1 && (() => {
+          // Exactly ONE parent: the New policy if there is one, else the earliest (the
+          // family is already date-sorted). Everything else is a numbered renewal.
+          const parentId = (renewalKin.find(k => (k.new_renewal || '') !== 'Renewal') || renewalKin[0] || {}).id;
+          const parent   = renewalKin.find(k => k.id === parentId);
+          const renewals = renewalKin.filter(k => k.id !== parentId); // date order
+          const rNum = {}; renewals.forEach((k, i) => { rNum[k.id] = i + 1; });
+          const displayList = parent ? [parent, ...renewals] : renewalKin;
+          const nameOf = (k) => k.insuresaas_ib_file_no || k.policy_no || k.client_name || (k.id || '').slice(0, 6);
+          const viewingParent = client.id === parentId;
+          return (
           <Box sx={{ px:3, pt:2 }}>
             <Box sx={{ p:1.5, borderRadius:'10px', border:'1px solid rgba(37,94,171,0.18)', bgcolor:'rgba(37,94,171,0.04)' }}>
               <Typography sx={{ fontSize:10.5, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:0.5, mb:0.3 }}>
-                Renewal Family · {renewalKin.length - 1} renewal{renewalKin.length - 1 === 1 ? '' : 's'}
+                Renewal Family · 1 parent + {renewals.length} renewal{renewals.length === 1 ? '' : 's'}
               </Typography>
               <Typography sx={{ fontSize:10.5, color:'#9CA3AF', mb:0.8 }}>
-                The <b>New</b> policy is the parent; each <b>Renewal</b> is a child of it. Click any row to open it.
+                {viewingParent
+                  ? <>You're viewing the <b>parent</b> policy. Its renewals are listed below — click any to open it.</>
+                  : <>You're viewing a <b>renewal</b>. Its parent is <b>{nameOf(parent)}</b> — click any row to open it.</>}
               </Typography>
               <Box sx={{ display:'flex', flexDirection:'column', gap:0.6 }}>
-                {renewalKin.map((k, idx) => {
-                  const isNew = !k.root_policy_id || k.root_policy_id === k.id;
+                {displayList.map(k => {
+                  const isParent = k.id === parentId;
                   const current = k.id === client.id;
                   const clickable = !current && !!onOpenClient;
-                  const roleLabel = isNew ? '★ PARENT · New' : `Renewal ${idx}`;
+                  const roleLabel = isParent ? '★ PARENT' : `Renewal ${rNum[k.id]}`;
                   return (
                     <Box key={k.id}
                       onClick={clickable ? () => onOpenClient(k) : undefined}
                       sx={{ display:'flex', alignItems:'center', gap:1, flexWrap:'wrap',
                       px:1, py:0.6, borderRadius:'8px',
-                      bgcolor: current ? 'rgba(37,94,171,0.10)' : (isNew ? 'rgba(5,150,105,0.06)' : 'transparent'),
-                      border: current ? '1px solid rgba(37,94,171,0.35)' : (isNew ? '1px solid rgba(5,150,105,0.25)' : '1px solid transparent'),
+                      bgcolor: current ? 'rgba(37,94,171,0.10)' : (isParent ? 'rgba(5,150,105,0.06)' : 'transparent'),
+                      border: current ? '1px solid rgba(37,94,171,0.35)' : (isParent ? '1px solid rgba(5,150,105,0.25)' : '1px solid transparent'),
                       cursor: clickable ? 'pointer' : 'default',
                       '&:hover': clickable ? { bgcolor:'rgba(37,94,171,0.08)', border:'1px solid rgba(37,94,171,0.25)' } : {} }}>
                       <Chip label={roleLabel} size="small"
-                        sx={{ height:20, fontSize:10, fontWeight:800, bgcolor: isNew ? 'rgba(5,150,105,0.16)' : 'rgba(124,58,237,0.14)', color: isNew ? '#047857' : '#7c3aed' }} />
-                      <Typography sx={{ fontSize:12, fontWeight:700, color:'#0A1A3E' }}>{k.insuresaas_ib_file_no || k.policy_no || k.client_name || k.id.slice(0,6)}</Typography>
+                        sx={{ height:20, fontSize:10, fontWeight:800, bgcolor: isParent ? 'rgba(5,150,105,0.16)' : 'rgba(124,58,237,0.14)', color: isParent ? '#047857' : '#7c3aed' }} />
+                      <Typography sx={{ fontSize:12, fontWeight:700, color:'#0A1A3E' }}>{nameOf(k)}</Typography>
                       {(k.policy_period_from || k.policy_period_to) && (
                         <Typography sx={{ fontSize:11, color:'#6B7280' }}>{k.policy_period_from || '—'} → {k.policy_period_to || '—'}</Typography>
                       )}
@@ -1295,7 +1311,8 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
               </Box>
             </Box>
           </Box>
-        )}
+          );
+        })()}
         <Box key={tab} className="anim-fade-in" sx={{ p:3 }}>
           {renderSection(SECTION_TABS[tab]?.sec ?? 0)}
         </Box>
