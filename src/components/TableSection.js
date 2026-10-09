@@ -843,7 +843,8 @@ const TableSection = () => {
           >
             Add Client
           </Button>
-          {isManager && (
+          {/* Delete All button hidden by request */}
+          {false && isManager && (
             <Tooltip title="Delete all clients">
               <Button
                 size="small" variant="outlined"
