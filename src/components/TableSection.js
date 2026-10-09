@@ -563,18 +563,21 @@ const TableSection = () => {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     const t = deleteTarget;
-    const isRoot = !t.root_policy_id || t.root_policy_id === t.id;
-    // Find this policy's child renewals (queried live so it's robust even if the
-    // stored child_renewals array is stale). Deleting the parent cascades to them.
+    // A record is a RENEWAL (child) if it's labelled Renewal or points to a parent.
+    // A renewal must only ever delete ITSELF — never cascade. The cascade (delete a
+    // policy + its renewals) applies ONLY when the record is a main / New policy.
+    const isRenewal = t.new_renewal === 'Renewal' || (!!t.root_policy_id && t.root_policy_id !== t.id);
     let childCount = 0;
     try {
-      const kids = isRoot
-        ? (await getDocs(query(collection(db, 'clients'), where('root_policy_id', '==', t.id)))).docs.filter(d => d.id !== t.id)
-        : [];
+      // Children are this policy's renewals (queried live). Only a main policy has them.
+      const kids = isRenewal ? []
+        : (await getDocs(query(collection(db, 'clients'), where('root_policy_id', '==', t.id)))).docs.filter(d => d.id !== t.id);
       childCount = kids.length;
       const msg = childCount > 0
-        ? `Delete this policy AND its ${childCount} renewal${childCount > 1 ? 's' : ''}? This cannot be undone.`
-        : 'Delete this client and their records?';
+        ? `This is a MAIN policy with ${childCount} renewal${childCount > 1 ? 's' : ''} under it.\nDelete the MAIN policy AND all ${childCount} renewal${childCount > 1 ? 's' : ''}? This cannot be undone.`
+        : (isRenewal
+            ? 'Delete this renewal only? The main policy and any other renewals are kept.'
+            : 'Delete this client and their records?');
       if (!confirmTypedDelete(msg)) return;
 
       const batch = writeBatch(db);
@@ -583,12 +586,12 @@ const TableSection = () => {
       await batch.commit();
 
       // If we deleted a renewal (child), detach it from its parent's record.
-      if (!isRoot && t.root_policy_id) {
+      if (isRenewal && t.root_policy_id && t.root_policy_id !== t.id) {
         try {
           await updateDoc(doc(db, 'clients', t.root_policy_id), { child_renewals: arrayRemove(t.id) });
         } catch (_) { /* parent may be gone; ignore */ }
       }
-      toast(childCount > 0 ? `Deleted policy + ${childCount} renewal${childCount > 1 ? 's' : ''}` : 'Client deleted');
+      toast(childCount > 0 ? `Deleted main policy + ${childCount} renewal${childCount > 1 ? 's' : ''}` : (isRenewal ? 'Renewal deleted' : 'Client deleted'));
       _cachedClients = null; fetchClients(true);
     } catch {
       toast('Failed to delete client', 'error');
@@ -1051,11 +1054,19 @@ const TableSection = () => {
             Are you sure you want to delete <strong>{deleteTarget?.client_name}</strong>? This cannot be undone.
           </Typography>
           {(() => {
-            const n = Array.isArray(deleteTarget?.child_renewals) ? deleteTarget.child_renewals.length : (Number(deleteTarget?.renewal_count) || 0);
-            const root = deleteTarget && (!deleteTarget.root_policy_id || deleteTarget.root_policy_id === deleteTarget.id);
-            return root && n > 0 ? (
+            if (!deleteTarget) return null;
+            const isRenewal = deleteTarget.new_renewal === 'Renewal' || (!!deleteTarget.root_policy_id && deleteTarget.root_policy_id !== deleteTarget.id);
+            if (isRenewal) {
+              return (
+                <Typography sx={{ mt: 1, fontSize: 12.5, fontWeight: 700, color: '#059669' }}>
+                  This is a renewal — only this renewal is deleted. The main policy and other renewals are kept.
+                </Typography>
+              );
+            }
+            const n = Array.isArray(deleteTarget.child_renewals) ? deleteTarget.child_renewals.length : (Number(deleteTarget.renewal_count) || 0);
+            return n > 0 ? (
               <Typography sx={{ mt: 1, fontSize: 12.5, fontWeight: 700, color: '#e04040' }}>
-                Its {n} renewal{n > 1 ? 's' : ''} will be deleted too.
+                This is a MAIN policy — its {n} renewal{n > 1 ? 's' : ''} will be deleted too.
               </Typography>
             ) : null;
           })()}
