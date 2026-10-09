@@ -149,7 +149,7 @@ const UW_FIELD_ALIASES = {
   model: 'vehicle_model',
 };
 
-const ClientDetailsModal = ({ client, onClose }) => {
+const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
   const [exporting, setExporting] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const contentRef = React.useRef(null);
@@ -1260,24 +1260,35 @@ const ClientDetailsModal = ({ client, onClose }) => {
         {renewalKin.length > 1 && (
           <Box sx={{ px:3, pt:2 }}>
             <Box sx={{ p:1.5, borderRadius:'10px', border:'1px solid rgba(37,94,171,0.18)', bgcolor:'rgba(37,94,171,0.04)' }}>
-              <Typography sx={{ fontSize:10.5, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:0.5, mb:0.8 }}>
-                Renewal Family · {renewalKin.length} policies
+              <Typography sx={{ fontSize:10.5, fontWeight:800, color:'#255EAB', textTransform:'uppercase', letterSpacing:0.5, mb:0.3 }}>
+                Renewal Family · {renewalKin.length - 1} renewal{renewalKin.length - 1 === 1 ? '' : 's'}
+              </Typography>
+              <Typography sx={{ fontSize:10.5, color:'#9CA3AF', mb:0.8 }}>
+                The <b>New</b> policy is the parent; each <b>Renewal</b> is a child of it. Click any row to open it.
               </Typography>
               <Box sx={{ display:'flex', flexDirection:'column', gap:0.6 }}>
-                {renewalKin.map(k => {
+                {renewalKin.map((k, idx) => {
                   const isNew = !k.root_policy_id || k.root_policy_id === k.id;
                   const current = k.id === client.id;
+                  const clickable = !current && !!onOpenClient;
+                  const roleLabel = isNew ? '★ PARENT · New' : `Renewal ${idx}`;
                   return (
-                    <Box key={k.id} sx={{ display:'flex', alignItems:'center', gap:1, flexWrap:'wrap',
-                      px:1, py:0.6, borderRadius:'8px', bgcolor: current ? 'rgba(37,94,171,0.10)' : 'transparent',
-                      border: current ? '1px solid rgba(37,94,171,0.25)' : '1px solid transparent' }}>
-                      <Chip label={isNew ? 'New' : 'Renewal'} size="small"
-                        sx={{ height:19, fontSize:10, fontWeight:700, bgcolor: isNew ? 'rgba(5,150,105,0.14)' : 'rgba(124,58,237,0.14)', color: isNew ? '#059669' : '#7c3aed' }} />
+                    <Box key={k.id}
+                      onClick={clickable ? () => onOpenClient(k) : undefined}
+                      sx={{ display:'flex', alignItems:'center', gap:1, flexWrap:'wrap',
+                      px:1, py:0.6, borderRadius:'8px',
+                      bgcolor: current ? 'rgba(37,94,171,0.10)' : (isNew ? 'rgba(5,150,105,0.06)' : 'transparent'),
+                      border: current ? '1px solid rgba(37,94,171,0.35)' : (isNew ? '1px solid rgba(5,150,105,0.25)' : '1px solid transparent'),
+                      cursor: clickable ? 'pointer' : 'default',
+                      '&:hover': clickable ? { bgcolor:'rgba(37,94,171,0.08)', border:'1px solid rgba(37,94,171,0.25)' } : {} }}>
+                      <Chip label={roleLabel} size="small"
+                        sx={{ height:20, fontSize:10, fontWeight:800, bgcolor: isNew ? 'rgba(5,150,105,0.16)' : 'rgba(124,58,237,0.14)', color: isNew ? '#047857' : '#7c3aed' }} />
                       <Typography sx={{ fontSize:12, fontWeight:700, color:'#0A1A3E' }}>{k.insuresaas_ib_file_no || k.policy_no || k.client_name || k.id.slice(0,6)}</Typography>
                       {(k.policy_period_from || k.policy_period_to) && (
                         <Typography sx={{ fontSize:11, color:'#6B7280' }}>{k.policy_period_from || '—'} → {k.policy_period_to || '—'}</Typography>
                       )}
-                      {current && <Typography sx={{ fontSize:10, fontWeight:800, color:'#255EAB' }}>· viewing</Typography>}
+                      {current ? <Typography sx={{ fontSize:10, fontWeight:800, color:'#255EAB', ml:'auto' }}>· viewing</Typography>
+                               : clickable && <OpenInNewIcon sx={{ fontSize:14, color:'#255EAB', ml:'auto' }} />}
                     </Box>
                   );
                 })}

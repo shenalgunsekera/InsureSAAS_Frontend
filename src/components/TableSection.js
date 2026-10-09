@@ -1112,7 +1112,7 @@ const TableSection = () => {
         </DialogActions>
       </Dialog>
 
-      <ClientDetailsModal client={detailClient} onClose={() => setDetailClient(null)} />
+      <ClientDetailsModal client={detailClient} onClose={() => setDetailClient(null)} onOpenClient={(c) => setDetailClient(c)} />
 
       <input type="file" accept=".csv" id="csv-input" style={{ display: 'none' }} onChange={handleImportCSV} />
 
