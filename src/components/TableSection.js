@@ -556,8 +556,17 @@ const TableSection = () => {
   }, [clients, filterType, filterYear, filterMonth, filterDateBasis, searchQuery, sortBy]);
 
   /* paginate */
-  const pageCount    = Math.ceil(filtered.length / rowsPerPage);
-  const paginated    = filtered.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const pageCount    = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
+  // Reset to page 1 when the (header) search changes — it lives outside this
+  // component, so it can't call setPage itself. Without this a stale high page
+  // slices past the smaller filtered list and wrongly shows "no match".
+  useEffect(() => { setPage(1); }, [searchQuery]);
+  // Safety: never leave the page past the last available page.
+  useEffect(() => {
+    if (page > pageCount) setPage(pageCount);
+  }, [pageCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  const safePage     = Math.min(page, pageCount);
+  const paginated    = filtered.slice((safePage - 1) * rowsPerPage, safePage * rowsPerPage);
   const handlePageChange = (_, v) => { setPage(v); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   /* delete single */
@@ -989,7 +998,7 @@ const TableSection = () => {
             borderTop: '1px solid rgba(56,163,224,0.08)',
           }}>
             <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>
-              Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, filtered.length)} of {filtered.length} clients
+              Showing {filtered.length === 0 ? 0 : (safePage - 1) * rowsPerPage + 1}–{Math.min(safePage * rowsPerPage, filtered.length)} of {filtered.length} clients
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography sx={{ fontSize: 12.5, color: '#9CA3AF' }}>Rows:</Typography>
@@ -1002,7 +1011,7 @@ const TableSection = () => {
               </Select>
             </Box>
             <Pagination
-              count={pageCount} page={page}
+              count={pageCount} page={safePage}
               onChange={handlePageChange}
               shape="rounded" size="small"
             />
