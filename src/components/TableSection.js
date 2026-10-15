@@ -560,7 +560,13 @@ const TableSection = () => {
   const famInfo = useMemo(() => {
     const groups = {};
     clients.forEach(c => { const r = c.root_policy_id || c.id; (groups[r] = groups[r] || []).push(c); });
-    const dkey = (c) => c.policy_period_from || (c.created_at?.seconds ? String(c.created_at.seconds).padStart(12, '0') : String(c.created_at || ''));
+    // Order by creation time — each renewal is made after the previous, so this is
+    // the true chain sequence (robust even when all renewals share the same dates).
+    const dkey = (c) => {
+      const s = c.created_at?.seconds != null ? c.created_at.seconds
+        : (c.created_at ? Math.floor(new Date(c.created_at).getTime() / 1000) : 0);
+      return String(s).padStart(14, '0') + '|' + String(c.policy_period_from || '');
+    };
     const info = {};
     Object.values(groups).forEach(fam => {
       const sorted = [...fam].sort((a, b) => String(dkey(a)).localeCompare(String(dkey(b))));

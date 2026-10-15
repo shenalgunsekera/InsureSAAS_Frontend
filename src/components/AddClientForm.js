@@ -1056,9 +1056,19 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
       .catch(() => {});
     return () => { alive = false; };
   }, [renewalRootId]);
-  // Each policy can be renewed only ONCE — the Create Renewal button is disabled once
-  // a renewal already points back to this policy (keeps a clean linear chain).
-  const alreadyRenewed = renewalKin.some(k => k.renewal_of === initialData.id);
+  // Each policy can be renewed only ONCE: only the LATEST policy in the family (by
+  // start date, then created_at) may be renewed — any earlier one already has a
+  // successor. This is robust to old data where renewal_of pointed at the root.
+  const alreadyRenewed = (() => {
+    if (!isEdit) return false;
+    const fam = renewalKin.some(k => k.id === initialData.id)
+      ? [...renewalKin]
+      : [...renewalKin, { id: initialData.id, policy_period_from: initialData.policy_period_from, created_at: initialData.created_at }];
+    if (fam.length <= 1) return false; // no renewals yet
+    const key = (k) => String(k.policy_period_from || '') + '|' + String(k.created_at?.seconds || k.created_at || '');
+    const sorted = [...fam].sort((a, b) => key(a).localeCompare(key(b)));
+    return sorted[sorted.length - 1].id !== initialData.id;
+  })();
 
   /* ── Insurance Provider dropdown — base list + user-added companies saved to
      Firestore ('insurance_providers') so they persist in the dropdown for

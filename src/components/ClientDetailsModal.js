@@ -208,8 +208,13 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
         if (rootSnap.exists()) map[rootSnap.id] = { ...rootSnap.data(), id: rootSnap.id };
         kidsSnap.docs.forEach(d => { map[d.id] = { ...d.data(), id: d.id }; });
         if (client) map[client.id] = { ...(map[client.id] || {}), ...client, id: client.id }; // ensure the open one is included
-        // Order the family by policy start date (then created_at) — earliest = the original.
-        const keyOf = (k) => k.policy_period_from || (k.created_at?.seconds ? String(k.created_at.seconds).padStart(12, '0') : String(k.created_at || ''));
+        // Order the family by creation time — each renewal is made after the previous,
+        // so this is the true chain order (earliest created = the original).
+        const keyOf = (k) => {
+          const s = k.created_at?.seconds != null ? k.created_at.seconds
+            : (k.created_at ? Math.floor(new Date(k.created_at).getTime() / 1000) : 0);
+          return String(s).padStart(14, '0') + '|' + String(k.policy_period_from || '');
+        };
         const fam = Object.values(map).sort((a, b) => String(keyOf(a)).localeCompare(String(keyOf(b))));
         if (alive) setRenewalKin(fam);
       } catch { if (alive) setRenewalKin([]); }
