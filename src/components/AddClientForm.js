@@ -11,6 +11,7 @@ import { evaluateAutoCalc, describeAutoCalc } from '../utils/autoCalc';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Grid from '@mui/material/Grid';
@@ -1031,7 +1032,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
       ...riskValues, ...fields, ...datePayload,
       product_key: productKey || initialData.product_key || '',
       new_renewal: 'Renewal',
-      renewal_of: root,
+      renewal_of: initialData.id || '',  // the IMMEDIATE predecessor (forms a linear chain)
       root_policy_id: root,
       // A renewal is a fresh period: clear the previous period's payments and
       // received-commission so nothing stale carries over. The earned commission
@@ -1055,6 +1056,9 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
       .catch(() => {});
     return () => { alive = false; };
   }, [renewalRootId]);
+  // Each policy can be renewed only ONCE — the Create Renewal button is disabled once
+  // a renewal already points back to this policy (keeps a clean linear chain).
+  const alreadyRenewed = renewalKin.some(k => k.renewal_of === initialData.id);
 
   /* ── Insurance Provider dropdown — base list + user-added companies saved to
      Firestore ('insurance_providers') so they persist in the dropdown for
@@ -1259,11 +1263,16 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           <SectionHeader title="Introducer" />
           {isEdit && (
-            <Button variant="outlined" size="small" startIcon={<AutorenewIcon sx={{ fontSize: 18 }} />}
-              onClick={() => onRenew?.(buildRenewal())}
-              sx={{ textTransform: 'none', borderRadius: '10px', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap' }}>
-              Create Renewal
-            </Button>
+            <Tooltip title={alreadyRenewed ? 'This policy has already been renewed — open its renewal to renew again' : ''}>
+              <span>
+                <Button variant="outlined" size="small" startIcon={<AutorenewIcon sx={{ fontSize: 18 }} />}
+                  onClick={() => onRenew?.(buildRenewal())}
+                  disabled={alreadyRenewed}
+                  sx={{ textTransform: 'none', borderRadius: '10px', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {alreadyRenewed ? 'Already Renewed' : 'Create Renewal'}
+                </Button>
+              </span>
+            </Tooltip>
           )}
         </Box>
         {isEdit && (() => {

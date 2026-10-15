@@ -555,6 +555,26 @@ const TableSection = () => {
     return list;
   }, [clients, filterType, filterYear, filterMonth, filterDateBasis, searchQuery, sortBy]);
 
+  // Per-policy renewal position within its family: parent (New) vs Renewal 1/2/…
+  // Computed from the full client list so the table can badge each row.
+  const famInfo = useMemo(() => {
+    const groups = {};
+    clients.forEach(c => { const r = c.root_policy_id || c.id; (groups[r] = groups[r] || []).push(c); });
+    const dkey = (c) => c.policy_period_from || (c.created_at?.seconds ? String(c.created_at.seconds).padStart(12, '0') : String(c.created_at || ''));
+    const info = {};
+    Object.values(groups).forEach(fam => {
+      const sorted = [...fam].sort((a, b) => String(dkey(a)).localeCompare(String(dkey(b))));
+      const parentId = (sorted.find(k => (k.new_renewal || '') !== 'Renewal') || sorted[0] || {}).id;
+      let n = 0;
+      sorted.forEach(k => {
+        const isParent = k.id === parentId;
+        if (!isParent) n += 1;
+        info[k.id] = { famSize: fam.length, isParent, renewalNo: isParent ? 0 : n };
+      });
+    });
+    return info;
+  }, [clients]);
+
   /* paginate */
   const pageCount    = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   // Reset to page 1 when the (header) search changes — it lives outside this
@@ -955,6 +975,28 @@ const TableSection = () => {
                               {sc.label}
                             </Box>
                           )}
+                          {(() => {
+                            const fi = famInfo[client.id] || {};
+                            const nr = client.new_renewal || ((client.main_class === 'Marine' || /marine/i.test(client.product || '')) ? 'New' : '');
+                            const typeLabel = fi.famSize > 1 ? (fi.isParent ? 'New (parent)' : `Renewal ${fi.renewalNo}`) : nr;
+                            const isRen = typeLabel && typeLabel.startsWith('Renewal');
+                            const endoCount = Array.isArray(client.endorsements) ? client.endorsements.length : 0;
+                            if (!typeLabel && !endoCount) return null;
+                            return (
+                              <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', mt: status !== 'none' ? 0.5 : 0 }}>
+                                {typeLabel && (
+                                  <Chip label={typeLabel} size="small"
+                                    sx={{ height: 18, fontSize: 9.5, fontWeight: 700,
+                                          bgcolor: isRen ? 'rgba(124,58,237,0.12)' : 'rgba(5,150,105,0.12)',
+                                          color: isRen ? '#7c3aed' : '#059669' }} />
+                                )}
+                                {endoCount > 0 && (
+                                  <Chip label={`${endoCount} endo${endoCount > 1 ? 's' : ''}`} size="small"
+                                    sx={{ height: 18, fontSize: 9.5, fontWeight: 700, bgcolor: 'rgba(245,158,11,0.14)', color: '#b45309' }} />
+                                )}
+                              </Box>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
