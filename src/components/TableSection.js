@@ -56,6 +56,7 @@ import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import GridOnIcon from '@mui/icons-material/GridOn';
+import { ymdLocal } from '../utils/dates';
 
 /* ── All underwriting columns (for Excel & CSV) ───────────────────────── */
 // Derived from AddClientForm textFields + extra product-risk keys
@@ -247,7 +248,7 @@ async function exportUnderwritingExcel(clients) {
   const buf = await wb.xlsx.writeBuffer();
   saveAs(
     new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `InsureSAAS_Underwriting_${new Date().toISOString().slice(0, 10)}.xlsx`
+    `InsureSAAS_Underwriting_${ymdLocal(new Date())}.xlsx`
   );
 }
 
@@ -671,7 +672,7 @@ const TableSection = () => {
       payment_status: 'Paid', payment_method: 'Bank Transfer',
       commission_type: 'Standard', commission_pct: '20',
       commission_basic: '10000',
-      date_added: new Date().toISOString().slice(0, 10),
+      date_added: ymdLocal(new Date()),
     };
     // Header row uses friendly names (e.g. total_premium) while values are still
     // pulled by the internal key. The importer maps the friendly names back.

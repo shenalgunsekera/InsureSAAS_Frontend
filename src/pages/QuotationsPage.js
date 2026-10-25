@@ -10,7 +10,8 @@ import { useAuth } from '../App';
 import { PRODUCTS as STATIC_PRODUCTS } from '../config/products';
 import { COUNTRIES } from '../config/countries';
 import emailjs from '@emailjs/browser';
-import { uploadFile as uploadToCloudinary, openFile } from '../storage';
+import { uploadFile as uploadToCloudinary, openFile, safeUrl } from '../storage';
+import OtherDocuments, { readOtherDocs } from '../components/OtherDocuments';
 import { logActivity } from '../utils/workSession';
 import { generateComparisonPdf } from '../utils/comparisonPdf';
 import { evaluateAutoCalc, describeAutoCalc } from '../utils/autoCalc';
@@ -71,6 +72,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import { ymdLocal, parseYmdLocal } from '../utils/dates';
 
 const EMAILJS_SERVICE           = process.env.REACT_APP_EMAILJS_SERVICE_ID           || '';
 const EMAILJS_TEMPLATE          = process.env.REACT_APP_EMAILJS_TEMPLATE_ID          || '';
@@ -317,8 +319,8 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
       return (
         <DatePicker key={f.name}
           label={f.label + (f.required ? ' *' : '')}
-          value={values[f.name] ? new Date(values[f.name]) : null}
-          onChange={v => onChange(f.name, v ? v.toISOString().split('T')[0] : '')}
+          value={values[f.name] ? parseYmdLocal(values[f.name]) : null}
+          onChange={v => onChange(f.name, v ? ymdLocal(v) : '')}
           slotProps={{
             textField: {
               size: 'small', fullWidth: true,
@@ -444,7 +446,7 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
             {url ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.3 }}>
                 <CheckCircleIcon sx={{ color: '#22c55e', fontSize: 14 }} />
-                <Typography component="a" href={url} onClick={e => { e.preventDefault(); openFile(url); }} rel="noopener noreferrer"
+                <Typography component="a" href={safeUrl(url) || undefined} onClick={e => { e.preventDefault(); openFile(url); }} rel="noopener noreferrer"
                   sx={{ fontSize: 11, color: '#22c55e', textDecoration: 'none', cursor: 'pointer', '&:hover': { textDecoration: 'underline' }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }}>
                   {fname || 'View document'}
                 </Typography>
@@ -590,6 +592,14 @@ function ProductForm({ product, values, onChange, errors = {}, allProducts = STA
         </Box>
         );
       })}
+      {/* Extra named documents — any number, beyond the product's fixed upload slots */}
+      <Box sx={{ mb: 3 }}>
+        <Typography sx={{ fontSize: 11, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 1, mb: 1, pb: 0.5, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+          Other Documents
+        </Typography>
+        <OtherDocuments value={values.other_documents} onChange={v => onChange('other_documents', v)} title="Add any other documents"
+          folder={`insuresaas/quotation-docs/${def.prefix || 'QT'}-${String(values[nameField] || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)}`} />
+      </Box>
     </Box>
   );
 }
@@ -632,7 +642,8 @@ function QuoteDetailsDialog({ quote, onClose, allProducts = STATIC_PRODUCTS }) {
       filename: fd[k + '_filename'] || '',
     }));
 
-  const requestDocs = [...defDocs, ...extraDocs];
+  const requestDocs = [...defDocs, ...extraDocs,
+    ...readOtherDocs(fd.other_documents).map(d => ({ label: d.label, url: d.url, filename: d.file_name || '' }))];
 
   // Documents uploaded by insurers with their responses
   const responseDocs = (quote.responses || [])
@@ -1818,7 +1829,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                       {r.quote_file_url ? (
                         <Box>
                           {isImage ? (
-                            <Box component="a" href={r.quote_file_url} onClick={e => { e.preventDefault(); openFile(r.quote_file_url); }} rel="noopener noreferrer">
+                            <Box component="a" href={safeUrl(r.quote_file_url) || undefined} onClick={e => { e.preventDefault(); openFile(r.quote_file_url); }} rel="noopener noreferrer">
                               <Box component="img"
                                 src={r.quote_file_url}
                                 alt={`${r.company_name} quote`}
@@ -1835,7 +1846,7 @@ function ComparisonView({ quote, onBack, onConfirm, allProducts = STATIC_PRODUCT
                           <Chip
                             label={isImage ? 'Open full size ↗' : 'View PDF ↗'}
                             size="small" clickable
-                            component="a" href={r.quote_file_url} onClick={e => { e.preventDefault(); openFile(r.quote_file_url); }}
+                            component="a" href={safeUrl(r.quote_file_url) || undefined} onClick={e => { e.preventDefault(); openFile(r.quote_file_url); }}
                             target="_blank"
                             sx={{ bgcolor: 'rgba(99,102,241,0.10)', color: '#6366f1', fontWeight: 600, fontSize: 11 }} />
                         </Box>

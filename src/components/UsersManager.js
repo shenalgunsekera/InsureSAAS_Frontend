@@ -41,6 +41,9 @@ const ROLE_CONFIG = {
   employee: { label: 'Employee',color: '#2563eb', bg: 'rgba(59,130,246,0.10)', border: 'rgba(59,130,246,0.25)', Icon: BadgeOutlinedIcon },
 };
 
+// Signed-up accounts with no role yet — no data access until an admin assigns one.
+const PENDING = { label: 'Pending', color: '#6B7280', bg: 'rgba(107,114,128,0.10)', border: 'rgba(107,114,128,0.30)', Icon: BadgeOutlinedIcon };
+
 const PER_PAGE = 15;
 
 const UsersManager = ({ currentUserId, isAdmin }) => {
@@ -76,7 +79,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
         const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         // Sort client-side: admins first, then managers, then employees, then by name
         const order = { admin: 0, manager: 1, employee: 2 };
-        all.sort((a, b) => (order[a.role] ?? 3) - (order[b.role] ?? 3) || (a.full_name || '').localeCompare(b.full_name || ''));
+        all.sort((a, b) => (order[a.role] ?? -1) - (order[b.role] ?? -1) || (a.full_name || '').localeCompare(b.full_name || ''));
         setUsers(all);
         setLoading(false);
       },
@@ -176,7 +179,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
         <>
           <Stack spacing={1}>
             {paged.map(u => {
-              const rc = ROLE_CONFIG[u.role] || ROLE_CONFIG.employee;
+              const rc = ROLE_CONFIG[u.role] || PENDING;
               const RoleIcon = rc.Icon;
               const isSelf = u.id === currentUserId;
 
@@ -212,7 +215,8 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
                       {isAdmin && !isSelf ? (
                         <FormControl size="small" sx={{ minWidth: 130 }}>
                           <Select
-                            value={u.role || 'employee'}
+                            value={ROLE_CONFIG[u.role] ? u.role : ''}
+                            displayEmpty
                             onChange={e => handleRoleChange(u.id, u.full_name || u.email, e.target.value)}
                             sx={{ fontSize: 12, fontWeight: 700,
                                   color: rc.color,
@@ -220,6 +224,7 @@ const UsersManager = ({ currentUserId, isAdmin }) => {
                                   '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: rc.color },
                                   borderRadius: '8px' }}
                           >
+                            <MenuItem value="" disabled sx={{ fontSize: 13 }}>Pending — assign a role</MenuItem>
                             {Object.entries(ROLE_CONFIG).map(([val, cfg]) => (
                               <MenuItem key={val} value={val} sx={{ fontSize: 13 }}>
                                 {cfg.label}

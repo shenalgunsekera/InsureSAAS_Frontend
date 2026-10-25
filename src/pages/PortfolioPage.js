@@ -70,6 +70,7 @@ import {
   getPortfoliosForIndustry, getAssetsForPortfolio,
   computeRecommendations, RISK_SCORING_RULES, STRENGTH_COLORS,
 } from '../config/portfolioEngine';
+import { ymdLocal } from '../utils/dates';
 
 const EMAILJS_SERVICE           = process.env.REACT_APP_EMAILJS_SERVICE_ID           || '';
 const EMAILJS_PORTFOLIO_TEMPLATE = process.env.REACT_APP_EMAILJS_PORTFOLIO_TEMPLATE_ID  || process.env.REACT_APP_EMAILJS_TEMPLATE_ID || '';
@@ -106,7 +107,7 @@ function StepCustomer({ data, onChange }) {
           onChange={e => onChange('email', e.target.value)} size="small" />
         <TextField label="Phone / WhatsApp" value={data.phone || ''} fullWidth
           onChange={e => onChange('phone', e.target.value)} size="small" />
-        <TextField label="Assessment Date" type="date" value={data.date || new Date().toISOString().split('T')[0]}
+        <TextField label="Assessment Date" type="date" value={data.date || ymdLocal(new Date())}
           onChange={e => onChange('date', e.target.value)} size="small" InputLabelProps={{ shrink: true }} />
         <TextField label="Broker / Prepared By" value={data.broker || ''} fullWidth
           onChange={e => onChange('broker', e.target.value)} size="small" />
@@ -1129,7 +1130,7 @@ export default function PortfolioPage() {
   const { user, userProfile } = useAuth();
   const [activeTab,  setActiveTab]  = useState(0); // 0=New 1=Saved
   const [step,       setStep]       = useState(0);
-  const [customer,   setCustomer]   = useState({ name:'', industry:'', date:new Date().toISOString().split('T')[0], contact:'', broker:'', email:'', phone:'' });
+  const [customer,   setCustomer]   = useState({ name:'', industry:'', date:ymdLocal(new Date()), contact:'', broker:'', email:'', phone:'' });
   const [selectedPortfolios, setSelectedPortfolios] = useState([]);
   const [assetData,   setAssetData]   = useState({});
   const [riskAnswers, setRiskAnswers] = useState({});
@@ -1175,7 +1176,7 @@ export default function PortfolioPage() {
 
   const reset = (keepTab = false) => {
     setStep(0);
-    setCustomer({ name:'', industry:'', date:new Date().toISOString().split('T')[0], contact:'', broker:'', email:'', phone:'' });
+    setCustomer({ name:'', industry:'', date:ymdLocal(new Date()), contact:'', broker:'', email:'', phone:'' });
     setSelectedPortfolios([]);
     setAssetData({});
     setRiskAnswers({});
@@ -1232,7 +1233,7 @@ export default function PortfolioPage() {
   const loadSavedReview = (r) => {
     setCustomer({
       name: r.customer_name || '', industry: r.industry_code || '',
-      date: r.assessment_date || new Date().toISOString().split('T')[0],
+      date: r.assessment_date || ymdLocal(new Date()),
       contact: r.customer_contact || '', broker: r.customer_broker || '',
       email: r.customer_email || '', phone: r.customer_phone || '',
     });

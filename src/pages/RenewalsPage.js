@@ -31,6 +31,7 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined';
+import { ymdLocal } from '../utils/dates';
 
 const COMPANY = 'InsureSAAS Insurance Brokers (Pvt) Ltd';
 
@@ -76,7 +77,7 @@ function exportRenewalsCSV(rows, title) {
   });
   const BOM = '﻿';
   const blob = new Blob([BOM + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  saveAs(blob, `Renewals_${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+  saveAs(blob, `Renewals_${title.replace(/\s+/g, '_')}_${ymdLocal(new Date())}.csv`);
 }
 
 function exportRenewalsPDF(rows, title) {
@@ -118,7 +119,7 @@ function exportRenewalsPDF(rows, title) {
       pdf.text(`Page ${pdf.getNumberOfPages()}`, pageW - 10, pageH - 6, { align: 'right' });
     },
   });
-  pdf.save(`Renewals_${title.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+  pdf.save(`Renewals_${title.replace(/\s+/g, '_')}_${ymdLocal(new Date())}.pdf`);
 }
 
 const RenewalsPage = () => {

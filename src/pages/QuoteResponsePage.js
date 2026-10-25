@@ -63,6 +63,13 @@ function buildInfoSections(product, formData) {
     const fileName = f.type === 'file' ? (formData[f.name + '_filename'] || f.label) : null;
     sectionMap[f.section].push({ field: f, value: val, fileName });
   });
+  // Extra named documents attached by the broker ("Other Documents")
+  const others = Array.isArray(formData.other_documents) ? formData.other_documents : [];
+  others.forEach((d, i) => {
+    if (!d || typeof d.url !== 'string' || !d.url.startsWith('http')) return;
+    if (!sectionMap['Other Documents']) { sectionMap['Other Documents'] = []; sectionOrder.push('Other Documents'); }
+    sectionMap['Other Documents'].push({ field: { name: `other_doc_${i}`, label: d.label || 'Document', type: 'file' }, value: d.url, fileName: d.file_name || d.label || 'Document' });
+  });
   return sectionOrder
     .filter(name => sectionMap[name].length > 0)
     .map(name => ({ name, fields: sectionMap[name] }));

@@ -13,7 +13,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { useSessionTimeout } from './hooks/useSessionTimeout';
 import { onAuthStateChanged } from 'firebase/auth';
 import { setActiveWorkSession, closeActiveWorkSession, logoutWithSessionClose, openWorkSession } from './utils/workSession';
-import { doc, getDoc, getDocFromServer, setDoc, collection, getDocs, limit, query, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocFromServer, setDoc, collection, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { getOrCreateDeviceId, collectDeviceInfo, fetchLocationInfo } from './utils/deviceFingerprint';
 import { PRODUCTS, DEFAULT_MODULE_ACCESS } from './config/products';
@@ -396,6 +396,20 @@ function RequireAuth({ children }) {
     </Box>
   );
 
+  // Signed in, but no role granted yet (self-registered / not set up by an admin).
+  if (userProfile && !['admin', 'manager', 'employee'].includes(userProfile.role)) return (
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#F9FAFB', p: 3 }}>
+      <Box sx={{ maxWidth: 420, textAlign: 'center' }}>
+        <Typography sx={{ fontSize: 40, mb: 1 }}>⏳</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 800, mb: 1 }}>Account awaiting approval</Typography>
+        <Typography sx={{ color: '#6B7280', fontSize: 14, lineHeight: 1.7, mb: 3 }}>
+          Your sign-in worked, but an administrator still needs to give this account a role before you can use the system.
+        </Typography>
+        <Button variant="outlined" onClick={() => logoutWithSessionClose(auth)}>Sign Out</Button>
+      </Box>
+    </Box>
+  );
+
   return children;
 }
 
@@ -446,19 +460,11 @@ function App() {
           profile = snap.data();
           setUserProfile(profile);
         } else {
-          // No Firestore profile — auto-create one.
-          // First account ever in the system becomes admin; all others get employee.
-          let role = 'employee';
-          try {
-            const anyExisting = await getDocs(query(collection(db, 'users'), limit(1)));
-            if (anyExisting.empty) role = 'admin';
-          } catch (_) {
-            // Employees can't list users collection — default to employee
-          }
+          // No Firestore profile — create one WITHOUT a role. Only an admin can grant a
+          // role (Users tab), so a stranger who signs up gets no access to any data.
           profile = {
             full_name:  firebaseUser.displayName || firebaseUser.email.split('@')[0],
             email:      firebaseUser.email,
-            role,
             created_at: serverTimestamp(),
           };
           await setDoc(doc(db, 'users', firebaseUser.uid), profile);

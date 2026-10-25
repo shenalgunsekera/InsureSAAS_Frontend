@@ -72,6 +72,7 @@ import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import PercentIcon from '@mui/icons-material/Percent';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { ymdLocal } from '../utils/dates';
 
 /* ── colour maps ─────────────────────────────────────────────────────────── */
 const PRIORITY_COLORS = {
@@ -345,6 +346,17 @@ async function fetchClientDocs(client) {
     if (buf) files.push({ filename: `${label}.${extFromUrl(url)}`, buf });
   }
 
+  // Extra named documents ("Other Documents")
+  const others = Array.isArray(client.other_documents) ? client.other_documents : [];
+  for (let i = 0; i < others.length; i++) {
+    const d = others[i];
+    if (!d || typeof d.url !== 'string' || !d.url.startsWith('http')) continue;
+    const label = `Other_${i + 1}_${String(d.label || 'Document').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 40)}`;
+    urlLines.push(`${d.label || 'Other document'}: ${d.url}`);
+    const buf = await fetchFile(d.url);
+    if (buf) files.push({ filename: `${label}.${extFromUrl(d.url)}`, buf });
+  }
+
   return { files, urlLines };
 }
 
@@ -393,14 +405,17 @@ function buildClientsImportCsv(clients) {
     'other_premium', 'validity_days',
     ...STD_DOC_COLS,
     ...Array.from(extraDocCols),
+    'other_documents', // JSON list of extra named documents
   ].filter(c => { if (seen.has(c)) return false; seen.add(c); return true; });
 
   const header = cols.map(exportHeader).join(',');
   const rows = clients.map(c => {
     const createdDate = c.created_at?.toDate ? c.created_at.toDate() : c.created_at ? new Date(c.created_at) : null;
-    const dateAdded = createdDate && !isNaN(createdDate) ? createdDate.toISOString().slice(0, 10) : '';
+    const dateAdded = createdDate && !isNaN(createdDate) ? ymdLocal(createdDate) : '';
     return cols.map(col => {
-      const v = col === 'date_added' ? dateAdded : (c[col] ?? '');
+      const v = col === 'date_added' ? dateAdded
+        : col === 'other_documents' ? (Array.isArray(c.other_documents) && c.other_documents.length ? JSON.stringify(c.other_documents) : (typeof c.other_documents === 'string' ? c.other_documents : ''))
+        : (c[col] ?? '');
       const s = String(v).replace(/"/g, '""');
       return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
     }).join(',');
@@ -579,8 +594,8 @@ const AdminPanel = () => {
   // Work hours state
   const [workSessions,  setWorkSessions]  = useState([]);
   const [workLoading,   setWorkLoading]   = useState(false);
-  const [workDateFrom,  setWorkDateFrom]  = useState(() => { const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10); });
-  const [workDateTo,    setWorkDateTo]    = useState(() => new Date().toISOString().slice(0,10));
+  const [workDateFrom,  setWorkDateFrom]  = useState(() => { const d = new Date(); d.setDate(1); return ymdLocal(d); });
+  const [workDateTo,    setWorkDateTo]    = useState(() => ymdLocal(new Date()));
   const [workEmployee,  setWorkEmployee]  = useState('all');
 
   const isManager = userProfile?.role === 'manager' || userProfile?.role === 'admin';
@@ -717,7 +732,7 @@ const AdminPanel = () => {
 
     const buf = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      `work_hours_${new Date().toISOString().slice(0,10)}.xlsx`);
+      `work_hours_${ymdLocal(new Date())}.xlsx`);
   };
 
   const loadReditRequests = useCallback(async () => {
@@ -984,7 +999,7 @@ const AdminPanel = () => {
         meta => setBackupState(s => ({ ...s, progress: 87 + Math.round(meta.percent * 0.12) }))
       );
 
-      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const dateStr = ymdLocal(new Date()).replace(/-/g, '');
       saveAs(blob, `insuresaas_backup_${dateStr}.zip`);
       setBackupState({
         step: `Backup complete! ${clients.length} clients · ${quotes.length} quotations`,

@@ -5,7 +5,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../App';
-import { uploadFile, openFile } from '../storage';
+import { uploadFile, openFile, safeUrl } from '../storage';
 import { logActivity } from '../utils/workSession';
 import { confirmTypedDelete } from '../utils/confirmDelete';
 
@@ -42,6 +42,7 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import PostAddOutlinedIcon from '@mui/icons-material/PostAddOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import { buildClaimsCsv, buildClaimsTemplate, parseClaimsCsv, matchClaimDoc } from '../utils/claimsIo';
+import { ymdLocal } from '../utils/dates';
 
 const BRAND_PREFIX = 'insuresaas';
 const ACCENT = '#255EAB';
@@ -208,7 +209,7 @@ function ClaimProcessTracker({ value, onChange, claimId, brandPrefix, accent }) 
                   {links.map((l, li) => (
                     <Chip key={'l' + li} size="small" icon={<LinkOutlinedIcon sx={{ fontSize: 14 }} />}
                       label={l.name || l.url.replace(/^https?:\/\//, '').slice(0, 34)}
-                      onClick={() => window.open(l.url, '_blank', 'noopener')} onDelete={() => removeLink(step.key, li)}
+                      onClick={() => safeUrl(l.url) && window.open(safeUrl(l.url), '_blank', 'noopener')} onDelete={() => removeLink(step.key, li)}
                       sx={{ fontSize: 11, maxWidth: 220, bgcolor: `${accent}12`, color: accent, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
                   ))}
                 </Box>
@@ -493,7 +494,7 @@ const ClaimsPage = () => {
 
   const handleExportCsv = () => {
     if (!claims.length) { setToast({ open:true, msg:'No claims to export.', severity:'info' }); return; }
-    downloadFile(buildClaimsCsv(claims), `Claims_Export_${new Date().toISOString().slice(0,10)}.csv`);
+    downloadFile(buildClaimsCsv(claims), `Claims_Export_${ymdLocal(new Date())}.csv`);
   };
   const handleDownloadTemplate = () => downloadFile(buildClaimsTemplate(), 'Claims_Import_Template.csv');
 

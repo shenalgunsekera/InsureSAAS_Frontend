@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp, getDocs, arrayUnion, increment, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { uploadFile as uploadToCloudinary, openFile } from '../storage';
+import OtherDocuments, { readOtherDocs } from './OtherDocuments';
 import { logActivity } from '../utils/workSession';
 import { useAuth } from '../App';
 import { PRODUCTS } from '../config/products';
@@ -42,6 +43,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import { ymdLocal, parseYmdLocal } from '../utils/dates';
 
 /* Endorsement = a recorded change to an in-force policy. Each captures the
    revised Basic/SRCC/TC premium + sum insured; commission auto-calculates and
@@ -432,13 +434,13 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
 
   /* ── date fields state ────────────────────────────────────────────────── */
   const [dates, setDates] = useState({
-    policy_period_from:      initialData.policy_period_from ? new Date(initialData.policy_period_from) : null,
-    policy_period_to:        initialData.policy_period_to   ? new Date(initialData.policy_period_to)   : null,
-    payment_date:            initialData.payment_date        ? new Date(initialData.payment_date)        : null,
-    debit_note_date:         initialData.debit_note_date     ? new Date(initialData.debit_note_date)     : null,
-    commission_receive_date: initialData.commission_receive_date ? new Date(initialData.commission_receive_date) : null,
-    claim_date:              initialData.claim_date           ? new Date(initialData.claim_date)           : null,
-    birthday_policy:         initialData.birthday_policy      ? new Date(initialData.birthday_policy)      : null,
+    policy_period_from:      initialData.policy_period_from ? parseYmdLocal(initialData.policy_period_from) : null,
+    policy_period_to:        initialData.policy_period_to   ? parseYmdLocal(initialData.policy_period_to)   : null,
+    payment_date:            initialData.payment_date        ? parseYmdLocal(initialData.payment_date)        : null,
+    debit_note_date:         initialData.debit_note_date     ? parseYmdLocal(initialData.debit_note_date)     : null,
+    commission_receive_date: initialData.commission_receive_date ? parseYmdLocal(initialData.commission_receive_date) : null,
+    claim_date:              initialData.claim_date           ? parseYmdLocal(initialData.claim_date)           : null,
+    birthday_policy:         initialData.birthday_policy      ? parseYmdLocal(initialData.birthday_policy)      : null,
     date_added:              initialData.created_at?.toDate
       ? initialData.created_at.toDate()
       : initialData.created_at ? new Date(initialData.created_at) : null,
@@ -447,6 +449,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
   const [docs,     setDocs]     = useState({});
   const [progress, setProgress] = useState({});
   const [uploaded, setUploaded] = useState({});
+  // Extra named documents beyond the fixed slots (any number, any name).
+  const [otherDocs, setOtherDocs] = useState(() => readOtherDocs(initialData.other_documents));
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
@@ -559,7 +563,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
   }, [initialData.root_policy_id]);
 
   const thisStartStr = dates.policy_period_from && !isNaN(dates.policy_period_from)
-    ? dates.policy_period_from.toISOString().slice(0, 10) : '';
+    ? ymdLocal(dates.policy_period_from) : '';
   // The root start: the original policy's start for a renewal, else this policy's own
   // start (a brand-new policy is Year 1).
   const structRootStr = initialData.root_policy_id ? structRootStart : thisStartStr;
@@ -925,7 +929,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
       const datePayload = {};
       Object.entries(dates).forEach(([k, v]) => {
         if (k === 'date_added') return;
-        if (v && !isNaN(v)) datePayload[k] = v.toISOString().split('T')[0];
+        if (v && !isNaN(v)) datePayload[k] = ymdLocal(v);
       });
 
       const payload = {
@@ -933,6 +937,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
         ...fields,       // text fields win over riskValues for any shared keys
         ...datePayload,  // date fields override anything above
         ...docUrls,
+        other_documents: otherDocs, // extra named documents
         endorsements,    // recorded policy endorsements (with per-endorsement docs)
         product_key: productKey || '',
         // Renewal chain linkage — carried through from a renewal prefill / prior record
@@ -1010,7 +1015,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
     const datePayload = {};
     Object.entries(dates).forEach(([k, v]) => {
       if (k === 'date_added') return;
-      if (v && !isNaN(v)) datePayload[k] = v.toISOString().split('T')[0];
+      if (v && !isNaN(v)) datePayload[k] = ymdLocal(v);
     });
     // Roll the period FORWARD to the next term so the renewal automatically lands on
     // the next policy year — this is what steps a commission-structure product to its
@@ -1022,8 +1027,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
       let nt;
       if (oldFrom && !isNaN(oldFrom)) nt = new Date(oldTo.getTime() + (oldTo.getTime() - oldFrom.getTime()));
       else { nt = new Date(oldTo); nt.setFullYear(nt.getFullYear() + 1); }
-      datePayload.policy_period_from = nf.toISOString().split('T')[0];
-      datePayload.policy_period_to   = nt.toISOString().split('T')[0];
+      datePayload.policy_period_from = ymdLocal(nf);
+      datePayload.policy_period_to   = ymdLocal(nt);
     }
     // The root is the original New policy: this record's own root if it has one
     // (i.e. it's already a renewal), otherwise this record itself.
@@ -1032,6 +1037,7 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
       ...riskValues, ...fields, ...datePayload,
       product_key: productKey || initialData.product_key || '',
       new_renewal: 'Renewal',
+      other_documents: otherDocs,
       renewal_of: initialData.id || '',  // the IMMEDIATE predecessor (forms a linear chain)
       root_policy_id: root,
       // A renewal is a fresh period: clear the previous period's payments and
@@ -1249,8 +1255,8 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
     );
     if (f.type === 'date') return (
       <DatePicker key={f.name} label={f.label}
-        value={riskValues[f.name] ? new Date(riskValues[f.name]) : null}
-        onChange={val => setRisk(f.name, val ? val.toISOString().split('T')[0] : '')}
+        value={riskValues[f.name] ? parseYmdLocal(riskValues[f.name]) : null}
+        onChange={val => setRisk(f.name, val ? ymdLocal(val) : '')}
         slotProps={{ textField: { fullWidth: true, size: 'small',
           sx: { '& .MuiOutlinedInput-root': { borderRadius: '10px', fontSize: 13 } } } }} />
     );
@@ -1711,6 +1717,11 @@ const AddClientForm = ({ onSuccess, onCancel, initialData = {}, isEdit = false, 
             ))
           }
         </Grid>
+        <Box sx={{ mb: 2.5 }}>
+          <OtherDocuments value={otherDocs} onChange={setOtherDocs}
+            folder={`insuresaas/clients/${(fields.client_name || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)}/docs`}
+            uploadedBy={userProfile?.full_name || user?.email || ''} />
+        </Box>
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           {docFields.map(df => (
             <Grid item xs={12} sm={6} md={4} key={df.text}>

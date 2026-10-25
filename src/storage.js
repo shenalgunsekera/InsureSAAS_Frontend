@@ -89,7 +89,8 @@ export async function uploadFile(file, folder = 'insuresaas/docs', onProgress, l
     ? label.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
     : `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-  const filename = `${stem}.${ext}`;
+  // Random suffix: object paths can't be guessed from the client name + label.
+  const filename = `${stem}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const fileRef  = ref(storage, `${folder}/${filename}`);
 
   const contentType = wasCompressed
@@ -178,7 +179,16 @@ export async function freshDownloadUrl(url) {
 // Opens any file in a new tab. Always resolves a fresh authorised URL first so
 // documents never 403 on a stale token. PDFs use a blob URL for guaranteed
 // inline display; other files open directly.
+// Only http(s) and blob URLs may be opened/linked — never javascript:/data: etc.
+// (URLs can come from insurer-submitted quote responses via public links.)
+export function safeUrl(url) {
+  if (typeof url !== 'string') return '';
+  const u = url.trim();
+  return /^(https?:\/\/|blob:)/i.test(u) ? u : '';
+}
+
 export async function openFile(url) {
+  url = safeUrl(url);
   if (!url) return;
   const fresh = await freshDownloadUrl(url);
   const isPdf = /\.pdf(\?|$)/i.test(fresh) || /\.pdf(\?|$)/i.test(url);

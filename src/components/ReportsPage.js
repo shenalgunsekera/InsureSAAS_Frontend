@@ -69,6 +69,7 @@ import TableChartOutlinedIcon from '@mui/icons-material/TableChartOutlined';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import FunctionsIcon from '@mui/icons-material/Functions';
+import { ymdLocal, parseYmdLocal } from '../utils/dates';
 
 /* ── Palette ─────────────────────────────────────────────────────────────── */
 const CHART_COLORS = ['#255EAB','#6366f1','#10B981','#f59e0b','#0ea5e9','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16'];
@@ -100,7 +101,7 @@ const CLIENT_FIELDS = (() => {
 const isInternalKey = (k) =>
   k.startsWith('doc_') || k.endsWith('_doc_url') || k.endsWith('_text') ||
   ['id','updated_at','is_active','submitted_by','submitted_at','submitted_by_name','source_quote_id',
-   'cover_responses','clause_responses','plan_premiums','endorsements','product_key',
+   'cover_responses','clause_responses','plan_premiums','endorsements','other_documents','product_key',
    'date_added','policy_year','policy_month','rejection_reason','reviewed_by','reviewed_at'].includes(k);
 const prettyKey = (k) => k.replace(/^(cover_|clause_|fi_)/, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
@@ -476,7 +477,7 @@ async function exportPDF(columns, rows, reportName, chartEls=[]) {
       pdf.text(`Page ${pdf.getNumberOfPages()}`,pageW-10,pageH-6,{align:'right'});
     },
   });
-  pdf.save(`${reportName.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+  pdf.save(`${reportName.replace(/\s+/g,'_')}_${ymdLocal(new Date())}.pdf`);
 }
 
 /* ── CSV export ──────────────────────────────────────────────────────────── */
@@ -522,7 +523,7 @@ function exportCSV(columns, rows, reportName) {
   // Prepend UTF-8 BOM so Excel opens with correct encoding
   const BOM  = '﻿';
   const blob = new Blob([BOM + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
-  saveAs(blob, `${reportName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+  saveAs(blob, `${reportName.replace(/\s+/g, '_')}_${ymdLocal(new Date())}.csv`);
 }
 
 /* ── Excel export — native charts via JSZip XML injection ────────────────── */
@@ -699,7 +700,7 @@ async function exportExcel(columns, rows, reportName, chartsWithData = []) {
   /* ── Native chart injection via JSZip ───────────────────────────────────── */
   if (chartsWithData.length === 0) {
     saveAs(new Blob([buf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      `${reportName.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`);
+      `${reportName.replace(/\s+/g,'_')}_${ymdLocal(new Date())}.xlsx`);
     return;
   }
 
@@ -811,7 +812,7 @@ ${chartsWithData.map((_, i) => `  <Relationship Id="rId${i + 1}" Type="http://sc
   const finalBuf = await zip.generateAsync({ type:'arraybuffer', compression:'DEFLATE' });
   saveAs(
     new Blob([finalBuf], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-    `${reportName.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`
+    `${reportName.replace(/\s+/g,'_')}_${ymdLocal(new Date())}.xlsx`
   );
 }
 
@@ -1114,7 +1115,7 @@ const ReportsPage = () => {
       for (const row of base) {
         let v = row?.[fieldKey];
         if (v === null || v === undefined || v === '') continue;
-        if (typeof v === 'object') { v = v.toDate ? v.toDate().toISOString().slice(0, 10) : null; }
+        if (typeof v === 'object') { v = v.toDate ? ymdLocal(v.toDate()) : null; }
         if (v === null) continue;
         set.add(String(v));
         if (set.size > 2000) break;
@@ -1533,8 +1534,8 @@ const ReportsPage = () => {
                 <Typography sx={{fontSize:11,fontWeight:800,color:'#9CA3AF',textTransform:'uppercase',letterSpacing:0.8,mb:1}}>Quick Date Filter</Typography>
                 <Stack direction="row" spacing={0.7} flexWrap="wrap" sx={{mb:2.5}}>
                   {[
-                    {label:'This Month',fn:()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01|${new Date(n.getFullYear(),n.getMonth()+1,0).toISOString().slice(0,10)}`;}},
-                    {label:'Last Month',fn:()=>{const n=new Date();const m=new Date(n.getFullYear(),n.getMonth()-1,1);return`${m.toISOString().slice(0,10)}|${new Date(n.getFullYear(),n.getMonth(),0).toISOString().slice(0,10)}`;}},
+                    {label:'This Month',fn:()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-01|${ymdLocal(new Date(n.getFullYear(),n.getMonth()+1,0))}`;}},
+                    {label:'Last Month',fn:()=>{const n=new Date();const m=new Date(n.getFullYear(),n.getMonth()-1,1);return`${ymdLocal(m)}|${ymdLocal(new Date(n.getFullYear(),n.getMonth(),0))}`;}},
                     {label:'This Year', fn:()=>{const y=new Date().getFullYear();return`${y}-01-01|${y}-12-31`;}},
                     {label:'Last Year', fn:()=>{const y=new Date().getFullYear()-1;return`${y}-01-01|${y}-12-31`;}},
                   ].map(({label,fn})=>(
@@ -1570,26 +1571,26 @@ const ReportsPage = () => {
                             f.op==='between' ? (
                               <Stack direction="row" spacing={0.5} sx={{flex:1}} flexWrap="wrap">
                                 <DatePicker
-                                  label="From" value={f.value?.split('|')[0]?new Date(f.value.split('|')[0]):null}
+                                  label="From" value={f.value?.split('|')[0]?parseYmdLocal(f.value.split('|')[0]):null}
                                   onChange={val=>{
                                     const to=f.value?.split('|')[1]||'';
-                                    const from=val?val.toISOString().slice(0,10):'';
+                                    const from=val?ymdLocal(val):'';
                                     setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:`${from}|${to}`}:ff));
                                   }}
                                   slotProps={{textField:{size:'small',sx:{flex:1,minWidth:130,'& input':{fontSize:12}}}}}/>
                                 <DatePicker
-                                  label="To" value={f.value?.split('|')[1]?new Date(f.value.split('|')[1]):null}
+                                  label="To" value={f.value?.split('|')[1]?parseYmdLocal(f.value.split('|')[1]):null}
                                   onChange={val=>{
                                     const from=f.value?.split('|')[0]||'';
-                                    const to=val?val.toISOString().slice(0,10):'';
+                                    const to=val?ymdLocal(val):'';
                                     setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:`${from}|${to}`}:ff));
                                   }}
                                   slotProps={{textField:{size:'small',sx:{flex:1,minWidth:130,'& input':{fontSize:12}}}}}/>
                               </Stack>
                             ) : (
                               <DatePicker
-                                value={f.value?new Date(f.value):null}
-                                onChange={val=>setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:val?val.toISOString().slice(0,10):''}:ff))}
+                                value={f.value?parseYmdLocal(f.value):null}
+                                onChange={val=>setFilters(p=>p.map((ff,idx)=>idx===i?{...ff,value:val?ymdLocal(val):''}:ff))}
                                 slotProps={{textField:{size:'small',sx:{flex:1,'& input':{fontSize:12}}}}}/>
                             )
                           ) : (

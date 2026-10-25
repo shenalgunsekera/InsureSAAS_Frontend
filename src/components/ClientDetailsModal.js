@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { openFile } from '../storage';
+import { openFile, safeUrl } from '../storage';
+import { OtherDocumentsList, readOtherDocs } from './OtherDocuments';
 import { liveOsDays } from '../utils/osDays';
 import { liveCommission } from '../utils/commission';
 import { PRODUCTS } from '../config/products';
@@ -570,6 +571,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
       const allPdfDocs = [
         ...extraDocCards.map(df => ({ label: df.label, doc: df.name, text: null })),
         ...docFields.filter(df => client[df.doc]),
+        ...readOtherDocs(client.other_documents).map(d => ({ label: d.label, url: d.url, text: null })),
       ];
       if (allPdfDocs.length > 0) {
         pdf.addPage(); drawHeader(); startSec('documents');
@@ -594,7 +596,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
           const note = df.text ? client[df.text] : null;
           if (note) { pdf.setFontSize(7); pdf.setFont('helvetica','normal'); pdf.setTextColor(107,114,128); pdf.text(note, cx, docY+10, {maxWidth:colW}); }
           const imgY = docY + labelH;
-          const url  = client[df.doc];
+          const url  = df.url || client[df.doc];
           const isPdf = /\.pdf(\?|$)/i.test(url);
           const isImg = !isPdf && /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url);
           pdf.setFillColor(245,247,250); pdf.rect(cx, imgY, colW, imgMaxH, 'F');
@@ -1168,7 +1170,7 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
                           <Box sx={{ display:'flex', gap:1, mt:1.2, flexWrap:'wrap' }}>
                             {e.documents.map((d, i) => (
                               <Chip key={i} label={d.name || `Document ${i + 1}`} size="small"
-                                onClick={() => d.url && window.open(d.url, '_blank')}
+                                onClick={() => safeUrl(d.url) && window.open(safeUrl(d.url), '_blank', 'noopener')}
                                 sx={{ height:22, fontSize:10.5, cursor:'pointer', bgcolor:'rgba(124,58,237,0.12)', color:'#7c3aed' }} />
                             ))}
                           </Box>
@@ -1197,6 +1199,12 @@ const ClientDetailsModal = ({ client, onClose, onOpenClient }) => {
                     <DocCard label={df.label} url={client[df.name]} />
                   </Grid>
                 ))}
+              </>
+            )}
+            {readOtherDocs(client.other_documents).length > 0 && (
+              <>
+                <SubHeader title="Other Documents" />
+                <Grid item xs={12}><OtherDocumentsList value={client.other_documents} /></Grid>
               </>
             )}
             <SubHeader title="Underwriting Documents" />

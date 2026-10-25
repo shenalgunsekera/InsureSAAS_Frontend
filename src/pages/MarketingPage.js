@@ -3,7 +3,7 @@ import {
   collection, addDoc, getDocs, doc, getDoc, setDoc, deleteDoc,
   query, orderBy, serverTimestamp,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { confirmTypedDelete } from '../utils/confirmDelete';
 import { useAuth } from '../App';
 import { API_URL } from '../config';
@@ -143,25 +143,32 @@ const MarketingPage = () => {
 
   useEffect(() => {
     getDoc(doc(db, 'settings', 'whatsapp_api'))
-      .then(snap => { if (snap.exists()) setSettings(snap.data()); })
+      .then(snap => {
+        if (!snap.exists()) return;
+        const d = snap.data();
+        setSettings({ phoneNumberId: d.phoneNumberId || '', businessName: d.businessName || '', accessToken: '' });
+        // Older versions saved the Meta access token here, readable by other users —
+        // scrub it (admin write; harmless no-op for everyone else).
+        if (d.accessToken) setDoc(doc(db, 'settings', 'whatsapp_api'), { phoneNumberId: d.phoneNumberId || '', businessName: d.businessName || '', updated_at: serverTimestamp() }).catch(() => {});
+      })
       .catch(() => {});
   }, []);
 
   const saveSettings = async () => {
-    await setDoc(doc(db, 'settings', 'whatsapp_api'), { ...settings, updated_at: serverTimestamp() });
+    // The access token lives ONLY on the backend server (WHATSAPP_ACCESS_TOKEN) — never in the database.
+    await setDoc(doc(db, 'settings', 'whatsapp_api'), { phoneNumberId: settings.phoneNumberId || '', businessName: settings.businessName || '', updated_at: serverTimestamp() });
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 3000);
     showToast('WhatsApp settings saved.');
   };
 
   const testConnection = async () => {
-    if (!settings.phoneNumberId || !settings.accessToken) { showToast('Enter Phone Number ID and Access Token first.', 'error'); return; }
     if (!testPhone) { showToast('Enter a test phone number.', 'error'); return; }
     setTesting(true);
     try {
       const res = await fetch(`${API_URL}/send-whatsapp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser?.getIdToken()}` },
         body: JSON.stringify({ to: testPhone, message: 'Test message from InsureSAAS Insurance Brokers ✅' }),
       });
       const data = await res.json();
@@ -257,7 +264,6 @@ const MarketingPage = () => {
   const allTemplates = [...PRESET_TEMPLATES, ...templates];
 
   const sendCampaign = async () => {
-    if (!settings.phoneNumberId || !settings.accessToken) { showToast('Configure WhatsApp API settings first.', 'error'); setTab(0); return; }
     if (!selectedTpl) { showToast('Select a template.', 'error'); return; }
     if (selectedClients.length === 0) { showToast('Select at least one contact.', 'error'); return; }
     if (!campaignName.trim()) { showToast('Enter a campaign name.', 'error'); return; }
@@ -275,7 +281,7 @@ const MarketingPage = () => {
       try {
         const res = await fetch(`${API_URL}/send-whatsapp`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await auth.currentUser?.getIdToken()}` },
           body: JSON.stringify({
             to:      client.mobile_no,
             message: msg,
@@ -388,10 +394,9 @@ const MarketingPage = () => {
                 <TextField size="small" fullWidth label="Phone Number ID *"
                   placeholder="e.g. 123456789012345"
                   value={settings.phoneNumberId} onChange={e => setSettings(s => ({ ...s, phoneNumberId: e.target.value }))} />
-                <TextField size="small" fullWidth label="Access Token *" type="password"
-                  placeholder="Permanent access token from Meta"
-                  value={settings.accessToken} onChange={e => setSettings(s => ({ ...s, accessToken: e.target.value }))}
-                  sx={{ gridColumn: '1 / -1' }} />
+                <Typography sx={{ gridColumn: '1 / -1', fontSize: 12, color: '#6B7280' }}>
+                  The Meta access token is configured on the backend server (WHATSAPP_ACCESS_TOKEN) and is never stored in the database.
+                </Typography>
               </Box>
               <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
                 <Button variant="contained" onClick={saveSettings}

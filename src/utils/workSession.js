@@ -12,6 +12,7 @@
 import { doc, updateDoc, addDoc, getDocs, collection, query, where, arrayUnion, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { db } from '../firebase';
+import { ymdLocal } from './dates';
 
 // A session whose last_seen is older than this (and has no clock_out) is treated
 // as ended — the user left without logging out.
@@ -75,7 +76,7 @@ export async function closeActiveWorkSession() {
  *  day (left without logging out). Returns the id of a still-live session for
  *  today if one exists (so it can be reused), else null. */
 export async function reconcileOpenSessions(userId) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = ymdLocal(new Date());
   let liveTodayId = null;
   try {
     const snap = await getDocs(query(
@@ -120,7 +121,7 @@ export async function openWorkSession(userId, email, name) {
   }
   const ref = await addDoc(collection(db, 'work_sessions'), {
     user_id: userId, user_email: email || '', user_name: name || '',
-    date: new Date().toISOString().slice(0, 10),
+    date: ymdLocal(new Date()),
     clock_in: serverTimestamp(), clock_out: null, duration_minutes: null,
     last_seen: serverTimestamp(), notes: '',
   });
