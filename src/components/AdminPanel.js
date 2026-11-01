@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  collection, getDocs, doc, updateDoc, deleteDoc,
+  collection, getDocs, getDoc, doc, updateDoc, deleteDoc,
   query, orderBy, serverTimestamp
 } from 'firebase/firestore';
+import { BANKS } from '../banca/core';
 import { db } from '../firebase';
 import { confirmTypedDelete } from '../utils/confirmDelete';
 import { isSessionActive } from '../utils/workSession';
@@ -284,6 +285,9 @@ const CLIENT_IMPORT_COLS = (() => {
 })();
 
 /* Fetch one URL and return ArrayBuffer, or null on failure. */
+// Every collection of a bank module (banca/{bankId}/...) — exported in full by the manual backup.
+const BANCA_COLLS = ['policies', 'txns', 'receipts', 'commissions', 'claims', 'batches', 'files', 'exceptions', 'statements', 'pmf_payments', 'approvals', 'targets', 'signoffs', 'audit'];
+
 async function fetchFile(url) {
   if (!url) return null;
   try {
@@ -930,6 +934,39 @@ const AdminPanel = () => {
         }
       }
 
+      // ── 3c. Bancassurance modules + platform records ─────────────────────
+      // Complete JSON of every bank module (config + all collections + audit) and its
+      // library files. Restorable from the module's Settings → "Restore missing records".
+      const bancaNotes = [];
+      for (const bankId of Object.keys(BANKS)) {
+        try {
+          setBackupState({ step: `Bancassurance (${BANKS[bankId].title})…`, progress: 82, done: false });
+          const cfg = await getDoc(doc(db, 'banca', bankId));
+          const dump = { format: 'insuresaas-banca-backup-v1', bank: bankId, exported_at: new Date().toISOString(), config: cfg.exists() ? cfg.data() : null, collections: {} };
+          let n = 0;
+          for (const c of BANCA_COLLS) {
+            const snap = await getDocs(collection(db, `banca/${bankId}/${c}`));
+            dump.collections[c] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+            n += snap.size;
+          }
+          const bf = masterZip.folder(`bancassurance/${bankId}`);
+          bf.file(`BANCA_${bankId.toUpperCase()}.json`, JSON.stringify(dump, null, 1));
+          for (const f of dump.collections.files) {
+            if (!f.url) continue;
+            const buf = await fetchFile(f.url);
+            if (buf) bf.folder(`library/${f.library || 'other'}`).file(`${f.id}_${String(f.name || 'file').replace(/[^a-zA-Z0-9._ -]/g, '_')}`, buf);
+          }
+          bancaNotes.push(`${BANKS[bankId].title}: ${n} records, ${dump.collections.files.length} library files`);
+        } catch (e) {
+          bancaNotes.push(`${BANKS[bankId].title}: NOT included (${e.code === 'permission-denied' ? 'no access — run the backup as an admin' : e.message})`);
+        }
+      }
+      try {
+        const ps = await getDocs(collection(db, 'platform_ops'));
+        masterZip.file('bancassurance/PLATFORM_OPS.json', JSON.stringify(ps.docs.map(d => ({ ...d.data(), id: d.id })), null, 1));
+        bancaNotes.push(`Platform support records: ${ps.size}`);
+      } catch (_) { bancaNotes.push('Platform support records: NOT included'); }
+
       // ── 4. Root import files ──────────────────────────────────────────────
       setBackupState({ step: 'Building import files…', progress: 83, done: false });
 
@@ -977,6 +1014,10 @@ const AdminPanel = () => {
         '  claim_data.json       → Complete claim including the process tracker and document links',
         '  {Reference}__{step}__{name} → Claim documents; drag these into Claims → Import Documents to restore',
         'bulk_documents/         → All documents flat-named for easy bulk access',
+        'bancassurance/{bank}/BANCA_{BANK}.json → Every Bancassurance record (registers, batches, approvals, statements, audit, settings)',
+        'bancassurance/{bank}/library/ → Insurer statements, payment proofs and claim documents',
+        'bancassurance/PLATFORM_OPS.json → DR tests, issues, incidents, releases, training',
+        ...bancaNotes.map(x => '  ' + x),
         '  {FileNo}_{Name}_{doctype}.{ext}',
         '',
         'RECOVERY STEPS',
@@ -989,6 +1030,8 @@ const AdminPanel = () => {
         '4. Documents:      Already downloaded in each folder. Re-upload to Firebase Storage',
         '                   and update the URLs in each record if needed.',
         '5. Reference:      Use QUOTATIONS_DATA.xlsx for a full formatted quotations summary.',
+        '6. Bancassurance:  open the module → Settings → Restore missing records → choose BANCA_{BANK}.json.',
+        '                   It only adds records that are missing; it never overwrites or deletes anything.',
       ].join('\n'));
 
       // ── 5. Generate final ZIP ─────────────────────────────────────────────

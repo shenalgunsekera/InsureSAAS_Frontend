@@ -34,6 +34,7 @@ const CommissionStructuresPage = lazy(() => import('./pages/CommissionStructures
 const ClaimsPage       = lazy(() => import('./pages/ClaimsPage'));
 const MarketingPage    = lazy(() => import('./pages/MarketingPage'));
 const PortfolioPage    = lazy(() => import('./pages/PortfolioPage'));
+const BancaPage        = lazy(() => import('./banca/BancaPage'));
 
 /* ── MUI theme ───────────────────────────────────────────────────────────── */
 const theme = createTheme({
@@ -154,6 +155,9 @@ const theme = createTheme({
             textTransform: 'uppercase',
             whiteSpace: 'nowrap',
           },
+          // sortable headers: keep the sorted column readable on the dark header
+          '& .MuiTableSortLabel-root:hover, & .MuiTableSortLabel-root.Mui-active': { color: '#FFFFFF' },
+          '& .MuiTableSortLabel-root.Mui-active .MuiTableSortLabel-icon': { color: '#38A3E0' },
         },
       },
     },
@@ -558,6 +562,8 @@ function App() {
                   <Routes>
                     {/* Full-screen operational menu — no sidebar */}
                     <Route path="/menu" element={<OperationalMenu />} />
+                    {/* InsureSAAS Banca — its own full-screen sub-space per bank partner */}
+                    <Route path="/banca/:bankId/:section?" element={<BancaPage />} />
 
                     {/* All other routes use sidebar layout */}
                     <Route path="/*" element={

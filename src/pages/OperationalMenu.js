@@ -23,6 +23,7 @@ const MODULE_ROUTES = {
   commstructures: '/commission-structures',
   marketing:    '/marketing',
   portfolio:    '/portfolio',
+  banca_bank:   '/banca/bank/master',
 };
 
 // Visual colour theme for each module
@@ -36,6 +37,7 @@ const MODULE_COLORS = {
   commstructures:{ grad:'linear-gradient(135deg,#0891b2,#22d3ee)', light:'rgba(8,145,178,0.08)',  border:'rgba(8,145,178,0.18)'   },
   marketing:    { grad:'linear-gradient(135deg,#25D366,#128C7E)',  light:'rgba(37,211,102,0.08)', border:'rgba(37,211,102,0.18)'  },
   portfolio:    { grad:'linear-gradient(135deg,#1D4E96,#2E76C4)', light:'rgba(29,78,150,0.08)',   border:'rgba(29,78,150,0.18)'   },
+  banca_bank:   { grad:'linear-gradient(135deg,#0A1A3E,#255EAB)', light:'rgba(10,26,62,0.08)',    border:'rgba(10,26,62,0.20)'    },
 };
 
 const OperationalMenu = () => {

@@ -29,6 +29,7 @@ import GavelOutlinedIcon from '@mui/icons-material/GavelOutlined';
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined';
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import TrendingDownOutlinedIcon from '@mui/icons-material/TrendingDownOutlined';
+import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined';
 import RaiseTicketModal from './RaiseTicketModal';
 
 const DRAWER_W = 260;
@@ -42,6 +43,7 @@ const navItems = [
   { label: 'Renewals',      path: '/renewals',      icon: <AutorenewIcon />,            mod: 'renewals'     },
   { label: 'Commission Structures', path: '/commission-structures', icon: <TrendingDownOutlinedIcon />, mod: 'commstructures' },
   { label: 'Reports',       path: '/reports',       icon: <BarChartIcon />,             mod: 'reports'      },
+  { label: 'InsureSAAS Banca', path: '/banca/bank/master', icon: <AccountBalanceOutlinedIcon />, mod: 'banca_bank' },
 ];
 
 function NavItem({ item, active, onClick }) {
