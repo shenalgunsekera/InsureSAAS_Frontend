@@ -37,7 +37,7 @@ export function MasterRegister({ openPolicy }) {
     { key: 'policy_no', label: 'Policy No', render: policyLink(openPolicy) }, { key: 'customer', label: 'Name' }, { key: 'insurer', label: 'Insurance Company' }, { key: 'branch', label: 'Branch' }, { key: 'class', label: 'Class' },
     { key: 'facility_no', label: 'Facility No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'pay_type', label: 'Pay Type' },
     { key: 'inception', label: 'Inception' }, { key: 'expiry', label: 'Expiry' }, { key: 'sum_insured', label: 'Sum Insured', type: 'money' },
-    { key: 'net_basic', label: 'Basic', type: 'money', group: 'GWP Data' }, { key: 'net_srcc', label: 'SRCC', type: 'money', group: 'GWP Data' }, { key: 'net_tc', label: 'TC', type: 'money', group: 'GWP Data' }, { key: 'net_total', label: 'Net Premium', type: 'money', group: 'GWP Data' },
+    { key: 'net_basic', label: 'Basic', type: 'money', group: 'GWP Data' }, { key: 'net_srcc', label: 'SRCC', type: 'money', group: 'GWP Data' }, { key: 'net_tc', label: 'TC', type: 'money', group: 'GWP Data' }, { key: 'net_total', label: 'Net Premium', type: 'money', group: 'GWP Data' }, { key: 'gross_premium', label: 'Premium incl. Taxes', type: 'money', group: 'GWP Data' },
     { key: 'paid', label: 'Received', type: 'money', group: 'Payment Data' }, { key: 'outstanding', label: 'Outstanding', type: 'money', group: 'Payment Data' }, { key: 'pay_status', label: 'Status', group: 'Payment Data', render: r => <StatusChip value={r.pay_status} /> },
     { key: 'exp_comm', label: 'Expected', type: 'money', group: 'Commission Data' }, { key: 'comm_received', label: 'Received', type: 'money', group: 'Commission Data' }, { key: 'comm_balance', label: 'Balance', type: 'money', group: 'Commission Data' }, { key: 'comm_status', label: 'Status', group: 'Commission Data', render: r => <StatusChip value={r.comm_status} /> },
     { key: 'pmf_alloc', label: 'Bank Allocation', type: 'money' }, { key: 'pmf_status', label: 'Bank Status', render: r => <StatusChip value={r.pmf_status} /> },
@@ -103,7 +103,7 @@ export function RenewalTracker({ openPolicy }) {
   const rows = useMemo(() => model.policies.filter(p => !p.cancelled && p.days_left !== null && p.days_left >= 0 && p.days_left <= 90), [model]);
   const cols = [
     { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' }, { key: 'expiry', label: 'Expiry Date' },
-    { key: 'days_left', label: 'Days Left', type: 'int' }, { key: 'branch', label: 'Branch' }, { key: 'net_total', label: 'Premium', type: 'money' },
+    { key: 'days_left', label: 'Days Left', type: 'int' }, { key: 'branch', label: 'Branch' }, { key: 'net_total', label: 'Premium', type: 'money' }, { key: 'gross_premium', label: 'Premium incl. Taxes', type: 'money' },
     { key: 'renewal_status', label: 'Status', render: r => <StatusChip value={r.renewal_status} /> },
   ];
   return (<>
@@ -137,7 +137,7 @@ export function OutstandingTracker({ openPolicy }) {
   const cols = [
     { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
     { key: 'outstanding', label: 'Outstanding Amount', type: 'money' }, { key: 'age_days', label: 'No. of Days', type: 'int' }, { key: 'age_bucket', label: 'Bucket' },
-    { key: 'inception', label: 'Commencement' }, { key: 'net_total', label: 'Net Premium', type: 'money' }, { key: 'paid', label: 'Received', type: 'money' }, { key: 'branch', label: 'Branch' },
+    { key: 'inception', label: 'Commencement' }, { key: 'net_total', label: 'Net Premium', type: 'money' }, { key: 'gross_premium', label: 'Premium incl. Taxes', type: 'money' }, { key: 'paid', label: 'Received', type: 'money' }, { key: 'branch', label: 'Branch' },
   ];
   return (<>
     <SectionTitle sub="Outstanding premium = net premium − allocated receipts. No. of days counts from the policy commencement date only (Q18) — there is no due-date option.">Outstanding Tracker</SectionTitle>

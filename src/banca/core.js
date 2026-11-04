@@ -158,7 +158,7 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
   const byId = new Map(policies.map(p => [p.id, p]));
   for (const p of policies) {
     Object.assign(p, { txns: [], receipts: [], comms: [], claims: [], net_basic: 0, net_srcc: 0, net_tc: 0, net_total: 0,
-      gross_total: 0, endo_total: 0, exp_basic: 0, exp_srcc: 0, exp_tc: 0, paid: 0, comm_received: 0, cancelled: false });
+      gross_total: 0, endo_total: 0, gross_premium: null, exp_basic: 0, exp_srcc: 0, exp_tc: 0, paid: 0, comm_received: 0, cancelled: false });
   }
   const txns = (raw.txns || []).filter(live);
   for (const t of txns) {
@@ -166,6 +166,8 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
     p.txns.push(t);
     p.net_basic += num(t.basic); p.net_srcc += num(t.srcc); p.net_tc += num(t.tc); p.net_total += num(t.total);
     if (ORIGINAL_TYPES.has(t.type)) p.gross_total += num(t.total); else p.endo_total += num(t.total);
+    // premium incl. taxes: blank (not 0) until a file supplies it
+    if (t.gross_premium !== undefined && t.gross_premium !== null) p.gross_premium = num(p.gross_premium) + num(t.gross_premium);
     p.exp_basic += num(t.comm_basic); p.exp_srcc += num(t.comm_srcc); p.exp_tc += num(t.comm_tc);
     if (t.type === 'Cancellation') p.cancelled = true;
   }
@@ -226,6 +228,7 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
   for (const p of policies) {
     p.net_basic = round2(p.net_basic); p.net_srcc = round2(p.net_srcc); p.net_tc = round2(p.net_tc); p.net_total = round2(p.net_total);
     p.gross_total = round2(p.gross_total); p.endo_total = round2(p.endo_total);
+    if (p.gross_premium !== null) p.gross_premium = round2(p.gross_premium);
     p.exp_basic = round2(p.exp_basic); p.exp_srcc = round2(p.exp_srcc); p.exp_tc = round2(p.exp_tc);
     p.exp_comm = round2(p.exp_basic + p.exp_srcc + p.exp_tc);
     p.paid = round2(p.paid); p.comm_received = round2(p.comm_received);
