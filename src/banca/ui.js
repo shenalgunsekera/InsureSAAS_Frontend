@@ -127,13 +127,14 @@ export async function exportPdf({ title, bankName, columns, rows, filtersText, f
   pdf.setFontSize(10); pdf.setFont('helvetica', 'normal'); pdf.text(`InsureSAAS Banca — ${title}`, W / 2, 16, { align: 'center' });
   pdf.setTextColor(80, 80, 80); pdf.setFontSize(8);
   pdf.text(`Generated ${new Date().toLocaleString('en-GB')}   ·   Version: ${version || 'Live'}   ·   Filters: ${filtersText || 'None'}`, 8, 28);
-  const cols = columns.filter(c => !c.noExport && !c.noPdf).slice(0, 14);
+  const cols = columns.filter(c => !c.noExport && !c.noPdf).slice(0, 18);
+  const tight = cols.length > 14; // smaller type so the wider reports still fit the page
   const totals = cols.map((c, i) => (i === 0 ? 'TOTAL' : c.type === 'money' ? lkr(rows.reduce((s, r) => s + num(c.exportValue ? c.exportValue(r) : r[c.key]), 0)) : ''));
   autoTable(pdf, {
     startY: 31, head: [cols.map(c => c.label)],
     body: rows.map(r => cols.map(c => fmtCell(c.exportValue ? c.exportValue(r) : r[c.key], c.type))),
     foot: [totals], showFoot: 'lastPage',
-    styles: { fontSize: 7, cellPadding: 1.4 }, headStyles: { fillColor: [37, 94, 171], textColor: 255 }, footStyles: { fillColor: [10, 26, 62], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: tight ? 6 : 7, cellPadding: tight ? 1 : 1.4 }, headStyles: { fillColor: [37, 94, 171], textColor: 255 }, footStyles: { fillColor: [10, 26, 62], textColor: 255, fontStyle: 'bold' },
     columnStyles: Object.fromEntries(cols.map((c, i) => [i, c.type === 'money' || c.type === 'int' ? { halign: 'right' } : {}])),
     didDrawPage: () => { pdf.setFontSize(7); pdf.setTextColor(150); pdf.text(`InsureSAAS Insurance Brokers (Pvt) Ltd · InsureSAAS Banca — Confidential   ·   Page ${pdf.internal.getNumberOfPages()}`, 8, pdf.internal.pageSize.getHeight() - 5); },
   });

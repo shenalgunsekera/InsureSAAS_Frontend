@@ -189,8 +189,9 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
   const claims = (raw.claims || []).filter(live).map(c => {
     const pays = (c.payments || []).filter(x => !x.reversed);
     const paid = round2(pays.reduce((s, x) => s + num(x.amount), 0));
-    const out = { ...c, payments: pays, paid, outstanding_claim: round2(num(c.estimate) - paid) };
-    const p = byId.get(c.policy_id); if (p) p.claims.push(out);
+    const p = byId.get(c.policy_id);
+    const out = { ...c, facility_no: p?.facility_no || '', vehicle_no: p?.vehicle_no || '', payments: pays, paid, outstanding_claim: round2(num(c.estimate) - paid) };
+    if (p) p.claims.push(out);
     return out;
   });
 

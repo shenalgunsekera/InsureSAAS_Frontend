@@ -102,7 +102,7 @@ export function RenewalTracker({ openPolicy }) {
   const { model, bank, config } = useBanca();
   const rows = useMemo(() => model.policies.filter(p => !p.cancelled && p.days_left !== null && p.days_left >= 0 && p.days_left <= 90), [model]);
   const cols = [
-    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' }, { key: 'expiry', label: 'Expiry Date' },
+    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'facility_no', label: 'Facility No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' }, { key: 'expiry', label: 'Expiry Date' },
     { key: 'days_left', label: 'Days Left', type: 'int' }, { key: 'branch', label: 'Branch' }, { key: 'net_total', label: 'Premium', type: 'money' }, { key: 'gross_premium', label: 'Premium incl. Taxes', type: 'money' },
     { key: 'renewal_status', label: 'Status', render: r => <StatusChip value={r.renewal_status} /> },
   ];
@@ -118,7 +118,7 @@ export function CommissionTracker({ openPolicy }) {
   const { model, bank, config } = useBanca();
   const rows = useMemo(() => model.policies.filter(p => p.exp_comm > 0.005 || p.comm_received > 0.005).map(p => ({ ...p, last_comm: [...p.comms].sort((a, b) => String(b.date).localeCompare(String(a.date)))[0]?.date || '' })), [model]);
   const cols = [
-    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
+    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'facility_no', label: 'Facility No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
     { key: 'exp_comm', label: 'Commission Due', type: 'money' }, { key: 'comm_received', label: 'Commission Amount Received', type: 'money' }, { key: 'last_comm', label: 'Date Received' },
     { key: 'comm_balance', label: 'Balance', type: 'money' }, { key: 'comm_status', label: 'Status', render: r => <StatusChip value={r.comm_status} /> }, { key: 'branch', label: 'Branch' },
   ];
@@ -135,7 +135,7 @@ export function OutstandingTracker({ openPolicy }) {
   const rows = useMemo(() => model.policies.filter(p => p.outstanding > 0.005), [model]);
   const byBucket = AGE_BUCKETS.map(b => ({ b, n: rows.filter(r => r.age_bucket === b).length, v: round2(rows.filter(r => r.age_bucket === b).reduce((s, r) => s + r.outstanding, 0)) }));
   const cols = [
-    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
+    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'facility_no', label: 'Facility No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
     { key: 'outstanding', label: 'Outstanding Amount', type: 'money' }, { key: 'age_days', label: 'No. of Days', type: 'int' }, { key: 'age_bucket', label: 'Bucket' },
     { key: 'inception', label: 'Commencement' }, { key: 'net_total', label: 'Net Premium', type: 'money' }, { key: 'paid', label: 'Received', type: 'money' }, { key: 'branch', label: 'Branch' },
   ];
@@ -154,7 +154,7 @@ export function ExpiredTracker({ openPolicy }) {
   const { model, bank, config } = useBanca();
   const rows = useMemo(() => model.policies.filter(p => !p.cancelled && !p.renewed_by && p.days_left !== null && p.days_left < 0).map(p => ({ ...p, since: -p.days_left, bucket: expiryBucket(-p.days_left) })), [model]);
   const cols = [
-    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
+    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'facility_no', label: 'Facility No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
     { key: 'renewal_status', label: 'Policy Status', render: r => <StatusChip value={r.renewal_status} /> }, { key: 'since', label: 'No. of Days', type: 'int' }, { key: 'bucket', label: 'Bucket' },
     { key: 'expiry', label: 'Expired On' }, { key: 'net_total', label: 'Expiring Premium', type: 'money' }, { key: 'branch', label: 'Branch' },
   ];
@@ -170,7 +170,7 @@ export function CommissionSplit({ openPolicy }) {
   const rows = useMemo(() => model.policies.filter(p => p.exp_comm > 0.005 || p.comm_received > 0.005), [model]);
   const sum = (f) => round2(rows.reduce((s, r) => s + f(r), 0));
   const cols = [
-    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' },
+    { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'facility_no', label: 'Facility No' }, { key: 'class', label: 'Product' },
     { key: 'comm_received', label: 'Total Commission', type: 'money' }, { key: 'pmf_alloc', label: 'Bank Commission', type: 'money' }, { key: 'broker_share', label: 'InsureSAAS Commission', type: 'money' },
     { key: 'net_basic', label: 'Net Basic (Bank base)', type: 'money' }, { key: 'exp_comm', label: 'Expected Commission', type: 'money' },
     { key: 'pmf_status', label: 'Bank Status', render: r => <StatusChip value={r.pmf_status} /> }, { key: 'pmf_paid', label: 'Bank Paid', type: 'money' }, { key: 'pmf_due', label: 'Bank Outstanding', type: 'money' }, { key: 'insurer', label: 'Insurer' }, { key: 'branch', label: 'Branch' },
@@ -254,7 +254,7 @@ export function ClaimsTracker({ openPolicy, goUpload }) {
   const rows = useMemo(() => withCustom(model.claims).map(c => ({ ...c, payees: [...new Set((c.payments || []).map(p => p.payee).filter(Boolean))].join(', ') })), [model]);
   const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))].sort();
   const cols = [
-    { key: 'claim_ref', label: 'Claim Ref ID' }, { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product / Class' },
+    { key: 'claim_ref', label: 'Claim Ref ID' }, { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'vehicle_no', label: 'Vehicle Reg No' }, { key: 'facility_no', label: 'Facility No' }, { key: 'class', label: 'Product / Class' },
     { key: 'incident_date', label: 'Incident Date' }, { key: 'cause', label: 'Cause of Loss' }, { key: 'description', label: 'Description', wrap: true }, { key: 'estimate', label: 'Estimated Loss', type: 'money' },
     { key: 'status', label: 'Status', render: r => <StatusChip value={r.status} /> }, { key: 'paid', label: 'Settlement Amount', type: 'money' }, { key: 'outstanding_claim', label: 'Outstanding', type: 'money' },
     { key: 'intimation_date', label: 'Intimation' }, { key: 'payees', label: 'Payee' }, { key: 'rejection_reason', label: 'Rejection Reason' }, { key: 'insurer', label: 'Insurer' }, { key: 'branch', label: 'Branch' },
