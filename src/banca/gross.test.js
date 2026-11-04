@@ -16,8 +16,20 @@ test('blank when no file supplied it, but a real zero stays zero', () => {
   expect(g.A).toBeNull();
   expect(g.B).toBe(0);
 });
-test('does not change what is owed', () => {
-  const m = buildModel({ policies: [policy('A')], txns: [txn('1', 'A', 'New', 100, { gross_premium: 120 })], receipts: [{ id: 'r', policy_id: 'A', amount: 100, type: 'Receipt' }], commissions: [], claims: [] }, DEFAULT_CONFIG, '2026-11-04');
-  expect(m.policies[0].outstanding).toBe(0);
-  expect(m.policies[0].pay_status).toBe('Paid');
+const owed = (txns, amount) => buildModel({ policies: [policy('A')], txns, receipts: amount ? [{ id: 'r', policy_id: 'A', amount, type: 'Receipt' }] : [], commissions: [], claims: [] }, DEFAULT_CONFIG, '2026-11-04').policies[0];
+test('what is owed is the premium incl. taxes', () => {
+  const t = [txn('1', 'A', 'New', 100, { gross_premium: 120 })];
+  expect(owed(t).outstanding).toBe(120);
+  expect(owed(t).pay_status).toBe('Unpaid');
+  expect(owed(t, 100).outstanding).toBe(20);
+  expect(owed(t, 100).pay_status).toBe('Part paid');
+  expect(owed(t, 120).pay_status).toBe('Paid');
+  expect(owed(t, 130).pay_status).toBe('Overpaid');
+});
+test('falls back to Total Premium, row by row, where a file gave no taxes figure', () => {
+  expect(owed([txn('1', 'A', 'New', 100)]).outstanding).toBe(100);
+  expect(owed([txn('1', 'A', 'New', 100, { gross_premium: 120 }), txn('2', 'A', 'Endorsement', 10)]).outstanding).toBe(130);
+});
+test('a cancellation with taxes reduces what is owed', () => {
+  expect(owed([txn('1', 'A', 'New', 100, { gross_premium: 120 }), txn('2', 'A', 'Cancellation', -70, { gross_premium: -84 })], 36).pay_status).toBe('Paid');
 });

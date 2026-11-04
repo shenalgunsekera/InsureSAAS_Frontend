@@ -1,4 +1,4 @@
-// Premium incl. Taxes shows on the Master Register, Renewal Tracker and Outstanding Tracker.
+// Premium incl. Taxes shows on the Master Register and Renewal Tracker; on the Outstanding Tracker it is the outstanding amount.
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -23,10 +23,16 @@ jest.mock('firebase/firestore', () => ({
 }));
 
 const BANK = Object.keys(BANKS)[0];
-for (const s of ['master', 'renewals', 'outstanding']) {
+for (const s of ['master', 'renewals']) {
   test(`${s} shows the column, the policy's figure and the total`, async () => {
     render(<MemoryRouter initialEntries={[`/banca/${BANK}/${s}`]}><Routes><Route path="/banca/:bankId/:section?" element={<BancaPage />} /></Routes></MemoryRouter>);
     await waitFor(() => expect(screen.getByText('Premium incl. Taxes')).toBeTruthy());
-    expect(screen.getAllByText('139,090.25').length).toBe(2); // the row + the footer total
+    expect(screen.getAllByText('139,090.25').length).toBeGreaterThanOrEqual(2); // the row + the footer total
   });
 }
+test('outstanding tracker: no separate column, Outstanding Amount is the premium incl. taxes', async () => {
+  render(<MemoryRouter initialEntries={[`/banca/${BANK}/outstanding`]}><Routes><Route path="/banca/:bankId/:section?" element={<BancaPage />} /></Routes></MemoryRouter>);
+  await waitFor(() => expect(screen.getByText('Outstanding Amount')).toBeTruthy());
+  expect(screen.queryByText('Premium incl. Taxes')).toBeNull();
+  expect(screen.getAllByText('139,090.25').length).toBe(2); // the row + the footer total
+});

@@ -137,10 +137,10 @@ export function OutstandingTracker({ openPolicy }) {
   const cols = [
     { key: 'customer', label: 'Client Name' }, { key: 'policy_no', label: 'Policy No' }, { key: 'class', label: 'Product' }, { key: 'insurer', label: 'Insurer' },
     { key: 'outstanding', label: 'Outstanding Amount', type: 'money' }, { key: 'age_days', label: 'No. of Days', type: 'int' }, { key: 'age_bucket', label: 'Bucket' },
-    { key: 'inception', label: 'Commencement' }, { key: 'net_total', label: 'Net Premium', type: 'money' }, { key: 'gross_premium', label: 'Premium incl. Taxes', type: 'money' }, { key: 'paid', label: 'Received', type: 'money' }, { key: 'branch', label: 'Branch' },
+    { key: 'inception', label: 'Commencement' }, { key: 'net_total', label: 'Net Premium', type: 'money' }, { key: 'paid', label: 'Received', type: 'money' }, { key: 'branch', label: 'Branch' },
   ];
   return (<>
-    <SectionTitle sub="Outstanding premium = net premium − allocated receipts. No. of days counts from the policy commencement date only (Q18) — there is no due-date option.">Outstanding Tracker</SectionTitle>
+    <SectionTitle sub="Outstanding premium = premium including taxes − allocated receipts. No. of days counts from the policy commencement date only (Q18) — there is no due-date option.">Outstanding Tracker</SectionTitle>
     <Stack direction="row" spacing={1.2} useFlexGap flexWrap="wrap" sx={{ mb: 1.5 }}>
       {byBucket.map(x => <Kpi key={x.b} label={`${x.b} days`} value={`LKR ${lkr(x.v)}`} sub={`${x.n} polic${x.n === 1 ? 'y' : 'ies'}`} color={x.b === '90+' ? T.danger : undefined} />)}
       <Kpi label="Grand total" value={`LKR ${lkr(byBucket.reduce((s, x) => s + x.v, 0))}`} sub={`${rows.length} policies`} />

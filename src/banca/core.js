@@ -3,7 +3,7 @@
 //   GWP month = inception month (original/renewal) or effective-date month (endorsement etc.); upload date never used (BRU-01)
 //   A renewal is a new policy period even with the same insurer policy number (BRU-02)
 //   Net premium = signed sum of all non-reversed transactions (BRU-03)
-//   Outstanding = net premium − allocated receipts; ages from COMMENCEMENT date only (BRU-04, Q18)
+//   Outstanding = premium incl. taxes (Total Premium where a file doesn't supply it) − allocated receipts; ages from COMMENCEMENT date only (BRU-04, Q18)
 //   Expected commission per component from the versioned rate schedule unless the file supplies it (BRU-05)
 //   Bank allocation = Bank % × net BASIC premium; payable only when the whole policy commission is received (BRU-06)
 //   InsureSAAS share = commission received − Bank allocation (decision D6, configurable later)
@@ -158,7 +158,7 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
   const byId = new Map(policies.map(p => [p.id, p]));
   for (const p of policies) {
     Object.assign(p, { txns: [], receipts: [], comms: [], claims: [], net_basic: 0, net_srcc: 0, net_tc: 0, net_total: 0,
-      gross_total: 0, endo_total: 0, gross_premium: null, exp_basic: 0, exp_srcc: 0, exp_tc: 0, paid: 0, comm_received: 0, cancelled: false });
+      gross_total: 0, endo_total: 0, gross_premium: null, payable: 0, exp_basic: 0, exp_srcc: 0, exp_tc: 0, paid: 0, comm_received: 0, cancelled: false });
   }
   const txns = (raw.txns || []).filter(live);
   for (const t of txns) {
@@ -167,7 +167,9 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
     p.net_basic += num(t.basic); p.net_srcc += num(t.srcc); p.net_tc += num(t.tc); p.net_total += num(t.total);
     if (ORIGINAL_TYPES.has(t.type)) p.gross_total += num(t.total); else p.endo_total += num(t.total);
     // premium incl. taxes: blank (not 0) until a file supplies it
-    if (t.gross_premium !== undefined && t.gross_premium !== null) p.gross_premium = num(p.gross_premium) + num(t.gross_premium);
+    const hasGross = t.gross_premium !== undefined && t.gross_premium !== null;
+    if (hasGross) p.gross_premium = num(p.gross_premium) + num(t.gross_premium);
+    p.payable += num(hasGross ? t.gross_premium : t.total);
     p.exp_basic += num(t.comm_basic); p.exp_srcc += num(t.comm_srcc); p.exp_tc += num(t.comm_tc);
     if (t.type === 'Cancellation') p.cancelled = true;
   }
@@ -229,11 +231,12 @@ export function buildModel(raw, config = DEFAULT_CONFIG, today = todayYmd()) {
     p.net_basic = round2(p.net_basic); p.net_srcc = round2(p.net_srcc); p.net_tc = round2(p.net_tc); p.net_total = round2(p.net_total);
     p.gross_total = round2(p.gross_total); p.endo_total = round2(p.endo_total);
     if (p.gross_premium !== null) p.gross_premium = round2(p.gross_premium);
+    p.payable = round2(p.payable);
     p.exp_basic = round2(p.exp_basic); p.exp_srcc = round2(p.exp_srcc); p.exp_tc = round2(p.exp_tc);
     p.exp_comm = round2(p.exp_basic + p.exp_srcc + p.exp_tc);
     p.paid = round2(p.paid); p.comm_received = round2(p.comm_received);
-    p.outstanding = round2(p.net_total - p.paid);
-    p.pay_status = p.net_total <= 0 && p.paid === 0 ? 'Nil' : p.outstanding <= 0.005 ? (p.outstanding < -0.005 ? 'Overpaid' : 'Paid') : p.paid > 0.005 ? 'Part paid' : 'Unpaid';
+    p.outstanding = round2(p.payable - p.paid);
+    p.pay_status = p.payable <= 0 && p.paid === 0 ? 'Nil' : p.outstanding <= 0.005 ? (p.outstanding < -0.005 ? 'Overpaid' : 'Paid') : p.paid > 0.005 ? 'Part paid' : 'Unpaid';
     p.comm_balance = round2(p.exp_comm - p.comm_received);
     p.comm_status = p.exp_comm <= 0.005 && p.comm_received <= 0.005 ? 'Not due'
       : p.comm_received >= p.exp_comm - tol ? (p.comm_received > p.exp_comm + tol ? 'Over received' : 'Fully received')
@@ -321,7 +324,7 @@ export function reconciliation(model, unmatched = []) {
   const P = model.policies;
   const s = (f) => round2(P.reduce((a, p) => a + f(p), 0));
   return [
-    { stage: 'GWP → premium receipts', expected: s(p => p.net_total), actual: s(p => p.paid), unmatched: round2(unmatched.filter(e => e.kind === 'receipt').reduce((a, e) => a + num(e.amount), 0)) },
+    { stage: 'GWP → premium receipts', expected: s(p => p.payable), actual: s(p => p.paid), unmatched: round2(unmatched.filter(e => e.kind === 'receipt').reduce((a, e) => a + num(e.amount), 0)) },
     { stage: 'Expected → received commission', expected: s(p => p.exp_comm), actual: s(p => p.comm_received), unmatched: round2(unmatched.filter(e => e.kind === 'commission').reduce((a, e) => a + num(e.amount), 0)) },
     { stage: 'Bank payable → Bank paid', expected: s(p => (p.pmf_eligible ? p.pmf_alloc : 0)), actual: s(p => p.pmf_paid), unmatched: 0 },
     { stage: 'Outstanding (policy level)', expected: s(p => Math.max(0, p.outstanding)), actual: 0, unmatched: 0 },
